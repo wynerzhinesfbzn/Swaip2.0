@@ -11,6 +11,7 @@ export const broadcastsTable = pgTable("broadcasts", {
   imageUrl:   text("image_url"),
   videoUrl:   text("video_url"),
   docUrls:    text("doc_urls"),
+  meta:       text("meta"),
   createdAt:  timestamp("created_at").defaultNow(),
   viewCount:  integer("view_count").default(0),
 });

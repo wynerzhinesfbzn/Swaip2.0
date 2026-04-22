@@ -1284,6 +1284,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
         likes:(b.reactions||[]).reduce((s:number,r:any)=>s+r.count,0),
         liked:(b.myReactions||[]).length>0,comments:b.commentCount||0,
         ts:b.createdAt?fmtTsGlobal(b.createdAt):'давно',
+        ...(b.hasBooking?{hasBooking:true,bookingLabel:b.bookingLabel||'Записаться',bookingSlots:Array.isArray(b.bookingSlots)?b.bookingSlots:[]}:{}),
       }));
       const proPosts:any[]=Array.isArray(jp(raw.pro_posts))?jp(raw.pro_posts):[];
       const localPosts:Post[]=proPosts.map((p:any,i:number)=>({
@@ -2755,7 +2756,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         if(!data||!data.length){setPosts(INIT_POSTS);return;}
         const now=Date.now();
         const fmtTs=(iso:string)=>{const d=new Date(iso);const s=(now-d.getTime())/1000;if(s<60)return'только что';if(s<3600)return`${Math.floor(s/60)} мин назад`;if(s<86400)return`${Math.floor(s/3600)} ч назад`;if(s<604800)return`${Math.floor(s/86400)} дн назад`;return d.toLocaleDateString('ru');};
-        setPosts(data.map((b:any)=>({id:String(b.id),text:b.content||'',img:b.imageUrl||undefined,videoUrl:b.videoUrl||undefined,audioUrl:b.audioUrl||undefined,docUrls:b.docUrls||undefined,likes:(b.reactions||[]).reduce((s:number,r:any)=>s+r.count,0),liked:(b.myReactions||[]).length>0,comments:b.commentCount||0,ts:fmtTs(b.createdAt)})));
+        setPosts(data.map((b:any)=>({id:String(b.id),text:b.content||'',img:b.imageUrl||undefined,videoUrl:b.videoUrl||undefined,audioUrl:b.audioUrl||undefined,docUrls:b.docUrls||undefined,likes:(b.reactions||[]).reduce((s:number,r:any)=>s+r.count,0),liked:(b.myReactions||[]).length>0,comments:b.commentCount||0,ts:fmtTs(b.createdAt),...(b.hasBooking?{hasBooking:true,bookingLabel:b.bookingLabel||'Записаться',bookingSlots:Array.isArray(b.bookingSlots)?b.bookingSlots:[]}:{})})));
       }).catch(()=>{setPosts(INIT_POSTS);});
   },[]);
   const [draft,setDraft]=useState('');
@@ -7312,7 +7313,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
       try{
         const r=await fetch(`${window.location.origin}/api/broadcasts`,{
           method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},
-          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...(musUrl?{audioUrl:musUrl}:{})}),
+          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...(musUrl?{audioUrl:musUrl}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{})}),
         });
         if(r.ok){const created=await r.json().catch(()=>null);setOpen(false);reset();onPostCreated({...postData,...created});return;}
       }catch{}

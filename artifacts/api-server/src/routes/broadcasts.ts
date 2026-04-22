@@ -180,15 +180,19 @@ router.get("/broadcasts", async (req, res) => {
       }
     }
 
-    const result = rows.map(b => ({
-      ...b,
-      docUrls: parseDocUrls(b.docUrls),
-      reactions:    reactByPost.get(b.id)   || [],
-      myReactions:  myReactByPost.get(b.id) || [],
-      commentCount: cntByPost.get(b.id)     ?? 0,
-      author:       resolveAuthor(b.authorHash, b.authorMode),
-      ...(includeComments ? { comments: cmtsByPost.get(b.id) || [] } : {}),
-    }));
+    const result = rows.map(b => {
+      const parsedMeta = b.meta ? (() => { try { return JSON.parse(b.meta!); } catch { return null; } })() : null;
+      return {
+        ...b,
+        docUrls: parseDocUrls(b.docUrls),
+        reactions:    reactByPost.get(b.id)   || [],
+        myReactions:  myReactByPost.get(b.id) || [],
+        commentCount: cntByPost.get(b.id)     ?? 0,
+        author:       resolveAuthor(b.authorHash, b.authorMode),
+        ...(parsedMeta || {}),
+        ...(includeComments ? { comments: cmtsByPost.get(b.id) || [] } : {}),
+      };
+    });
 
     res.json(result);
   } catch (err) {
@@ -266,10 +270,12 @@ router.get("/broadcasts/:id", async (req, res) => {
 router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"]), async (req, res) => {
   try {
     const userHash = (req as any).userHash as string;
-    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}> };
+    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[] };
     const hasDocUrls = docUrls && docUrls.length > 0;
-    if (!content?.trim() && !audioUrl && !imageUrl && !videoUrl && !hasDocUrls) { res.status(400).json({ error: 'content required' }); return; }
+    if (!content?.trim() && !audioUrl && !imageUrl && !videoUrl && !hasDocUrls && !hasBooking) { res.status(400).json({ error: 'content required' }); return; }
     if (!['pro', 'scene', 'krug', 'ether'].includes(authorMode)) { res.status(400).json({ error: 'invalid mode' }); return; }
+
+    const metaObj = hasBooking ? { hasBooking: true, bookingLabel: bookingLabel || 'Записаться', bookingSlots: Array.isArray(bookingSlots) ? bookingSlots : [] } : null;
 
     const rows = await db.insert(broadcastsTable).values({
       authorHash: userHash,
@@ -279,11 +285,13 @@ router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"
       imageUrl: imageUrl || null,
       videoUrl: videoUrl || null,
       docUrls: hasDocUrls ? JSON.stringify(docUrls) : null,
+      meta: metaObj ? JSON.stringify(metaObj) : null,
     }).returning();
 
     const b = rows[0];
+    const parsedMeta = b.meta ? JSON.parse(b.meta) : null;
     const authorInfo = await getAuthorInfo(userHash, authorMode);
-    res.json({ ...b, docUrls: b.docUrls ? JSON.parse(b.docUrls) : null, reactions: [], commentCount: 0, myReactions: [], author: authorInfo });
+    res.json({ ...b, docUrls: b.docUrls ? JSON.parse(b.docUrls) : null, ...(parsedMeta || {}), reactions: [], commentCount: 0, myReactions: [], author: authorInfo });
   } catch (err) {
     res.status(500).json({ error: 'internal' });
   }
