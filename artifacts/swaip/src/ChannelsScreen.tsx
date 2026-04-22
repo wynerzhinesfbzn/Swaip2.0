@@ -816,6 +816,16 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
 /* ══════════════════════════════════════════════════════
    КАРТОЧКА ПОСТА
 ══════════════════════════════════════════════════════ */
+function fmtChSlot(slot:string):string{
+  try{
+    const d=new Date(slot.replace(' ','T'));
+    const days=['в воскресенье','в понедельник','во вторник','в среду','в четверг','в пятницу','в субботу'];
+    const mons=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    const time=(slot.split(' ')[1]||'').substring(0,5);
+    const full=`${days[d.getDay()]}, ${d.getDate()} ${mons[d.getMonth()]} в ${time}`;
+    return full.split(',')[1]?.trim()||full;
+  }catch{return slot;}
+}
 const CH_QUICK_TIMES=['9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
 
 function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDelete,onBook,onEditBooking}:{
@@ -831,6 +841,10 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
   const [bookSlotsDraft,setBookSlotsDraft]=useState<{time:string;booked:boolean}[]>(post.bookingSlots||[]);
   const [bookTimeInput,setBookTimeInput]=useState('');
   const [bookedTime,setBookedTime]=useState<string|null>(null);
+  const [showBookForm,setShowBookForm]=useState(false);
+  const [bookFormSlot,setBookFormSlot]=useState('');
+  const [bookFormName,setBookFormName]=useState('');
+  const [bookFormPhone,setBookFormPhone]=useState('');
   const isPinned=ch.pinnedPostId===post.id;
   const score=calcPostScore(post.reactions);
   const slots=post.bookingSlots||[];
@@ -986,35 +1000,37 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
                         background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
                   </div>
                   <div>
-                    <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Слоты (нажми для добавления):</p>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:6}}>
-                      {CH_QUICK_TIMES.map(t=>{
-                        const sel=bookSlotsDraft.some(s=>s.time===t);
-                        return <button key={t} onClick={()=>sel?setBookSlotsDraft(d=>d.filter(s=>s.time!==t)):setBookSlotsDraft(d=>[...d,{time:t,booked:false}])}
-                          style={{padding:'4px 10px',borderRadius:14,fontSize:11,fontWeight:700,cursor:'pointer',border:'none',
-                            background:sel?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.08)',
-                            color:sel?'#34d399':'rgba(255,255,255,0.55)'}}>
-                          {sel?'✓ ':''}{t}
-                        </button>;
-                      })}
-                    </div>
-                    <div style={{display:'flex',gap:6}}>
-                      <input value={bookTimeInput} onChange={e=>setBookTimeInput(e.target.value)}
-                        placeholder="Своё время: 8:30"
-                        style={{flex:1,padding:'6px 10px',borderRadius:8,background:c.bg,
-                          border:`1px solid ${c.border}`,color:c.light,fontSize:12,outline:'none'}}/>
-                      <button onClick={()=>{if(bookTimeInput.trim()){setBookSlotsDraft(d=>[...d,{time:bookTimeInput.trim(),booked:false}]);setBookTimeInput('');}}}
-                        style={{padding:'6px 12px',borderRadius:8,border:'none',background:'rgba(16,185,129,0.25)',
-                          color:'#34d399',fontSize:12,fontWeight:700,cursor:'pointer'}}>+</button>
+                    <p style={{margin:'0 0 6px',fontSize:11,color:c.sub}}>📅 Слоты для записи:</p>
+                    <div style={{display:'flex',gap:6,alignItems:'flex-end',flexWrap:'wrap',marginBottom:6}}>
+                      <div style={{flex:'1 1 120px'}}>
+                        <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginBottom:3}}>Дата</div>
+                        <input type="date" value={bookTimeInput.split(' ')[0]||''} min={new Date().toISOString().split('T')[0]}
+                          onChange={e=>{const t=bookTimeInput.split(' ')[1]||'';setBookTimeInput(e.target.value+(t?' '+t:''));}}
+                          style={{width:'100%',boxSizing:'border-box',padding:'7px 8px',borderRadius:8,
+                            background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:11,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+                      </div>
+                      <div style={{flex:'1 1 80px'}}>
+                        <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginBottom:3}}>Время</div>
+                        <input type="time" value={bookTimeInput.split(' ')[1]||''}
+                          onChange={e=>{const d=bookTimeInput.split(' ')[0]||'';setBookTimeInput(d?d+' '+e.target.value:e.target.value);}}
+                          style={{width:'100%',boxSizing:'border-box',padding:'7px 8px',borderRadius:8,
+                            background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:11,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+                      </div>
+                      <button onClick={()=>{const v=bookTimeInput.trim();if(!v||!v.includes(' '))return;setBookSlotsDraft(d=>[...d,{time:v,booked:false}].sort((a,b)=>a.time.localeCompare(b.time)));setBookTimeInput('');}}
+                        style={{padding:'7px 10px',borderRadius:8,border:'1px solid rgba(59,130,246,0.4)',
+                          background:'rgba(59,130,246,0.15)',color:'#93c5fd',fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,alignSelf:'flex-end'}}>
+                        + Слот
+                      </button>
                     </div>
                     {bookSlotsDraft.length>0&&(
-                      <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
                         {bookSlotsDraft.map(s=>(
-                          <div key={s.time} style={{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:12,
-                            background:'rgba(16,185,129,0.15)',border:'1px solid rgba(16,185,129,0.3)'}}>
-                            <span style={{fontSize:11,color:'#34d399',fontWeight:700}}>🕐 {s.time}</span>
+                          <div key={s.time} style={{display:'flex',alignItems:'center',gap:3,
+                            background:'rgba(59,130,246,0.1)',border:'1px solid rgba(59,130,246,0.25)',
+                            borderRadius:20,padding:'3px 8px'}}>
+                            <span style={{fontSize:10,color:'#93c5fd',fontWeight:600}}>🟢 {fmtChSlot(s.time)}</span>
                             <button onClick={()=>setBookSlotsDraft(d=>d.filter(x=>x.time!==s.time))}
-                              style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:0,fontSize:11}}>✕</button>
+                              style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:0,fontSize:10}}>✕</button>
                           </div>
                         ))}
                       </div>
@@ -1041,60 +1057,103 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
             )}
           </AnimatePresence>
 
-          {/* Блок со слотами */}
-          <div style={{padding:'10px 12px',borderRadius:12,background:`${ch.vibeColor}0d`,border:`1px solid ${ch.vibeColor}33`}}>
+          {/* Блок со слотами — стиль прайс-листа */}
+          <motion.div style={{background:'linear-gradient(135deg,rgba(29,78,216,0.13),rgba(124,58,237,0.09))',
+            border:'1px solid rgba(99,102,241,0.28)',borderRadius:18,padding:'14px',overflow:'hidden'}}>
             {/* Заголовок */}
-            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
-              <div style={{display:'flex',gap:1}}>
-                {[0,1].map(i=><motion.span key={i} style={{fontSize:11,color:ch.vibeColor}}
-                  animate={{x:[2,0,2],opacity:[0.3,1,0.3]}}
-                  transition={{repeat:Infinity,duration:1.1,delay:i*0.22}}>→</motion.span>)}
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:slots.length>0&&!bookedTime&&!showBookForm?10:0}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:800,color:'#fff'}}>{post.bookingLabel||'Записаться'}</div>
+                {slots.length>0&&<div style={{fontSize:11,color:'rgba(255,255,255,0.45)',marginTop:2}}>
+                  {freeSlots.length} слот{freeSlots.length===1?'':'ов'} свободно
+                </div>}
               </div>
-              <span style={{fontSize:13,fontWeight:800,color:ch.vibeColor,flex:1,textAlign:'center'}}>{post.bookingLabel||'Записаться'}</span>
-              <div style={{display:'flex',gap:1,transform:'scaleX(-1)'}}>
-                {[0,1].map(i=><motion.span key={i} style={{fontSize:11,color:ch.vibeColor}}
-                  animate={{x:[2,0,2],opacity:[0.3,1,0.3]}}
-                  transition={{repeat:Infinity,duration:1.1,delay:i*0.22}}>→</motion.span>)}
-              </div>
+              {!bookedTime&&!showBookForm&&(
+                <motion.div whileTap={{scale:0.93}} onClick={()=>{setBookFormSlot('');setShowBookForm(true);}}
+                  style={{background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',borderRadius:10,
+                    padding:'8px 14px',fontSize:12,fontWeight:800,color:'#fff',cursor:'pointer',flexShrink:0}}>
+                  Записаться →
+                </motion.div>
+              )}
             </div>
-            {bookedTime?(
-              <motion.div initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}
-                style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'10px'}}>
-                <span style={{fontSize:22}}>✅</span>
-                <span style={{fontSize:13,fontWeight:800,color:'#34d399'}}>Вы записаны!</span>
-                <span style={{fontSize:11,color:c.sub}}>Время: <strong style={{color:ch.vibeColor}}>{bookedTime}</strong></span>
-              </motion.div>
-            ):slots.length>0?(
-              <div style={{display:'flex',flexWrap:'wrap',gap:6,justifyContent:'center'}}>
-                {slots.map(s=>(
-                  <motion.button key={s.time} whileTap={s.booked?{}:{scale:0.92}}
-                    onClick={()=>{if(s.booked)return;setBookedTime(s.time);onBook(s.time);}}
-                    style={{padding:'7px 14px',borderRadius:20,
-                      border:`1.5px solid ${s.booked?'rgba(255,255,255,0.1)':ch.vibeColor+'66'}`,
-                      background:s.booked?'rgba(255,255,255,0.04)':`${ch.vibeColor}18`,
-                      color:s.booked?c.sub:ch.vibeColor,fontSize:12,fontWeight:700,
-                      cursor:s.booked?'default':'pointer',
-                      textDecoration:s.booked?'line-through':'none',opacity:s.booked?0.45:1}}>
-                    {s.booked?'🔒 ':''}{s.time}
-                  </motion.button>
+            {/* Зелёные чипы как в прайсе */}
+            {slots.length>0&&!bookedTime&&!showBookForm&&(
+              <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                {slots.slice(0,3).map(s=>(
+                  <div key={s.time} onClick={()=>{if(s.booked)return;setBookFormSlot(s.time);setShowBookForm(true);}}
+                    style={{background:s.booked?'rgba(239,68,68,0.1)':'rgba(34,197,94,0.1)',
+                      border:`1px solid ${s.booked?'rgba(239,68,68,0.25)':'rgba(34,197,94,0.25)'}`,
+                      borderRadius:8,padding:'4px 10px',fontSize:11,fontWeight:600,
+                      color:s.booked?'#f87171':'#4ade80',cursor:s.booked?'default':'pointer'}}>
+                    📅 {s.booked?'🔒 ':''}{fmtChSlot(s.time)}
+                  </div>
                 ))}
+                {slots.length>3&&(
+                  <div style={{background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'4px 10px',
+                    fontSize:11,color:'rgba(255,255,255,0.4)'}}>
+                    +{slots.length-3} ещё
+                  </div>
+                )}
               </div>
-            ):(
-              <motion.button whileTap={{scale:0.92}} onClick={()=>{setBookedTime('✓');onBook(undefined);}}
-                style={{display:'flex',alignItems:'center',gap:7,padding:'10px 24px',borderRadius:24,
-                  border:'none',cursor:'pointer',width:'100%',justifyContent:'center',
-                  background:`linear-gradient(135deg,${ch.vibeColor}ee,${accent}cc)`,
-                  color:'#fff',boxShadow:`0 3px 16px ${ch.vibeColor}44`,fontSize:14,fontWeight:800}}>
-                <motion.span animate={{y:[0,-2,0]}} transition={{repeat:Infinity,duration:1.4}}>📅</motion.span>
-                {post.bookingLabel||'Записаться'}
-              </motion.button>
             )}
-            {slots.length>0&&!bookedTime&&(
-              <p style={{margin:'6px 0 0',textAlign:'center',fontSize:10,color:c.sub}}>
-                Свободно: <strong style={{color:ch.vibeColor}}>{freeSlots.length}</strong> из <strong>{slots.length}</strong>
-              </p>
+            {/* Форма */}
+            {showBookForm&&!bookedTime&&(
+              <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}}
+                style={{marginTop:10,display:'flex',flexDirection:'column',gap:8}}>
+                {slots.length>0&&(
+                  <div>
+                    <div style={{fontSize:11,color:'rgba(255,255,255,0.45)',marginBottom:5}}>Выберите время:</div>
+                    <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                      {slots.filter(s=>!s.booked).map(s=>(
+                        <div key={s.time} onClick={()=>setBookFormSlot(s.time)}
+                          style={{background:bookFormSlot===s.time?'rgba(34,197,94,0.25)':'rgba(34,197,94,0.08)',
+                            border:`1.5px solid ${bookFormSlot===s.time?'rgba(34,197,94,0.7)':'rgba(34,197,94,0.2)'}`,
+                            borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:700,
+                            color:'#4ade80',cursor:'pointer',transition:'all 0.15s'}}>
+                          📅 {fmtChSlot(s.time)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <input value={bookFormName} onChange={e=>setBookFormName(e.target.value)}
+                  placeholder="Ваше имя *"
+                  style={{padding:'9px 12px',borderRadius:10,background:'rgba(255,255,255,0.07)',
+                    border:'1px solid rgba(255,255,255,0.12)',color:'#fff',fontSize:13,outline:'none'}}/>
+                <input value={bookFormPhone} onChange={e=>setBookFormPhone(e.target.value)}
+                  placeholder="Телефон *" type="tel"
+                  style={{padding:'9px 12px',borderRadius:10,background:'rgba(255,255,255,0.07)',
+                    border:'1px solid rgba(255,255,255,0.12)',color:'#fff',fontSize:13,outline:'none'}}/>
+                <div style={{display:'flex',gap:8}}>
+                  <motion.button whileTap={{scale:0.95}} onClick={()=>{
+                    if(!bookFormName.trim()||!bookFormPhone.trim())return;
+                    if(slots.length>0&&!bookFormSlot)return;
+                    const slot=bookFormSlot||'✓';
+                    setBookedTime(slot);setShowBookForm(false);onBook(slot);
+                  }} style={{flex:1,padding:'10px',borderRadius:10,border:'none',cursor:'pointer',
+                    background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',color:'#fff',fontWeight:800,fontSize:13}}>
+                    ✅ Отправить заявку
+                  </motion.button>
+                  <motion.button whileTap={{scale:0.95}} onClick={()=>setShowBookForm(false)}
+                    style={{padding:'10px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.1)',
+                      background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:13}}>
+                    Отмена
+                  </motion.button>
+                </div>
+              </motion.div>
             )}
-          </div>
+            {/* Подтверждение */}
+            {bookedTime&&(
+              <motion.div initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}
+                style={{marginTop:10,textAlign:'center',padding:'10px 0'}}>
+                <div style={{fontSize:22,marginBottom:6}}>🎉</div>
+                <div style={{fontSize:13,fontWeight:800,color:'#6ee7b7',marginBottom:4}}>Заявка отправлена!</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.5)'}}>
+                  {bookFormName&&`${bookFormName} · `}{bookedTime!=='✓'?fmtChSlot(bookedTime):''}
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
         </div>
       )}
 
@@ -1637,44 +1696,42 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
                         background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
                   </div>
                   <div>
-                    <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Выбери слоты записи:</p>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:6}}>
-                      {CH_QUICK_TIMES.map(t=>{
-                        const sel=bookingSlots.some(s=>s.time===t);
-                        return <button key={t} onClick={()=>sel?remBSlot(t):addBSlot(t)}
-                          style={{padding:'5px 11px',borderRadius:16,fontSize:11,fontWeight:700,cursor:'pointer',border:'none',
-                            background:sel?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.08)',
-                            color:sel?'#34d399':'rgba(255,255,255,0.55)'}}>
-                          {sel?'✓ ':''}{t}
-                        </button>;
-                      })}
+                    <p style={{margin:'0 0 8px',fontSize:11,color:c.sub}}>📅 Слоты для записи:</p>
+                    <div style={{display:'flex',gap:6,alignItems:'flex-end',flexWrap:'wrap',marginBottom:8}}>
+                      <div style={{flex:'1 1 130px'}}>
+                        <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginBottom:3}}>Дата</div>
+                        <input type="date" value={bookingTimeInput.split(' ')[0]||''} min={new Date().toISOString().split('T')[0]}
+                          onChange={e=>{const t=bookingTimeInput.split(' ')[1]||'';setBookingTimeInput(e.target.value+(t?' '+t:''));}}
+                          style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,
+                            background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+                      </div>
+                      <div style={{flex:'1 1 90px'}}>
+                        <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginBottom:3}}>Время</div>
+                        <input type="time" value={bookingTimeInput.split(' ')[1]||''}
+                          onChange={e=>{const d=bookingTimeInput.split(' ')[0]||'';setBookingTimeInput(d?d+' '+e.target.value:e.target.value);}}
+                          style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,
+                            background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+                      </div>
+                      <button onClick={()=>{const v=bookingTimeInput.trim();if(!v||!v.includes(' '))return;addBSlot(v);setBookingTimeInput('');}}
+                        style={{padding:'8px 12px',borderRadius:8,border:'1px solid rgba(59,130,246,0.4)',
+                          background:'rgba(59,130,246,0.15)',color:'#93c5fd',fontSize:12,fontWeight:700,cursor:'pointer',flexShrink:0,alignSelf:'flex-end'}}>
+                        + Слот
+                      </button>
                     </div>
-                    <div style={{display:'flex',gap:6}}>
-                      <input value={bookingTimeInput} onChange={e=>setBookingTimeInput(e.target.value)}
-                        onKeyDown={e=>{if(e.key==='Enter'){addBSlot(bookingTimeInput);setBookingTimeInput('');}}}
-                        placeholder="Своё время: 8:30"
-                        style={{flex:1,padding:'7px 10px',borderRadius:8,background:c.bg,
-                          border:`1px solid ${c.border}`,color:c.light,fontSize:12,outline:'none'}}/>
-                      <button onClick={()=>{addBSlot(bookingTimeInput);setBookingTimeInput('');}}
-                        style={{padding:'7px 12px',borderRadius:8,border:'none',background:'rgba(16,185,129,0.25)',
-                          color:'#34d399',fontSize:12,fontWeight:700,cursor:'pointer'}}>+ Добавить</button>
-                    </div>
-                  </div>
-                  {bookingSlots.length>0&&(
-                    <div>
-                      <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Добавленные слоты ({bookingSlots.length}):</p>
+                    {bookingSlots.length>0&&(
                       <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
                         {bookingSlots.map(s=>(
-                          <div key={s.time} style={{display:'flex',alignItems:'center',gap:3,padding:'3px 10px',borderRadius:14,
-                            background:'rgba(16,185,129,0.15)',border:'1px solid rgba(16,185,129,0.3)'}}>
-                            <span style={{fontSize:11,color:'#34d399',fontWeight:700}}>🕐 {s.time}</span>
+                          <div key={s.time} style={{display:'flex',alignItems:'center',gap:4,
+                            background:'rgba(59,130,246,0.1)',border:'1px solid rgba(59,130,246,0.25)',
+                            borderRadius:20,padding:'4px 10px'}}>
+                            <span style={{fontSize:11,color:'#93c5fd',fontWeight:600}}>🟢 {fmtChSlot(s.time)}</span>
                             <button onClick={()=>remBSlot(s.time)}
-                              style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:0,fontSize:11}}>✕</button>
+                              style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:0,fontSize:11,lineHeight:1}}>✕</button>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
