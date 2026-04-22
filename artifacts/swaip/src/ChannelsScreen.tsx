@@ -43,6 +43,7 @@ interface SwaipChannel {
   vibeColor: string;
   coverGradient: string;
   coverPhotoUrl?: string;
+  coverPosition?: string;
   avatarPhotoUrl?: string;
   category: string;
   tags: string[];
@@ -494,15 +495,43 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
   const avatarFileRef=useRef<HTMLInputElement>(null);
   const cat=CHANNEL_CATEGORIES.find(x=>x.id===ch.category);
 
-  const uploadPhoto=async(f:File,field:'coverPhotoUrl'|'avatarPhotoUrl',setLoading:(v:boolean)=>void)=>{
+  /* ── Кроп обложки ── */
+  const [showCoverCrop,setShowCoverCrop]=useState(false);
+  const [coverCropSrc,setCoverCropSrc]=useState('');
+  const [coverCropFinal,setCoverCropFinal]=useState('');
+  const [cropY,setCropY]=useState(50);
+
+  const openCoverCrop=(f:File)=>{
     const local=URL.createObjectURL(f);
-    onUpdate({[field]:local});
-    setLoading(true);
+    const curY=parseInt((ch.coverPosition||'50% 50%').split(' ')[1]||'50');
+    setCropY(curY);
+    setCoverCropSrc(local);
+    setCoverCropFinal('');
+    setShowCoverCrop(true);
+    /* Фоновая загрузка на сервер */
+    setCoverUploading(true);
+    fetch(`${window.location.origin}/api/image-upload`,{
+      method:'POST',headers:{'Content-Type':f.type},body:f})
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{if(d?.url)setCoverCropFinal(d.url);})
+      .catch(()=>{})
+      .finally(()=>setCoverUploading(false));
+  };
+
+  const applyCoverCrop=()=>{
+    onUpdate({coverPhotoUrl:coverCropFinal||coverCropSrc, coverPosition:`50% ${cropY}%`});
+    setShowCoverCrop(false);
+  };
+
+  const uploadAvatar=async(f:File)=>{
+    const local=URL.createObjectURL(f);
+    onUpdate({avatarPhotoUrl:local});
+    setAvatarUploading(true);
     try{
       const r=await fetch(`${window.location.origin}/api/image-upload`,{
         method:'POST',headers:{'Content-Type':f.type},body:f});
-      if(r.ok){const{url}=await r.json();onUpdate({[field]:url});}
-    }catch{}finally{setLoading(false);}
+      if(r.ok){const{url}=await r.json();onUpdate({avatarPhotoUrl:url});}
+    }catch{}finally{setAvatarUploading(false);}
   };
 
   const filteredPosts=activeRubric
@@ -520,7 +549,7 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
       {/* ── Шапка ── */}
       <div style={{position:'relative',height:160,overflow:'visible',background:ch.coverGradient}}>
         <div style={{position:'absolute',inset:0,overflow:'hidden'}}>
-          {ch.coverPhotoUrl&&<img src={ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+          {ch.coverPhotoUrl&&<img src={ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:ch.coverPosition||'50% 50%'}}/>}
           {/* Анимированный пульс-фон */}
           <motion.div animate={{opacity:[0.15,0.3,0.15]}} transition={{repeat:Infinity,duration:3}}
             style={{position:'absolute',inset:0,background:`radial-gradient(circle at 30% 50%,${ch.vibeColor}44,transparent 70%)`}}/>
@@ -533,23 +562,32 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
           ←
         </button>
 
-        {/* Кнопка смены обложки */}
-        <button onClick={()=>coverFileRef.current?.click()}
-          style={{position:'absolute',top:14,right:14,zIndex:2,display:'flex',alignItems:'center',gap:5,
-            padding:'5px 10px',borderRadius:20,
-            background:coverUploading?'rgba(0,0,0,0.6)':'rgba(0,0,0,0.45)',
-            border:'1px solid rgba(255,255,255,0.2)',color:'#fff',cursor:'pointer',backdropFilter:'blur(8px)',
-            fontSize:11,fontWeight:700}}>
-          {coverUploading?<><motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
-            style={{width:12,height:12,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%'}}/> Загружаем…</>
-            :<>🖼 Обложка</>}
-        </button>
+        {/* Кнопки обложки */}
+        <div style={{position:'absolute',top:14,right:14,zIndex:2,display:'flex',gap:6}}>
+          {ch.coverPhotoUrl&&<button onClick={()=>{
+              const curY=parseInt((ch.coverPosition||'50% 50%').split(' ')[1]||'50');
+              setCropY(curY);setCoverCropSrc(ch.coverPhotoUrl!);setCoverCropFinal(ch.coverPhotoUrl!);setShowCoverCrop(true);}}
+            style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:20,
+              background:'rgba(168,85,247,0.45)',border:'1px solid rgba(168,85,247,0.6)',
+              color:'#fff',cursor:'pointer',backdropFilter:'blur(8px)',fontSize:11,fontWeight:700}}>
+            📐 Фрагмент
+          </button>}
+          <button onClick={()=>coverFileRef.current?.click()}
+            style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:20,
+              background:coverUploading?'rgba(0,0,0,0.6)':'rgba(0,0,0,0.45)',
+              border:'1px solid rgba(255,255,255,0.2)',color:'#fff',cursor:'pointer',backdropFilter:'blur(8px)',
+              fontSize:11,fontWeight:700}}>
+            {coverUploading?<><motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
+              style={{width:12,height:12,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%'}}/> …</>
+              :<>🖼 Обложка</>}
+          </button>
+        </div>
         <input ref={coverFileRef} type="file" accept="image/*" style={{display:'none'}}
-          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,'coverPhotoUrl',setCoverUploading);e.target.value='';}}/>
+          onChange={e=>{const f=e.target.files?.[0];if(f)openCoverCrop(f);e.target.value='';}}/>
 
         {/* Скрытый input для аватара */}
         <input ref={avatarFileRef} type="file" accept="image/*" style={{display:'none'}}
-          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,'avatarPhotoUrl',setAvatarUploading);e.target.value='';}}/>
+          onChange={e=>{const f=e.target.files?.[0];if(f)uploadAvatar(f);e.target.value='';}}/>
 
         {/* Пульс-индикатор — теперь чуть левее */}
         <div style={{position:'absolute',bottom:52,right:14,zIndex:2,display:'flex',alignItems:'center',gap:6,
@@ -660,6 +698,89 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
           <ComposePost ch={ch} c={c} accent={accent} isDark={isDark}
             onClose={()=>setShowCompose(false)}
             onPublish={(post)=>{ onAddPost(ch.id,post); setShowCompose(false); }}/>
+        )}
+      </AnimatePresence>
+
+      {/* ── Кроп-модалка обложки ── */}
+      <AnimatePresence>
+        {showCoverCrop&&(
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+            style={{position:'fixed',inset:0,zIndex:9200,background:'rgba(0,0,0,0.97)',
+              display:'flex',flexDirection:'column',overscrollBehavior:'contain'}}>
+            {/* Шапка */}
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px 8px',
+              borderBottom:'1px solid rgba(255,255,255,0.1)',flexShrink:0}}>
+              <motion.button whileTap={{scale:0.92}} onClick={()=>setShowCoverCrop(false)}
+                style={{background:'rgba(255,255,255,0.1)',border:'none',color:'#fff',fontSize:16,
+                  width:34,height:34,borderRadius:10,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                ✕
+              </motion.button>
+              <div style={{flex:1}}>
+                <div style={{color:'#fff',fontWeight:800,fontSize:14}}>Выбери область обложки</div>
+                <div style={{color:'rgba(255,255,255,0.4)',fontSize:10}}>
+                  {coverUploading?'⬆️ Загружаем фото…':'Тяни ползунок или выбери область'}
+                </div>
+              </div>
+              <motion.button whileTap={{scale:0.94}} onClick={applyCoverCrop}
+                disabled={coverUploading}
+                style={{background:coverUploading?'rgba(255,255,255,0.1)':'linear-gradient(135deg,#7c3aed,#a855f7)',
+                  border:'none',color:'#fff',fontWeight:800,fontSize:13,borderRadius:20,
+                  padding:'7px 18px',cursor:coverUploading?'wait':'pointer',opacity:coverUploading?0.5:1}}>
+                {coverUploading?'…':'Применить'}
+              </motion.button>
+            </div>
+            {/* Превью шапки канала */}
+            <div style={{margin:'10px 14px 6px',borderRadius:10,overflow:'hidden',height:72,flexShrink:0,
+              border:'2px solid rgba(255,255,255,0.25)',position:'relative',background:ch.coverGradient}}>
+              <img src={coverCropSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover',
+                objectPosition:`50% ${cropY}%`,userSelect:'none',pointerEvents:'none'}}/>
+              <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
+                pointerEvents:'none'}}>
+                <span style={{color:'rgba(255,255,255,0.35)',fontSize:9,letterSpacing:'0.12em',
+                  textTransform:'uppercase',fontWeight:700}}>Превью обложки канала</span>
+              </div>
+            </div>
+            {/* Полное фото с маркером */}
+            <div style={{flex:1,overflow:'hidden',position:'relative',margin:'0 14px 0'}}>
+              <img src={coverCropSrc} alt="" style={{width:'100%',height:'100%',objectFit:'contain',
+                objectPosition:'center',userSelect:'none',pointerEvents:'none',display:'block'}}/>
+              <div style={{position:'absolute',inset:0,pointerEvents:'none'}}>
+                <div style={{position:'absolute',top:0,left:0,right:0,height:`calc(${cropY}% - 12%)`,background:'rgba(0,0,0,0.55)'}}/>
+                <div style={{position:'absolute',bottom:0,left:0,right:0,height:`calc(${100-cropY}% - 12%)`,background:'rgba(0,0,0,0.55)'}}/>
+                <div style={{position:'absolute',top:`calc(${cropY}% - 12%)`,left:0,right:0,height:'24%',
+                  border:'2px solid rgba(255,255,255,0.7)',boxShadow:'0 0 0 1px rgba(0,0,0,0.4)',
+                  display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <span style={{color:'rgba(255,255,255,0.6)',fontSize:9,fontWeight:700,letterSpacing:'0.1em',
+                    textTransform:'uppercase',background:'rgba(0,0,0,0.5)',padding:'2px 8px',borderRadius:4}}>
+                    видимая область
+                  </span>
+                </div>
+              </div>
+            </div>
+            {/* Ползунок */}
+            <div style={{padding:'12px 20px 8px',flexShrink:0}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                <span style={{color:'rgba(255,255,255,0.5)',fontSize:10}}>⬆ сверху</span>
+                <span style={{color:'rgba(255,255,255,0.8)',fontSize:11,fontWeight:700}}>{cropY}%</span>
+                <span style={{color:'rgba(255,255,255,0.5)',fontSize:10}}>снизу ⬇</span>
+              </div>
+              <input type="range" min={0} max={100} step={1} value={cropY}
+                onChange={e=>setCropY(Number(e.target.value))}
+                style={{width:'100%',accentColor:'#a855f7',cursor:'pointer'}}/>
+            </div>
+            {/* Быстрые кнопки */}
+            <div style={{display:'flex',gap:6,padding:'0 20px 16px',flexShrink:0}}>
+              {([['Сверху',0],['Центр',50],['Снизу',100]] as [string,number][]).map(([lbl,val])=>(
+                <motion.button key={lbl} whileTap={{scale:0.94}} onClick={()=>setCropY(val)}
+                  style={{flex:1,padding:'7px 0',borderRadius:10,cursor:'pointer',fontWeight:700,fontSize:11,
+                    border:`1px solid ${cropY===val?'#a855f7':'rgba(255,255,255,0.15)'}`,
+                    background:cropY===val?'rgba(168,85,247,0.2)':'rgba(255,255,255,0.05)',
+                    color:cropY===val?'#c084fc':'rgba(255,255,255,0.7)'}}>
+                  {lbl}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -1089,24 +1210,46 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
   const [customRubric,setCustomRubric]=useState('');
   const [isVerified]=useState(false);
   const [coverPhotoUrl,setCoverPhotoUrl]=useState('');
+  const [coverPosition,setCoverPosition]=useState('50% 50%');
   const [avatarPhotoUrl,setAvatarPhotoUrl]=useState('');
   const [coverUploading,setCoverUploading]=useState(false);
   const [avatarUploading,setAvatarUploading]=useState(false);
   const coverFileRef=useRef<HTMLInputElement>(null);
   const avatarFileRef=useRef<HTMLInputElement>(null);
 
+  /* Кроп обложки */
+  const [showCoverCrop,setShowCoverCrop]=useState(false);
+  const [coverCropSrc,setCoverCropSrc]=useState('');
+  const [coverCropFinal,setCoverCropFinal]=useState('');
+  const [cropY,setCropY]=useState(50);
+
   const vibe=CHANNEL_VIBES[vibeIdx];
   const cover=CHANNEL_GRADIENTS[coverIdx];
   const cat=CHANNEL_CATEGORIES.find(x=>x.id===catId)!;
 
-  const uploadPhoto=async(f:File,setUrl:(u:string)=>void,setLoading:(v:boolean)=>void)=>{
+  const openCoverCrop=(f:File)=>{
     const local=URL.createObjectURL(f);
-    setUrl(local);setLoading(true);
+    setCropY(50);setCoverCropSrc(local);setCoverCropFinal('');setShowCoverCrop(true);
+    setCoverUploading(true);
+    fetch(`${window.location.origin}/api/image-upload`,{method:'POST',headers:{'Content-Type':f.type},body:f})
+      .then(r=>r.ok?r.json():null).then(d=>{if(d?.url)setCoverCropFinal(d.url);})
+      .catch(()=>{}).finally(()=>setCoverUploading(false));
+  };
+
+  const applyCoverCrop=()=>{
+    setCoverPhotoUrl(coverCropFinal||coverCropSrc);
+    setCoverPosition(`50% ${cropY}%`);
+    setShowCoverCrop(false);
+  };
+
+  const uploadAvatar=async(f:File)=>{
+    const local=URL.createObjectURL(f);
+    setAvatarPhotoUrl(local);setAvatarUploading(true);
     try{
       const r=await fetch(`${window.location.origin}/api/image-upload`,{
         method:'POST',headers:{'Content-Type':f.type},body:f});
-      if(r.ok){const{url}=await r.json();setUrl(url);}
-    }catch{}finally{setLoading(false);}
+      if(r.ok){const{url}=await r.json();setAvatarPhotoUrl(url);}
+    }catch{}finally{setAvatarUploading(false);}
   };
 
   const handleCreate=()=>{
@@ -1119,6 +1262,7 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
       vibe:vibe.emoji,vibeColor:vibe.color,
       coverGradient:cover.bg,
       coverPhotoUrl:coverPhotoUrl||undefined,
+      coverPosition:coverPhotoUrl?coverPosition:undefined,
       avatarPhotoUrl:avatarPhotoUrl||undefined,
       category:catId,
       tags:tags.split(',').map(t=>t.trim()).filter(Boolean),
@@ -1170,7 +1314,7 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
         {/* ── Превью канала ── */}
         <motion.div layout style={{borderRadius:20,overflow:'hidden',marginBottom:20,
           background:cover.bg,position:'relative',height:130}}>
-          {coverPhotoUrl&&<img src={coverPhotoUrl} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>}
+          {coverPhotoUrl&&<img src={coverPhotoUrl} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:coverPosition}}/>}
           <motion.div animate={{opacity:[0.2,0.4,0.2]}} transition={{repeat:Infinity,duration:3}}
             style={{position:'absolute',inset:0,background:`radial-gradient(circle at 30% 50%,${vibe.color}55,transparent 70%)`}}/>
           <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 30%,rgba(0,0,0,0.7))'}}/>
@@ -1195,10 +1339,87 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
 
         {/* Скрытые инпуты для загрузки фото */}
         <input ref={coverFileRef} type="file" accept="image/*" style={{display:'none'}}
-          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,setCoverPhotoUrl,setCoverUploading);e.target.value='';}}/>
+          onChange={e=>{const f=e.target.files?.[0];if(f)openCoverCrop(f);e.target.value='';}}/>
         <input ref={avatarFileRef} type="file" accept="image/*" style={{display:'none'}}
-          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,setAvatarPhotoUrl,setAvatarUploading);e.target.value='';}}/>
+          onChange={e=>{const f=e.target.files?.[0];if(f)uploadAvatar(f);e.target.value='';}}/>
 
+        {/* ─────────────── КРОП-МОДАЛКА ─────────────── */}
+        <AnimatePresence>
+          {showCoverCrop&&(
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+              style={{position:'fixed',inset:0,zIndex:9300,background:'rgba(0,0,0,0.97)',
+                display:'flex',flexDirection:'column',overscrollBehavior:'contain'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px 8px',
+                borderBottom:'1px solid rgba(255,255,255,0.1)',flexShrink:0}}>
+                <motion.button whileTap={{scale:0.92}} onClick={()=>setShowCoverCrop(false)}
+                  style={{background:'rgba(255,255,255,0.1)',border:'none',color:'#fff',fontSize:16,
+                    width:34,height:34,borderRadius:10,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  ✕
+                </motion.button>
+                <div style={{flex:1}}>
+                  <div style={{color:'#fff',fontWeight:800,fontSize:14}}>Выбери область обложки</div>
+                  <div style={{color:'rgba(255,255,255,0.4)',fontSize:10}}>
+                    {coverUploading?'⬆️ Загружаем фото…':'Тяни ползунок или жми кнопки'}
+                  </div>
+                </div>
+                <motion.button whileTap={{scale:0.94}} onClick={applyCoverCrop}
+                  disabled={coverUploading}
+                  style={{background:coverUploading?'rgba(255,255,255,0.1)':'linear-gradient(135deg,#7c3aed,#a855f7)',
+                    border:'none',color:'#fff',fontWeight:800,fontSize:13,borderRadius:20,
+                    padding:'7px 18px',cursor:coverUploading?'wait':'pointer',opacity:coverUploading?0.5:1}}>
+                  {coverUploading?'…':'Применить'}
+                </motion.button>
+              </div>
+              <div style={{margin:'10px 14px 6px',borderRadius:10,overflow:'hidden',height:72,flexShrink:0,
+                border:'2px solid rgba(255,255,255,0.25)',position:'relative',background:cover.bg}}>
+                <img src={coverCropSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover',
+                  objectPosition:`50% ${cropY}%`,userSelect:'none',pointerEvents:'none'}}/>
+                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
+                  <span style={{color:'rgba(255,255,255,0.35)',fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>
+                    Превью обложки канала
+                  </span>
+                </div>
+              </div>
+              <div style={{flex:1,overflow:'hidden',position:'relative',margin:'0 14px 0'}}>
+                <img src={coverCropSrc} alt="" style={{width:'100%',height:'100%',objectFit:'contain',
+                  objectPosition:'center',userSelect:'none',pointerEvents:'none',display:'block'}}/>
+                <div style={{position:'absolute',inset:0,pointerEvents:'none'}}>
+                  <div style={{position:'absolute',top:0,left:0,right:0,height:`calc(${cropY}% - 12%)`,background:'rgba(0,0,0,0.55)'}}/>
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,height:`calc(${100-cropY}% - 12%)`,background:'rgba(0,0,0,0.55)'}}/>
+                  <div style={{position:'absolute',top:`calc(${cropY}% - 12%)`,left:0,right:0,height:'24%',
+                    border:'2px solid rgba(255,255,255,0.7)',boxShadow:'0 0 0 1px rgba(0,0,0,0.4)',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <span style={{color:'rgba(255,255,255,0.6)',fontSize:9,fontWeight:700,letterSpacing:'0.1em',
+                      textTransform:'uppercase',background:'rgba(0,0,0,0.5)',padding:'2px 8px',borderRadius:4}}>
+                      видимая область
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div style={{padding:'12px 20px 8px',flexShrink:0}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                  <span style={{color:'rgba(255,255,255,0.5)',fontSize:10}}>⬆ сверху</span>
+                  <span style={{color:'rgba(255,255,255,0.8)',fontSize:11,fontWeight:700}}>{cropY}%</span>
+                  <span style={{color:'rgba(255,255,255,0.5)',fontSize:10}}>снизу ⬇</span>
+                </div>
+                <input type="range" min={0} max={100} step={1} value={cropY}
+                  onChange={e=>setCropY(Number(e.target.value))}
+                  style={{width:'100%',accentColor:'#a855f7',cursor:'pointer'}}/>
+              </div>
+              <div style={{display:'flex',gap:6,padding:'0 20px 16px',flexShrink:0}}>
+                {([['Сверху',0],['Центр',50],['Снизу',100]] as [string,number][]).map(([lbl,val])=>(
+                  <motion.button key={lbl} whileTap={{scale:0.94}} onClick={()=>setCropY(val)}
+                    style={{flex:1,padding:'7px 0',borderRadius:10,cursor:'pointer',fontWeight:700,fontSize:11,
+                      border:`1px solid ${cropY===val?'#a855f7':'rgba(255,255,255,0.15)'}`,
+                      background:cropY===val?'rgba(168,85,247,0.2)':'rgba(255,255,255,0.05)',
+                      color:cropY===val?'#c084fc':'rgba(255,255,255,0.7)'}}>
+                    {lbl}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ─────────────── ШАГ 0: ОБЛИК ─────────────── */}
         {step===0&&(
@@ -1293,6 +1514,12 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
                 <p style={{margin:0,fontSize:13,fontWeight:800,color:c.light}}>🎨 Обложка</p>
                 <div style={{display:'flex',gap:6}}>
+                  {coverPhotoUrl&&<motion.button whileTap={{scale:0.9}}
+                    onClick={()=>{setCropY(parseInt(coverPosition.split(' ')[1]||'50'));setCoverCropSrc(coverPhotoUrl);setCoverCropFinal(coverPhotoUrl);setShowCoverCrop(true);}}
+                    style={{padding:'5px 10px',borderRadius:20,border:'1px solid rgba(168,85,247,0.5)',
+                      background:'rgba(168,85,247,0.15)',cursor:'pointer',fontSize:11,fontWeight:700,color:'#c084fc'}}>
+                    📐 Фрагмент
+                  </motion.button>}
                   <motion.button whileTap={{scale:0.9}} onClick={()=>coverFileRef.current?.click()}
                     style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${coverPhotoUrl?accent:c.border}`,
                       background:coverPhotoUrl?`${accent}20`:'transparent',cursor:'pointer',
@@ -1308,10 +1535,10 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
               </div>
               {coverPhotoUrl&&(
                 <div style={{borderRadius:12,overflow:'hidden',height:60,marginBottom:8,position:'relative'}}>
-                  <img src={coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  <img src={coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:coverPosition}}/>
                   <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
                     background:'rgba(0,0,0,0.3)'}}>
-                    <span style={{fontSize:11,color:'rgba(255,255,255,0.8)',fontWeight:700}}>Твоя обложка активна</span>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,0.8)',fontWeight:700}}>Твоя обложка активна · {coverPosition}</span>
                   </div>
                 </div>
               )}
