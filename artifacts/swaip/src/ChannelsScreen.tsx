@@ -869,7 +869,7 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
     setChChatMsgs([{role:'bot',text:greeting}]);
     setChChatStep('chat');setChChatSlot(preSlot||'');setChChatName('');setChChatPhone('');setChChatInput('');
     setShowChChat(true);
-    setTimeout(()=>chSpeak(`${tg}! Я ${chBotName}. Выберите удобное время для записи!`),200);
+    chSpeak(`${tg}! Я ${chBotName}. Выберите удобное время для записи!`);
   };
   const isPinned=ch.pinnedPostId===post.id;
   const score=calcPostScore(post.reactions);

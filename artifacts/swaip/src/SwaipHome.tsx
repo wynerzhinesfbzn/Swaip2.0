@@ -1898,7 +1898,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,c,accent,style=1}:{p
     setPostChatSlot(preSlot||'');
     setPostChatName('');setPostChatPhone('');setPostChatInput('');
     setShowPostChat(true);
-    setTimeout(()=>postSpeak(`${tg}! Я ${postBotName}. Выберите удобное время для записи!`),200);
+    postSpeak(`${tg}! Я ${postBotName}. Выберите удобное время для записи!`);
   };
 
   const handleShare=async()=>{
@@ -5800,7 +5800,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                           setBClientName('');
                           setBClientPhone('');
                           setShowBookingChat(true);
-                          setTimeout(()=>speakGreeting(`${tg}! Я ${aiName}. Выберите удобное время для записи на ${item.name}!`),200);
+                          speakGreeting(`${tg}! Я ${aiName}. Выберите удобное время для записи на ${item.name}!`);
                         }}>
                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
                           {item.photo&&<img src={item.photo} alt="" style={{width:44,height:44,borderRadius:10,objectFit:'cover',flexShrink:0}}/>}
@@ -5840,7 +5840,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                           setFbClientName('');
                           setFbClientPhone('');
                           setShowFreeBookingChat(true);
-                          setTimeout(()=>speakGreeting(`${tg}! Я ${aiName}. Рада помочь вам с записью! Как вас зовут?`),200);
+                          speakGreeting(`${tg}! Я ${aiName}. Рада помочь вам с записью! Как вас зовут?`);
                         }}>
                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
                           <div style={{width:44,height:44,borderRadius:10,background:'rgba(16,185,129,0.15)',border:'1px solid rgba(16,185,129,0.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}}>✅</div>
