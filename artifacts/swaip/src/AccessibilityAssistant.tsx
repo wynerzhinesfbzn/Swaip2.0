@@ -201,10 +201,13 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [translating, setTranslating] = useState(false);
   const [sosPending, setSosPending]   = useState(false);
 
-  const recogRef   = useRef<SpeechAny>(null);
-  const silenceRef = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const inputRef   = useRef<HTMLTextAreaElement>(null);
-  const voicesRef  = useRef<SpeechSynthesisVoice[]>([]);
+  const recogRef      = useRef<SpeechAny>(null);
+  const silenceRef    = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const translTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const activeRef     = useRef(false);   /* флаг: нужно ли продолжать слушать */
+  const accumRef      = useRef('');      /* накопленный финальный текст (мутируемый) */
+  const inputRef      = useRef<HTMLTextAreaElement>(null);
+  const voicesRef     = useRef<SpeechSynthesisVoice[]>([]);
 
   /* Предзагрузка Web Speech голосов (fallback) */
   useEffect(()=>{
@@ -245,9 +248,15 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   }, [apiBase]);
 
   const stopAll = useCallback(()=>{
-    if (recogRef.current) { try{ recogRef.current.stop(); }catch{} recogRef.current=null; }
-    if (silenceRef.current) clearTimeout(silenceRef.current);
-    if (currentAudio) { currentAudio.pause(); currentAudio=null; }
+    /* Сначала выставляем флаг — onend не будет перезапускать сессию */
+    activeRef.current = false;
+    if (recogRef.current) {
+      try { recogRef.current.abort(); } catch {}
+      recogRef.current = null;
+    }
+    if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+    if (translTimerRef.current) { clearTimeout(translTimerRef.current); translTimerRef.current = null; }
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setListening(false); setInterim('');
   }, []);
@@ -255,53 +264,84 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const startListening = useCallback(()=>{
     const SR = (window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
     if (!SR) { alert('Используйте Chrome для распознавания речи'); return; }
+
     stopAll();
     setSpokenText(''); setInterim(''); setTranslSpoken('');
+    accumRef.current = '';
+    activeRef.current = true;
     setListening(true);
 
-    /* Запоминаем какие result-индексы уже обработали — защита от двойного срабатывания */
-    let lastProcessedIndex = -1;
+    /* ── Запускаем ОДНУ сессию. onend → перезапустит, если activeRef.current ── */
+    const runSession = () => {
+      if (!activeRef.current) return;
+      const r = new SR() as SpeechAny;
+      recogRef.current = r;
 
-    const r = new SR() as SpeechAny;
-    recogRef.current = r;
-    /* Используем BCP-47 код для распознавания речи СОБЕСЕДНИКА */
-    r.lang           = getLang(theirLang).tts;
-    r.interimResults = true;
-    r.continuous     = true;
-    r.maxAlternatives = 1;
+      r.lang            = getLang(theirLang).tts; /* язык СОБЕСЕДНИКА */
+      r.interimResults  = true;
+      r.continuous      = false;  /* НЕ continuous — Android ведёт себя правильно */
+      r.maxAlternatives = 1;
 
-    r.onresult = (e:any) => {
-      let fin='', tmp='';
-      for (let i = Math.max(e.resultIndex, lastProcessedIndex + 1); i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          fin += e.results[i][0].transcript;
-          lastProcessedIndex = i;
-        } else {
-          tmp += e.results[i][0].transcript;
+      r.onresult = (e: any) => {
+        if (!activeRef.current) return;
+        let fin = '', tmp = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+          else tmp += e.results[i][0].transcript;
         }
-      }
-      if (tmp) setInterim(tmp);
-      if (fin) {
-        /* Заменяем весь накопленный текст последней финальной фразой
-           (не накапливаем prev+fin — это основная причина дублирования) */
-        setSpokenText(prev => {
-          const next = prev ? prev + ' ' + fin.trim() : fin.trim();
-          return next;
-        });
+        if (tmp) setInterim(tmp);
+        if (fin) {
+          /* Добавляем только новый финальный фрагмент через ref (без накопления в замыкании) */
+          const trimmed = fin.trim();
+          accumRef.current = accumRef.current
+            ? accumRef.current + ' ' + trimmed
+            : trimmed;
+          setSpokenText(accumRef.current);
+          setInterim('');
+
+          /* Таймер тишины: 3 сек без новой речи → остановить */
+          if (silenceRef.current) clearTimeout(silenceRef.current);
+          silenceRef.current = setTimeout(()=>{
+            activeRef.current = false;
+            if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
+            setListening(false);
+          }, 3000);
+        }
+      };
+
+      r.onerror = (e: any) => {
         setInterim('');
-        if (silenceRef.current) clearTimeout(silenceRef.current);
-        silenceRef.current = setTimeout(()=>{ r.stop(); setListening(false); }, 2500);
-      }
+        /* no-speech / aborted — просто перезапускаем сессию */
+        if (activeRef.current && (e.error === 'no-speech' || e.error === 'aborted')) {
+          setTimeout(runSession, 100);
+        } else {
+          activeRef.current = false;
+          setListening(false);
+        }
+      };
+
+      r.onend = () => {
+        setInterim('');
+        recogRef.current = null;
+        /* Перезапускаем сессию, если ещё нужно слушать */
+        if (activeRef.current) setTimeout(runSession, 80);
+        else setListening(false);
+      };
+
+      try { r.start(); } catch (_) {}
     };
-    r.onerror = ()=>{ setListening(false); setInterim(''); };
-    r.onend   = ()=>{ setListening(false); setInterim(''); };
-    r.start();
+
+    runSession();
   }, [theirLang, stopAll]);
 
-  /* Авто-перевод распознанной речи → на мой язык */
+  /* ── Перевод с дебаунсом 450 мс (ждём паузу в речи, а не каждое слово) ── */
   useEffect(()=>{
     if (!spokenText.trim()) return;
-    translateText(spokenText, theirLang, myLang).then(setTranslSpoken);
+    if (translTimerRef.current) clearTimeout(translTimerRef.current);
+    translTimerRef.current = setTimeout(()=>{
+      translateText(spokenText, theirLang, myLang).then(setTranslSpoken);
+    }, 450);
+    return ()=>{ if (translTimerRef.current) clearTimeout(translTimerRef.current); };
   }, [spokenText, theirLang, myLang]);
 
   /* ГЛАВНАЯ КНОПКА: перевести + озвучить */
