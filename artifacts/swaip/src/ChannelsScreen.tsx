@@ -308,7 +308,8 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
   const addPost=(chId:string,post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>{
     const newPost:ChannelPost={
       ...post,id:uid(),reactions:{fire:0,rocket:0,gem:0,heart:0,think:0},
-      views:0,createdAt:Date.now(),isPinned:false
+      views:0,createdAt:Date.now(),isPinned:false,
+      ...(post.hasBooking?{hasBooking:true,bookingBooked:post.bookingBooked??0,bookingLabel:post.bookingLabel||'Записаться',bookingSlots:post.bookingSlots}:{}),
     };
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:[newPost,...ch.posts]}));
   };
