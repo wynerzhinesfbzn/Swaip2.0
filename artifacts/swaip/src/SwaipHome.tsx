@@ -904,7 +904,7 @@ function Sheet({open,onClose,title,c,children}:{open:boolean;onClose:()=>void;ti
 /* ══ Типы ══ */
 interface SwaipHomeProps{userHash:string;apiBase:string;sessionToken?:string;onLogout:()=>void;onOldMode?:()=>void;}
 interface DocAtt{url:string;name:string;size:number;mime:string;}
-interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;}
+interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:number;bookingBooked?:number;bookingLabel?:string;}
 interface ClassicWork{id:string;imageUrl:string;title:string;desc:string;}
 interface ClassicReview{id:string;imageUrl:string;caption?:string;date:string;}
 interface PriceItem{id:string;name:string;price:string;desc:string;photo:string;unit:string;slots:string[];}
@@ -1256,6 +1256,11 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
     setPosts(prev=>prev.map(p=>p.id===id?{...p,liked:!p.liked,likes:p.liked?p.likes-1:p.likes+1}:p));
     try{fetch(`${apiBase}/api/interactions/${id}/like`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:getSessionToken()||''})}).catch(()=>{});}catch{}
   };
+  const handleBook=(id:string)=>{
+    setPosts(prev=>prev.map(p=>p.id!==id||!p.hasBooking?p:
+      p.bookingSlots!==undefined&&(p.bookingBooked||0)>=p.bookingSlots?p
+      :{...p,bookingBooked:(p.bookingBooked||0)+1}));
+  };
 
   useEffect(()=>{
     setLoading(true);setD({});setPosts([]);setWidgetModal(null);setCommentPostId(null);
@@ -1597,7 +1602,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
             {/* ── Лента с фоном feedBg как у хозяина ── */}
             <div style={{padding:'10px 10px 80px',background:feedBg||c.deep,backgroundAttachment:'fixed',minHeight:300}}>
               {posts.length>0
-                ?posts.map(p=><PostCard key={p.id} p={p} name={name} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} c={c} accent={ac} style={pcs||1}/>)
+                ?posts.map(p=><PostCard key={p.id} p={p} name={name} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} onBook={handleBook} c={c} accent={ac} style={pcs||1}/>)
                 :<div style={{textAlign:'center',color:c.sub,fontSize:13,paddingTop:60,opacity:0.7}}>Публикаций пока нет</div>}
             </div>
           </>
@@ -1856,10 +1861,11 @@ function CommentsSheet({postId,session,authorHash,authorName,authorNick,authorAv
   );
 }
 
-function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;name:string;avatarSrc:string;onLike:(id:string)=>void;onComment?:(id:string)=>void;c:Pal;accent?:string;style?:number}){
+function PostCard({p,name,avatarSrc,onLike,onComment,onBook,c,accent,style=1}:{p:Post;name:string;avatarSrc:string;onLike:(id:string)=>void;onComment?:(id:string)=>void;onBook?:(id:string)=>void;c:Pal;accent?:string;style?:number}){
   const ac=accent||'#60a5fa';
   const [lb,setLb]=useState(false);
   const [docViewer,setDocViewer]=useState<{url:string;name:string;mime:string}|null>(null);
+  const [booked,setBooked]=useState(false);
 
   const handleShare=async()=>{
     const text=p.text||'';
@@ -1933,6 +1939,57 @@ function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;n
     </div>
   ):null;
 
+  /* ── Кнопка «Записаться» ── */
+  const slotsLeft=p.bookingSlots!==undefined?(p.bookingSlots-(p.bookingBooked||0)):null;
+  const bookEl=p.hasBooking?(
+    <div style={{padding:'6px 12px 10px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+        <div style={{display:'flex',gap:1}}>
+          {[0,1].map(i=>(
+            <motion.span key={i} style={{fontSize:13,color:ac,display:'block'}}
+              animate={{x:[3,0,3],opacity:[0.3,1,0.3]}}
+              transition={{repeat:Infinity,duration:1.1,delay:i*0.22,ease:'easeInOut'}}>→</motion.span>
+          ))}
+        </div>
+        {booked?(
+          <motion.div initial={{scale:0.9}} animate={{scale:1}}
+            style={{display:'flex',alignItems:'center',gap:5,padding:'8px 18px',borderRadius:22,
+              background:'rgba(16,185,129,0.15)',border:'1.5px solid rgba(16,185,129,0.45)'}}>
+            <span>✅</span>
+            <span style={{fontSize:12,fontWeight:800,color:'#34d399'}}>Вы записаны!</span>
+          </motion.div>
+        ):(
+          <motion.button whileTap={{scale:0.92}} whileHover={{scale:1.03}}
+            onClick={()=>{if(slotsLeft===0)return;setBooked(true);onBook?.(p.id);}}
+            style={{display:'flex',alignItems:'center',gap:6,padding:'9px 20px',borderRadius:22,border:'none',
+              cursor:slotsLeft===0?'default':'pointer',fontWeight:800,fontSize:13,
+              background:slotsLeft===0?'rgba(255,255,255,0.07)':`linear-gradient(135deg,${ac}dd,${ac}88)`,
+              color:slotsLeft===0?c.sub:'#fff',
+              boxShadow:slotsLeft===0?'none':`0 3px 14px ${ac}44`}}>
+            <motion.span animate={{y:[0,-2,0]}} transition={{repeat:Infinity,duration:1.4}}>📅</motion.span>
+            {p.bookingLabel||'Записаться'}
+            {slotsLeft!==null&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,
+              background:'rgba(0,0,0,0.22)',color:slotsLeft===0?'#f87171':'rgba(255,255,255,0.85)',fontWeight:600}}>
+              {slotsLeft===0?'мест нет':`${slotsLeft} мест`}
+            </span>}
+          </motion.button>
+        )}
+        <div style={{display:'flex',gap:1,transform:'scaleX(-1)'}}>
+          {[0,1].map(i=>(
+            <motion.span key={i} style={{fontSize:13,color:ac,display:'block'}}
+              animate={{x:[3,0,3],opacity:[0.3,1,0.3]}}
+              transition={{repeat:Infinity,duration:1.1,delay:i*0.22,ease:'easeInOut'}}>→</motion.span>
+          ))}
+        </div>
+      </div>
+      {(p.bookingBooked||0)>0&&(
+        <p style={{margin:'5px 0 0',textAlign:'center',fontSize:10,color:c.sub}}>
+          Записались: <strong style={{color:ac}}>{p.bookingBooked}</strong>{p.bookingSlots?` из ${p.bookingSlots}`:''}
+        </p>
+      )}
+    </div>
+  ):null;
+
   /* ── Стиль 1: Классика ── */
   if(style===1) return(
     <><div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:8,boxShadow:`0 2px 12px ${c.deep}44`}}>
@@ -1952,6 +2009,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;n
         {audioEl}
         {docEl&&<div style={{paddingBottom:4}}>{docEl}</div>}
         <p style={{fontSize:13,color:c.mid,lineHeight:1.55,margin:'0 0 10px'}}>{p.text}</p>
+        {bookEl}
         <div style={{display:'flex',gap:6}}>
           <motion.button whileTap={{scale:0.85}} onClick={()=>onLike(p.id)}
             style={{display:'flex',alignItems:'center',gap:4,padding:'6px 14px',borderRadius:50,
@@ -2004,6 +2062,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;n
       {audioEl&&<div style={{padding:'8px 14px 0'}}>{audioEl}</div>}
       {docEl&&<div style={{padding:'4px 14px 0'}}>{docEl}</div>}
       <p style={{fontSize:14,color:c.mid,lineHeight:1.6,margin:0,padding:'12px 14px 0'}}>{p.text}</p>
+      {bookEl}
       <div style={{display:'flex',borderTop:`1px solid ${c.border}`,marginTop:12}}>
         {([
           {ico:p.liked?'❤️':'🤍',cnt:p.likes,fn:()=>onLike(p.id),hi:p.liked},
@@ -2037,6 +2096,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;n
       {audioEl&&<div style={{marginBottom:8}}>{audioEl}</div>}
       {docEl&&<div style={{marginBottom:8}}>{docEl}</div>}
       <p style={{fontSize:15,fontWeight:600,color:c.light,lineHeight:1.5,margin:'0 0 10px',letterSpacing:'-0.01em'}}>{p.text}</p>
+      {bookEl}
       <div style={{display:'flex',alignItems:'center',gap:20}}>
         <motion.button whileTap={{scale:0.9}} onClick={()=>onLike(p.id)}
           style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',
@@ -2074,6 +2134,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;n
         {audioEl&&<div style={{marginBottom:8}}>{audioEl}</div>}
         {docEl&&<div style={{marginBottom:8}}>{docEl}</div>}
         <p style={{fontSize:12,color:'rgba(210,220,255,0.8)',lineHeight:1.6,margin:'0 0 12px',fontFamily:'monospace'}}>{p.text}</p>
+        {bookEl}
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           <motion.button whileTap={{scale:0.88}} onClick={()=>onLike(p.id)}
             style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,padding:'8px 16px',
@@ -2120,6 +2181,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;n
           </div>
         </div>
       </div>
+      {bookEl&&<div style={{marginLeft:44,marginTop:6}}>{bookEl}</div>}
       <div style={{display:'flex',gap:5,marginLeft:50,marginTop:5}}>
         {([
           {ico:p.liked?'❤️':'🤍',cnt:p.likes,fn:()=>onLike(p.id),hi:p.liked},
@@ -2158,6 +2220,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,c,accent,style=1}:{p:Post;n
           <p style={{fontSize:12,color:c.mid,lineHeight:1.4,margin:0,
             display:'-webkit-box',WebkitLineClamp:3 as any,WebkitBoxOrient:'vertical' as any,overflow:'hidden'}}>{p.text}</p>
         </div>
+        {bookEl}
         <div style={{display:'flex',alignItems:'center',gap:8,marginTop:7}}>
           <motion.button whileTap={{scale:0.88}} onClick={()=>onLike(p.id)}
             style={{display:'flex',alignItems:'center',gap:3,background:'none',border:'none',
@@ -4907,7 +4970,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       <div style={{padding:'10px 10px 0',background:feedBgGradient||c.deep,backgroundAttachment:'fixed'}}>
         {tab==='feed'?(
           <>
-            {posts.map(p=><PostCard key={p.id} p={p} name={profName} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} c={c} accent={activeAccent} style={postCardStyle}/>)}
+            {posts.map(p=><PostCard key={p.id} p={p} name={profName} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} onBook={(id)=>setPosts(prev=>prev.map(q=>q.id!==id||!q.hasBooking?q:q.bookingSlots!==undefined&&(q.bookingBooked||0)>=q.bookingSlots?q:{...q,bookingBooked:(q.bookingBooked||0)+1}))} c={c} accent={activeAccent} style={postCardStyle}/>)}
             <motion.button whileTap={{scale:0.97}}
               style={{width:'100%',padding:'11px',borderRadius:12,background:`rgba(160,160,200,0.07)`,
                 border:`1px solid ${c.borderB}`,cursor:'pointer',fontWeight:800,fontSize:12,marginBottom:12,color:c.mid}}>
@@ -6951,6 +7014,10 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const selfieVidRef=useRef<HTMLVideoElement|null>(null);
   const selfieStreamRef=useRef<MediaStream|null>(null);
   const selfieRecRef=useRef<MediaRecorder|null>(null);
+  /* Запись */
+  const [postHasBooking,setPostHasBooking]=useState(false);
+  const [postBookingSlots,setPostBookingSlots]=useState(5);
+  const [postBookingLabel,setPostBookingLabel]=useState('Записаться');
 
   useEffect(()=>{
     if(!selfieOpen||selfieBlob)return;
@@ -7065,7 +7132,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const stopSelfieRec=()=>{selfieRecRef.current?.stop();setSelfieRec(false);};
   const discardSelfie=()=>{selfieStreamRef.current?.getTracks().forEach(t=>t.stop());selfieStreamRef.current=null;if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);};
 
-  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();};
+  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPostHasBooking(false);setPostBookingSlots(5);setPostBookingLabel('Записаться');};
 
   const handlePost=async()=>{
     if((!text.trim()&&!imgFile&&!vidFile&&!docFiles.length&&!musicFile)||submitting)return;
@@ -7073,7 +7140,8 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
     try{
       const[imgUrl,vidUrl,docs,musUrl]=await Promise.all([uploadImg(),uploadVid(),uploadDocs(),uploadMusic()]);
       const defaultContent=vidUrl?'🎬':imgUrl?'📷':musUrl?'🎵':docs.length?'📎':vidFile?'🎬':imgFile?'📷':musicFile?'🎵':docFiles.length?'📎':'';
-      const postData={content:text.trim()||defaultContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||undefined,docUrls:docs.length?docs:undefined};
+      const bookingExtra=postHasBooking?{hasBooking:true,bookingBooked:0,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots||undefined}:{};
+      const postData={content:text.trim()||defaultContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||undefined,docUrls:docs.length?docs:undefined,...bookingExtra};
       try{
         const r=await fetch(`${window.location.origin}/api/broadcasts`,{
           method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},
@@ -7211,6 +7279,37 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
               {musicError&&<div style={{fontSize:12,color:'#f87171',padding:'2px 4px'}}>⚠️ {musicError}</div>}
             </div>
           )}
+          {/* ── Кнопка «Записаться» ── */}
+          <div style={{borderRadius:12,border:`1px solid ${postHasBooking?'rgba(16,185,129,0.4)':'rgba(255,255,255,0.08)'}`,
+            background:postHasBooking?'rgba(16,185,129,0.06)':'rgba(255,255,255,0.03)',overflow:'hidden',transition:'all 0.25s'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}}
+              onClick={()=>setPostHasBooking(s=>!s)}>
+              <div style={{width:36,height:22,borderRadius:11,background:postHasBooking?'#10b981':'rgba(255,255,255,0.12)',
+                position:'relative',transition:'all 0.2s',flexShrink:0}}>
+                <div style={{position:'absolute',top:2,width:18,height:18,borderRadius:'50%',background:'#fff',
+                  transition:'left 0.2s',left:postHasBooking?16:2}}/>
+              </div>
+              <span style={{fontSize:12,color:postHasBooking?'#34d399':'rgba(255,255,255,0.4)',fontWeight:postHasBooking?700:500,fontFamily:'"Montserrat",sans-serif'}}>
+                📅 Добавить кнопку «Записаться»
+              </span>
+            </div>
+            {postHasBooking&&(
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                <input value={postBookingLabel} onChange={e=>setPostBookingLabel(e.target.value)}
+                  placeholder="Текст кнопки: Записаться"
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,
+                    background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',
+                    color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                <input type="number" min={0} max={999} value={postBookingSlots}
+                  onChange={e=>setPostBookingSlots(Number(e.target.value))}
+                  placeholder="Кол-во мест (0 = без лимита)"
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,
+                    background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',
+                    color:'#fff',fontSize:12,outline:'none',textAlign:'center',fontFamily:'"Montserrat",sans-serif'}}/>
+              </div>
+            )}
+          </div>
+
           {/* Нижняя панель */}
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
