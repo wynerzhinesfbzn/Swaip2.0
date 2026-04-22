@@ -33,6 +33,11 @@ interface ChannelPost {
   /* episode */
   seriesName?: string;
   episodeNum?: number;
+  /* booking */
+  hasBooking?: boolean;
+  bookingSlots?: number;
+  bookingBooked?: number;
+  bookingLabel?: string;
 }
 
 interface SwaipChannel {
@@ -286,6 +291,19 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,...patch}));
   };
 
+  const bookPost=(chId:string,postId:string)=>{
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>
+      p.id!==postId||!p.hasBooking||(p.bookingSlots!==undefined&&(p.bookingBooked||0)>=p.bookingSlots)?p
+      :{...p,bookingBooked:(p.bookingBooked||0)+1}
+    )}));
+  };
+
+  const editPostBooking=(chId:string,postId:string,patch:{bookingSlots?:number;bookingLabel?:string;hasBooking?:boolean})=>{
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>
+      p.id!==postId?p:{...p,...patch}
+    )}));
+  };
+
   /* ── Создание поста ── */
   const addPost=(chId:string,post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>{
     const newPost:ChannelPost={
@@ -313,6 +331,8 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
             onReact={reactToPost} onVote={voteInPoll}
             onOpenCapsule={openCapsule} onPin={pinPost} onDelete={deletePost}
             onUpdate={(patch)=>updateChannel(openCh.id,patch)}
+            onBook={(postId)=>bookPost(openCh.id,postId)}
+            onEditBooking={(postId,patch)=>editPostBooking(openCh.id,postId,patch)}
             activeRubric={activeRubric} onRubric={setActiveRubric}
             onCompose={()=>setShowCompose(true)}
             onAddPost={addPost} tick={tick}/>
@@ -475,7 +495,7 @@ function FeedPostPreview({post,ch,c,accent,onOpen}:{post:ChannelPost;ch:SwaipCha
 /* ══════════════════════════════════════════════════════
    СТРАНИЦА КАНАЛА
 ══════════════════════════════════════════════════════ */
-function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onPin,onDelete,onUpdate,activeRubric,onRubric,onCompose,onAddPost,tick}:{
+function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onPin,onDelete,onUpdate,onBook,onEditBooking,activeRubric,onRubric,onCompose,onAddPost,tick}:{
   ch:SwaipChannel;c:Props['c'];accent:string;isDark:boolean;
   onBack:()=>void;
   onReact:(chId:string,postId:string,key:ReactionKey)=>void;
@@ -484,6 +504,8 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
   onPin:(chId:string,postId:string)=>void;
   onDelete:(chId:string,postId:string)=>void;
   onUpdate:(patch:Partial<SwaipChannel>)=>void;
+  onBook:(postId:string)=>void;
+  onEditBooking:(postId:string,patch:{bookingSlots?:number;bookingLabel?:string;hasBooking?:boolean})=>void;
   activeRubric:string|null;onRubric:(r:string|null)=>void;
   onCompose:()=>void;
   onAddPost:(chId:string,post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>void;
@@ -689,7 +711,9 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
             onVote={(idx)=>onVote(ch.id,post.id,idx)}
             onOpenCapsule={()=>onOpenCapsule(ch.id,post.id)}
             onPin={()=>onPin(ch.id,post.id)}
-            onDelete={()=>onDelete(ch.id,post.id)}/>
+            onDelete={()=>onDelete(ch.id,post.id)}
+            onBook={()=>onBook(post.id)}
+            onEditBooking={(patch)=>onEditBooking(post.id,patch)}/>
         ))}
       </div>
 
@@ -791,14 +815,21 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
 /* ══════════════════════════════════════════════════════
    КАРТОЧКА ПОСТА
 ══════════════════════════════════════════════════════ */
-function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDelete}:{
+function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDelete,onBook,onEditBooking}:{
   post:ChannelPost;ch:SwaipChannel;c:Props['c'];accent:string;tick:number;
   onReact:(key:ReactionKey)=>void;onVote:(idx:number)=>void;
   onOpenCapsule:()=>void;onPin:()=>void;onDelete:()=>void;
+  onBook:()=>void;
+  onEditBooking:(patch:{bookingSlots?:number;bookingLabel?:string;hasBooking?:boolean})=>void;
 }) {
   const [showActions,setShowActions]=useState(false);
+  const [showBookEdit,setShowBookEdit]=useState(false);
+  const [bookSlotsDraft,setBookSlotsDraft]=useState(post.bookingSlots??5);
+  const [bookLabelDraft,setBookLabelDraft]=useState(post.bookingLabel||'Записаться');
+  const [booked,setBooked]=useState(false);
   const isPinned=ch.pinnedPostId===post.id;
   const score=calcPostScore(post.reactions);
+  const slotsLeft=post.bookingSlots!==undefined?(post.bookingSlots-(post.bookingBooked||0)):null;
 
   /* Закрытая капсула */
   if(post.type==='capsule'&&!post.capsuleOpened&&post.opensAt&&Date.now()<post.opensAt) {
@@ -876,11 +907,18 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
       </div>
 
       {showActions&&(
-        <div style={{display:'flex',gap:6,padding:'0 14px 10px'}}>
+        <div style={{display:'flex',gap:6,padding:'0 14px 10px',flexWrap:'wrap'}}>
           <button onClick={()=>{onPin();setShowActions(false);}}
-            style={{flex:1,padding:'7px',borderRadius:10,background:'rgba(255,255,255,0.06)',border:isPinned?`1px solid rgba(234,179,8,0.5)`:`1px solid ${c.border}`,
+            style={{flex:1,minWidth:90,padding:'7px',borderRadius:10,background:'rgba(255,255,255,0.06)',border:isPinned?`1px solid rgba(234,179,8,0.5)`:`1px solid ${c.border}`,
               color:isPinned?'#fbbf24':c.mid,fontSize:11,fontWeight:700,cursor:'pointer'}}>
             {isPinned?'📌 Снять':'📌 Закрепить'}
+          </button>
+          <button onClick={()=>{setShowBookEdit(s=>!s);setShowActions(false);}}
+            style={{flex:1,minWidth:90,padding:'7px',borderRadius:10,
+              background:post.hasBooking?'rgba(16,185,129,0.1)':'rgba(255,255,255,0.06)',
+              border:post.hasBooking?'1px solid rgba(16,185,129,0.4)':`1px solid ${c.border}`,
+              color:post.hasBooking?'#34d399':c.mid,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+            📅 {post.hasBooking?'Запись':'+ Запись'}
           </button>
           <button onClick={()=>{onDelete();setShowActions(false);}}
             style={{padding:'7px 14px',borderRadius:10,background:'rgba(239,68,68,0.1)',
@@ -922,6 +960,129 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
           border:'1px solid rgba(251,191,36,0.3)',display:'flex',alignItems:'center',gap:8}}>
           <span style={{fontSize:18}}>🎉</span>
           <span style={{fontSize:13,color:'#fbbf24',fontWeight:700}}>Капсула открыта!</span>
+        </div>
+      )}
+
+      {/* ── Кнопка «Записаться» ── */}
+      {post.hasBooking&&(
+        <div style={{padding:'4px 14px 14px'}}>
+          {/* Мини-редактор слотов (для автора, через ⋯ меню) */}
+          <AnimatePresence>
+            {showBookEdit&&(
+              <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}}
+                style={{padding:'12px 14px',marginBottom:10,borderRadius:14,
+                  background:'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`}}>
+                <p style={{margin:'0 0 10px',fontSize:12,color:c.sub,fontWeight:700}}>⚙️ НАСТРОЙКИ ЗАПИСИ</p>
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  <div>
+                    <p style={{margin:'0 0 4px',fontSize:11,color:c.sub}}>Текст кнопки</p>
+                    <input value={bookLabelDraft} onChange={e=>setBookLabelDraft(e.target.value)}
+                      style={{width:'100%',boxSizing:'border-box',padding:'8px 12px',borderRadius:10,
+                        background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
+                  </div>
+                  <div>
+                    <p style={{margin:'0 0 4px',fontSize:11,color:c.sub}}>Количество мест (0 = без лимита)</p>
+                    <input type="number" min={0} max={999} value={bookSlotsDraft}
+                      onChange={e=>setBookSlotsDraft(Number(e.target.value))}
+                      style={{width:'100%',boxSizing:'border-box',padding:'8px 12px',borderRadius:10,
+                        background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none',textAlign:'center'}}/>
+                  </div>
+                  <div style={{display:'flex',gap:8}}>
+                    <motion.button whileTap={{scale:0.95}} onClick={()=>{
+                      onEditBooking({bookingSlots:bookSlotsDraft||undefined,bookingLabel:bookLabelDraft||'Записаться'});
+                      setShowBookEdit(false);
+                    }} style={{flex:1,padding:'9px',borderRadius:10,border:'none',cursor:'pointer',
+                      background:accent,color:'#fff',fontWeight:800,fontSize:12}}>Сохранить</motion.button>
+                    <motion.button whileTap={{scale:0.95}} onClick={()=>{
+                      onEditBooking({hasBooking:false});setShowBookEdit(false);
+                    }} style={{padding:'9px 14px',borderRadius:10,border:`1px solid rgba(239,68,68,0.4)`,
+                      background:'rgba(239,68,68,0.08)',color:'#ef4444',cursor:'pointer',fontWeight:700,fontSize:12}}>
+                      Убрать кнопку
+                    </motion.button>
+                    <motion.button whileTap={{scale:0.95}} onClick={()=>setShowBookEdit(false)}
+                      style={{padding:'9px 12px',borderRadius:10,border:`1px solid ${c.border}`,
+                        background:c.card,color:c.sub,cursor:'pointer',fontSize:12}}>✕</motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Строка с анимированными стрелками + кнопкой */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+            {/* Левые стрелки */}
+            <div style={{display:'flex',gap:2}}>
+              {[0,1].map(i=>(
+                <motion.span key={i} style={{fontSize:14,color:ch.vibeColor,display:'block'}}
+                  animate={{x:[4,0,4],opacity:[0.4,1,0.4]}}
+                  transition={{repeat:Infinity,duration:1.1,delay:i*0.2,ease:'easeInOut'}}>
+                  →
+                </motion.span>
+              ))}
+            </div>
+
+            {/* Кнопка «Записаться» */}
+            {booked?(
+              <motion.div initial={{scale:0.9}} animate={{scale:1}}
+                style={{display:'flex',alignItems:'center',gap:6,padding:'9px 22px',borderRadius:24,
+                  background:'linear-gradient(135deg,rgba(16,185,129,0.2),rgba(5,150,105,0.15))',
+                  border:'1.5px solid rgba(16,185,129,0.5)'}}>
+                <motion.span animate={{scale:[1,1.3,1]}} transition={{repeat:1,duration:0.4}}>✅</motion.span>
+                <span style={{fontSize:13,fontWeight:800,color:'#34d399'}}>Вы записаны!</span>
+                {slotsLeft!==null&&slotsLeft>0&&(
+                  <span style={{fontSize:11,color:'rgba(52,211,153,0.7)'}}>· осталось {slotsLeft}</span>
+                )}
+              </motion.div>
+            ):(
+              <motion.button
+                whileTap={{scale:0.93}}
+                whileHover={{scale:1.04}}
+                onClick={()=>{
+                  if(slotsLeft===0)return;
+                  setBooked(true);
+                  onBook();
+                }}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'10px 24px',borderRadius:24,
+                  border:'none',cursor:slotsLeft===0?'default':'pointer',
+                  background:slotsLeft===0
+                    ?'rgba(255,255,255,0.07)'
+                    :`linear-gradient(135deg,${ch.vibeColor}ee,${accent}cc)`,
+                  color:slotsLeft===0?c.sub:'#fff',
+                  boxShadow:slotsLeft===0?'none':`0 3px 16px ${ch.vibeColor}55`,
+                  fontSize:14,fontWeight:800}}>
+                <motion.span animate={{y:[0,-2,0]}} transition={{repeat:Infinity,duration:1.4,ease:'easeInOut'}}>
+                  📅
+                </motion.span>
+                {post.bookingLabel||'Записаться'}
+                {slotsLeft!==null&&(
+                  <span style={{fontSize:10,fontWeight:600,
+                    padding:'2px 7px',borderRadius:20,
+                    background:'rgba(0,0,0,0.25)',color:slotsLeft===0?'#ef4444':'rgba(255,255,255,0.85)'}}>
+                    {slotsLeft===0?'мест нет':`${slotsLeft} мест`}
+                  </span>
+                )}
+              </motion.button>
+            )}
+
+            {/* Правые стрелки */}
+            <div style={{display:'flex',gap:2,transform:'scaleX(-1)'}}>
+              {[0,1].map(i=>(
+                <motion.span key={i} style={{fontSize:14,color:ch.vibeColor,display:'block'}}
+                  animate={{x:[4,0,4],opacity:[0.4,1,0.4]}}
+                  transition={{repeat:Infinity,duration:1.1,delay:i*0.2,ease:'easeInOut'}}>
+                  →
+                </motion.span>
+              ))}
+            </div>
+          </div>
+
+          {/* Счётчик записавшихся */}
+          {(post.bookingBooked||0)>0&&(
+            <p style={{margin:'6px 0 0',textAlign:'center',fontSize:11,color:c.sub}}>
+              Уже записались: <strong style={{color:ch.vibeColor}}>{post.bookingBooked}</strong>
+              {post.bookingSlots?` из ${post.bookingSlots}`:''}
+            </p>
+          )}
         </div>
       )}
 
@@ -1011,6 +1172,11 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
   const [seriesName,setSeriesName]=useState('');
   const [episodeNum,setEpisodeNum]=useState(1);
   const [publishing,setPublishing]=useState(false);
+
+  /* ── Запись ── */
+  const [hasBooking,setHasBooking]=useState(false);
+  const [bookingSlots,setBookingSlots]=useState(5);
+  const [bookingLabel,setBookingLabel]=useState('Записаться');
 
   /* ── Фото ── */
   const [imgFile,setImgFile]=useState<File|null>(null);
@@ -1126,6 +1292,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
       if(type==='announce'&&announceAt)base.announceAt=new Date(announceAt).getTime();
       if(type==='capsule'&&opensAt)Object.assign(base,{opensAt:new Date(opensAt).getTime(),capsuleOpened:false});
       if(type==='episode')Object.assign(base,{seriesName,episodeNum});
+      if(hasBooking){Object.assign(base,{hasBooking:true,bookingBooked:0,bookingLabel:bookingLabel||'Записаться',bookingSlots:bookingSlots||undefined});}
       onPublish(base);
     }finally{setPublishing(false);}
   };
@@ -1427,8 +1594,60 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
           </div>
         )}
 
+        {/* ── Кнопка «Записаться» ── */}
+        <div style={{marginTop:14,borderRadius:14,border:`1px solid ${hasBooking?'rgba(16,185,129,0.4)':c.border}`,
+          background:hasBooking?'rgba(16,185,129,0.05)':c.card,overflow:'hidden',transition:'all 0.25s'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',cursor:'pointer'}}
+            onClick={()=>setHasBooking(s=>!s)}>
+            <div style={{width:40,height:24,borderRadius:12,border:'none',cursor:'pointer',
+              background:hasBooking?'#10b981':'rgba(255,255,255,0.15)',transition:'all 0.2s',position:'relative',flexShrink:0}}>
+              <div style={{position:'absolute',top:3,width:18,height:18,borderRadius:'50%',
+                background:'#fff',transition:'left 0.2s',left:hasBooking?19:3}}/>
+            </div>
+            <span style={{fontSize:13,color:hasBooking?'#34d399':c.sub,fontWeight:hasBooking?700:500}}>
+              📅 Добавить кнопку «Записаться»
+            </span>
+          </div>
+          <AnimatePresence>
+            {hasBooking&&(
+              <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}}
+                style={{overflow:'hidden'}}>
+                <div style={{padding:'0 14px 14px',display:'flex',flexDirection:'column',gap:8}}>
+                  <div>
+                    <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Текст кнопки</p>
+                    <input value={bookingLabel} onChange={e=>setBookingLabel(e.target.value)}
+                      placeholder="Записаться"
+                      style={{width:'100%',boxSizing:'border-box',padding:'9px 12px',borderRadius:10,
+                        background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
+                  </div>
+                  <div>
+                    <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Количество мест (0 = без лимита)</p>
+                    <input type="number" min={0} max={999} value={bookingSlots}
+                      onChange={e=>setBookingSlots(Number(e.target.value))}
+                      style={{width:'100%',boxSizing:'border-box',padding:'9px 12px',borderRadius:10,
+                        background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none',textAlign:'center'}}/>
+                  </div>
+                  {/* Превью кнопки */}
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px 0 2px'}}>
+                    <span style={{fontSize:12,color:c.sub}}>→→</span>
+                    <div style={{padding:'9px 22px',borderRadius:24,
+                      background:'linear-gradient(135deg,rgba(16,185,129,0.7),rgba(5,150,105,0.6))',
+                      color:'#fff',fontWeight:800,fontSize:13,display:'flex',alignItems:'center',gap:6}}>
+                      <span>📅</span>
+                      {bookingLabel||'Записаться'}
+                      {bookingSlots>0&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,
+                        background:'rgba(0,0,0,0.25)'}}>{bookingSlots} мест</span>}
+                    </div>
+                    <span style={{fontSize:12,color:c.sub}}>←←</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* ── Эксклюзив ── */}
-        <div style={{marginTop:18,display:'flex',alignItems:'center',gap:10,
+        <div style={{marginTop:10,display:'flex',alignItems:'center',gap:10,
           padding:'12px 14px',background:isExclusive?'rgba(251,191,36,0.06)':c.card,
           borderRadius:14,border:`1px solid ${isExclusive?'rgba(251,191,36,0.3)':c.border}`,
           transition:'all 0.2s',cursor:'pointer'}} onClick={()=>setIsExclusive(s=>!s)}>
