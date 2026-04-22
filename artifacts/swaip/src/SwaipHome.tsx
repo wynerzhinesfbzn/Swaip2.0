@@ -3237,54 +3237,31 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     try{
       let mediaUrl:string|undefined;
       if(file){
+        const base=window.location.origin;
+        const tok=getSessionToken()||'';
         if(mediaType==='video'){
-          /* Чанковая загрузка: 5 MB, параллельно 3 чанка */
-          const CHUNK=5*1024*1024;const CONC=3;
-          const totalChunks=Math.max(1,Math.ceil(file.size/CHUNK));
-          const base=window.location.origin;
-          const tok=getSessionToken()||'';
-          /* 1. init */
-          let ir:Response;
+          /* Прямая загрузка видео одним запросом */
+          setUploadProgress(20);
+          let vr:Response;
           try{
-            ir=await fetch(`${base}/api/video-upload/init`,{
-              method:'POST',headers:{'Content-Type':'application/json','x-session-token':tok},
-              body:JSON.stringify({filename:file.name,totalChunks})});
+            vr=await fetch(`${base}/api/video-upload`,{
+              method:'POST',
+              headers:{
+                'Content-Type':file.type||'video/mp4',
+                'x-filename':file.name.replace(/[^a-zA-Z0-9.\-_ ]/g,'_'),
+                'x-session-token':tok,
+              },
+              body:file,
+            });
           }catch(e){
             throw new Error('Нет связи с сервером. Попробуй ещё раз.');
           }
-          if(!ir.ok){let m='Ошибка инициализации';try{const d=await ir.json();if(d.error)m=d.error;}catch{}throw new Error(m);}
-          const{uploadId}=await ir.json();
-          /* 2. chunks — параллельно по 3 штуки */
-          let doneCh=0;
-          for(let i=0;i<totalChunks;i+=CONC){
-            const batch=Array.from({length:Math.min(CONC,totalChunks-i)},(_,k)=>i+k);
-            const results=await Promise.all(batch.map(async idx=>{
-              const sliceBuf=await file.slice(idx*CHUNK,(idx+1)*CHUNK).arrayBuffer();
-              let cr:Response;
-              try{cr=await fetch(`${base}/api/video-upload/chunk`,{method:'POST',
-                headers:{'Content-Type':'application/octet-stream','x-upload-id':uploadId,'x-chunk-index':String(idx),'x-session-token':tok},
-                body:sliceBuf});}
-              catch{throw new Error(`Обрыв связи на части ${idx+1}. Слабый сигнал? Попробуй ещё раз.`);}
-              if(!cr.ok){let m=`Ошибка части ${idx+1}`;try{const d=await cr.json();if(d.error)m=d.error;}catch{}throw new Error(m);}
-              return true;
-            }));
-            if(results.some(r=>!r))throw new Error('Ошибка загрузки чанка');
-            doneCh+=batch.length;setUploadProgress(Math.round(doneCh/totalChunks*90));
-          }
-          setUploadProgress(95);
-          /* 3. finalize */
-          let fr:Response;
-          try{
-            fr=await fetch(`${base}/api/video-upload/finalize`,{
-              method:'POST',headers:{'Content-Type':'application/json','x-session-token':tok},
-              body:JSON.stringify({uploadId})});
-          }catch(e){
-            throw new Error('Ошибка завершения загрузки. Попробуй ещё раз.');
-          }
-          if(!fr.ok){let m='Ошибка завершения загрузки';try{const d=await fr.json();if(d.error)m=d.error;}catch{}throw new Error(m);}
-          const{url}=await fr.json();mediaUrl=url;
+          setUploadProgress(90);
+          if(!vr.ok){let m='Ошибка загрузки видео';try{const d=await vr.json();if(d.error)m=d.error;}catch{}throw new Error(m);}
+          const{url}=await vr.json();mediaUrl=url;
+          setUploadProgress(100);
         }else{
-          const up=await fetch(`${window.location.origin}/api/image-upload`,{method:'POST',headers:{'Content-Type':file.type||'image/jpeg','x-session-token':getSessionToken()||''},body:file});
+          const up=await fetch(`${base}/api/image-upload`,{method:'POST',headers:{'Content-Type':file.type||'image/jpeg','x-session-token':tok},body:file});
           if(!up.ok){
             let msg='Ошибка загрузки фото';
             try{const d=await up.json();if(d.error)msg=d.error;}catch{}
@@ -3880,8 +3857,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                         {!storyUploading?(
                           <motion.button whileTap={{scale:0.9}} onClick={()=>{
                             if(!galFile)return;
+                            const safeFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'video/mp4'}):galFile;
                             const txt=ovItems.filter(it=>it.type==='text').map(it=>it.text).join(' ').trim();
-                            setStoryError(null);submitStory('video',galFile,txt||undefined,ovItems.length>0?ovItems:undefined);
+                            setStoryError(null);submitStory('video',safeFile,txt||undefined,ovItems.length>0?ovItems:undefined);
                           }} style={{flex:1,padding:'11px',borderRadius:99,background:'linear-gradient(135deg,#059669,#10b981)',border:'none',cursor:'pointer',color:'#fff',fontSize:14,fontWeight:900,boxShadow:'0 4px 16px rgba(5,150,105,0.5)'}}>
                             ✓ Опубликовать
                           </motion.button>
@@ -3907,7 +3885,8 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 <input ref={imageFileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{
                   const f=e.target.files?.[0];if(!f)return;
                   if(galUrl)URL.revokeObjectURL(galUrl);
-                  resetOverlays();
+                  resetOverlays();setGalBuffer(null);
+                  f.arrayBuffer().then(buf=>{setGalBuffer(buf);}).catch(()=>{});
                   setGalFile(f);setGalUrl(URL.createObjectURL(f));setGalType('image');
                   e.target.value='';
                 }}/>
@@ -3968,9 +3947,12 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                         {!storyUploading?(
                           <motion.button whileTap={{scale:0.9}} onClick={async()=>{
                             if(!galFile||!galUrl)return;
-                            let uploadFile=galFile;
+                            let uploadFile:File;
                             if(ovItems.length>0){
-                              try{const cb=await compositePhoto(galUrl);uploadFile=new File([cb],galFile.name,{type:'image/jpeg'});}catch{}
+                              try{const cb=await compositePhoto(galUrl);uploadFile=new File([cb],galFile.name,{type:'image/jpeg'});}
+                              catch{uploadFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'image/jpeg'}):galFile;}
+                            }else{
+                              uploadFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'image/jpeg'}):galFile;
                             }
                             const txt=ovItems.filter(it=>it.type==='text').map(it=>it.text).join(' ').trim();
                             setStoryError(null);submitStory('image',uploadFile,txt||undefined);
@@ -6960,25 +6942,17 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const clearImg=()=>{if(imgPrev)URL.revokeObjectURL(imgPrev);setImgFile(null);setImgPrev(null);};
 
   const uploadVid=async():Promise<string|null>=>{
-    if(!vidFile)return null;setVidLoading(true);setVidProgress(0);
-    const CHUNK=5*1024*1024;const CONC=3;const base=window.location.origin;const tok=getSessionToken()||'';
+    if(!vidFile)return null;setVidLoading(true);setVidProgress(20);
+    const base=window.location.origin;const tok=getSessionToken()||'';
     try{
-      const total=Math.max(1,Math.ceil(vidFile.size/CHUNK));
-      const ir=await fetch(`${base}/api/video-upload/init`,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':tok},body:JSON.stringify({filename:vidFile.name,totalChunks:total})});
-      if(!ir.ok)return null;const{uploadId}=await ir.json();
-      let done=0;
-      for(let i=0;i<total;i+=CONC){
-        const batch=Array.from({length:Math.min(CONC,total-i)},(_,k)=>i+k);
-        const results=await Promise.all(batch.map(async idx=>{
-          const b=await vidFile.slice(idx*CHUNK,(idx+1)*CHUNK).arrayBuffer();
-          const r=await fetch(`${base}/api/video-upload/chunk`,{method:'POST',headers:{'Content-Type':'application/octet-stream','x-upload-id':uploadId,'x-chunk-index':String(idx),'x-session-token':tok},body:b});
-          return r.ok;
-        }));
-        if(results.some(ok=>!ok))return null;
-        done+=batch.length;setVidProgress(Math.round((done/total)*90));
-      }
-      const fr=await fetch(`${base}/api/video-upload/finalize`,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':tok},body:JSON.stringify({uploadId})});
-      if(!fr.ok)return null;setVidProgress(100);const{url}=await fr.json();return url;
+      const r=await fetch(`${base}/api/video-upload`,{
+        method:'POST',
+        headers:{'Content-Type':vidFile.type||'video/mp4','x-filename':vidFile.name.replace(/[^a-zA-Z0-9.\-_ ]/g,'_'),'x-session-token':tok},
+        body:vidFile,
+      });
+      setVidProgress(90);
+      if(!r.ok)return null;
+      setVidProgress(100);const{url}=await r.json();return url;
     }catch{return null;}finally{setVidLoading(false);}
   };
   const clearVid=()=>{if(vidPrev)URL.revokeObjectURL(vidPrev);setVidFile(null);setVidPrev(null);setVidProgress(0);};
@@ -7088,28 +7062,20 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   };
 
   const uploadSelfiePost=async()=>{
-    if(!selfieBlob)return;setSelfieLoading(true);setSelfieProgress(0);
+    if(!selfieBlob)return;setSelfieLoading(true);setSelfieProgress(20);
     const base=window.location.origin;
     try{
-      const CHUNK=5*1024*1024;const CONC=3;const file=new File([selfieBlob],'selfie.webm',{type:selfieBlob.type||'video/webm'});
-      const total=Math.max(1,Math.ceil(file.size/CHUNK));
-      const ir=await fetch(`${base}/api/video-upload/init`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:'selfie.webm',totalChunks:total})});
-      if(!ir.ok)return;const{uploadId}=await ir.json();
-      let done=0;
-      for(let i=0;i<total;i+=CONC){
-        const batch=Array.from({length:Math.min(CONC,total-i)},(_,k)=>i+k);
-        const results=await Promise.all(batch.map(async idx=>{
-          const b=await file.slice(idx*CHUNK,(idx+1)*CHUNK).arrayBuffer();
-          const r=await fetch(`${base}/api/video-upload/chunk`,{method:'POST',headers:{'Content-Type':'application/octet-stream','x-upload-id':uploadId,'x-chunk-index':String(idx)},body:b});
-          return r.ok;
-        }));
-        if(results.some(ok=>!ok))return;
-        done+=batch.length;setSelfieProgress(Math.round((done/total)*90));
-      }
-      const fr=await fetch(`${base}/api/video-upload/finalize`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uploadId})});
-      if(!fr.ok)return;setSelfieProgress(95);const{url:videoUrl}=await fr.json();
-      const r=await fetch(`${base}/api/broadcasts`,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},body:JSON.stringify({content:`🎥:${selfieFrame}`,authorMode,videoUrl})});
-      if(r.ok){const created=await r.json().catch(()=>null);closeSelfie();if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);onPostCreated({content:`🎥:${selfieFrame}`,videoUrl,...created});}
+      const file=new File([selfieBlob],'selfie.webm',{type:selfieBlob.type||'video/webm'});
+      const r=await fetch(`${base}/api/video-upload`,{
+        method:'POST',
+        headers:{'Content-Type':file.type,'x-filename':'selfie.webm','x-session-token':getSessionToken()||''},
+        body:file,
+      });
+      setSelfieProgress(80);
+      if(!r.ok)return;
+      setSelfieProgress(90);const{url:videoUrl}=await r.json();
+      const postRes=await fetch(`${base}/api/broadcasts`,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},body:JSON.stringify({content:`🎥:${selfieFrame}`,authorMode,videoUrl})});
+      if(postRes.ok){const created=await postRes.json().catch(()=>null);closeSelfie();if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);onPostCreated({content:`🎥:${selfieFrame}`,videoUrl,...created});}
     }finally{setSelfieLoading(false);}
   };
 
