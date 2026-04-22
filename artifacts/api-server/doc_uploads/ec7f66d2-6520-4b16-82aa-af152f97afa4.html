@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>OKO Vision Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--bg2:#111;--bg3:#1a1a1a;--gold:#c9a84c;--gold-dim:rgba(201,168,76,0.15);--green:#2ecc71;--red:#e74c3c;--red-dim:rgba(231,76,60,0.15);--green-dim:rgba(46,204,113,0.12);--text:#e8e8e8;--text-dim:#666;--text-mid:#aaa;--border:rgba(255,255,255,0.07);--r:14px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;max-width:430px;margin:0 auto}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--gold);border-radius:2px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* HEADER */
+.hdr{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;cursor:pointer}
+.logo-icon{width:38px;height:38px;background:var(--gold-dim);border:1.5px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.logo-icon::before{content:'';width:8px;height:8px;background:var(--gold);border-radius:50%;position:absolute;top:5px;right:5px}
+.logo-icon svg{color:var(--gold)}
+.logo-oko{font-weight:700;font-size:16px;color:var(--gold);letter-spacing:1px}
+.logo-vis{font-size:16px;color:var(--text-dim);font-weight:300;letter-spacing:1px}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.wbadge{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--text-mid)}
+.wdot{width:7px;height:7px;background:var(--gold);border-radius:50%}
+.ibtn{width:36px;height:36px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-mid);transition:all .2s}
+.ibtn:hover{border-color:var(--gold);color:var(--gold)}
+
+/* TICKER */
+.ticker{background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 0;overflow:hidden}
+.ticker-track{display:flex;gap:28px;animation:ticker 25s linear infinite;white-space:nowrap}
+.ti{display:flex;align-items:center;gap:6px;font-size:12px}
+.tn{color:var(--text-mid);font-weight:600}.tp{color:var(--text)}
+.tpos{color:var(--green)}.tneg{color:var(--red)}
+.live-b{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--gold);margin-right:8px}
+.ldot{width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pulse 1.5s ease infinite}
+
+/* PAGES */
+.page{display:none;animation:fadeUp .3s ease}.page.active{display:block}
+
+/* SIDE MENU */
+.smenu{position:fixed;top:0;right:-100%;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:200;transition:right 0s .3s}
+.smenu.open{right:0;transition:right 0s}
+.mpanel{position:absolute;top:0;right:-100%;width:85%;height:100%;background:var(--bg);border-left:1px solid var(--border);overflow-y:auto;transition:right .3s ease}
+.smenu.open .mpanel{right:0}
+.mtop{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border)}
+.mclose{width:32px;height:32px;background:var(--bg3);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-mid);cursor:pointer}
+.wsec{margin:12px;background:linear-gradient(135deg,#2a2410,#1c1a0e);border:1px solid rgba(201,168,76,.3);border-radius:var(--r);padding:14px}
+.mslabel{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;padding:14px 16px 6px}
+.mitem{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s}
+.mitem:hover{background:var(--bg2)}.mitem.active{background:var(--gold-dim)}
+.miico{width:38px;height:38px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text-mid);flex-shrink:0}
+.mitem.active .miico{border-color:rgba(201,168,76,.3);color:var(--gold)}
+.mitit{font-size:14px;font-weight:600;color:var(--text)}.mitem.active .mitit{color:var(--gold)}
+.misub{font-size:11px;color:var(--text-dim);margin-top:1px}
+.mibadge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:1px}
+.mibadge.live{background:rgba(46,204,113,.15);color:var(--green)}
+.mibadge.new{background:rgba(255,165,0,.15);color:orange}
+.mitem.exit{background:var(--red-dim)}.mitem.exit .mitit{color:var(--red)}
+.mitem.exit .miico{background:rgba(231,76,60,.2);color:var(--red);border-color:rgba(231,76,60,.3)}
+
+/* COMMON */
+.sec-lbl{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;padding:20px 14px 10px}
+.sec-lbl::before{content:'';flex:1;height:1px;background:var(--border)}
+.phdr{padding:14px 14px 0;display:flex;align-items:center;gap:12px}
+.bbtn{width:36px;height:36px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text-mid);cursor:pointer;flex-shrink:0}
+.ptit{font-size:16px;font-weight:700;color:var(--gold);letter-spacing:1px}
+.psub{font-size:11px;color:var(--text-dim);margin-top:2px}
+.tabs{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin:14px 14px 0}
+.tab{flex:1;padding:11px;text-align:center;font-size:11px;font-weight:600;color:var(--text-dim);cursor:pointer;letter-spacing:1px;transition:all .2s;text-transform:uppercase}
+.tab.active{background:linear-gradient(135deg,#2a2410,#1c1a0e);color:var(--gold);border:1px solid rgba(201,168,76,.3);border-radius:12px;margin:3px}
+.bot{height:60px}
+.chip-row{display:flex;gap:8px;overflow-x:auto;padding:0 14px}
+.chip-row::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text-dim);transition:all .2s}
+.chip.active{background:linear-gradient(135deg,#2a2410,#1c1a0e);border-color:rgba(201,168,76,.4);color:var(--gold)}
+.sinp{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:11px 14px;color:var(--text);font-size:13px;outline:none;font-family:'Inter',sans-serif}
+.sinp::placeholder{color:var(--text-dim)}.sinp:focus{border-color:rgba(201,168,76,.4)}
+.rbtn{width:42px;height:42px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;color:var(--text-mid);cursor:pointer;transition:all .2s;flex-shrink:0}
+.rbtn:hover{border-color:var(--gold);color:var(--gold)}
+.rbtn.spin svg{animation:spin .8s linear infinite}
+
+/* HOME */
+.hero{padding:36px 20px 28px;position:relative;overflow:hidden}
+.hbig{font-family:'Bebas Neue',sans-serif;font-size:62px;line-height:.95;letter-spacing:2px;color:#fff}
+.hwin{font-family:'Bebas Neue',sans-serif;font-size:72px;line-height:1;color:var(--gold);text-align:right}
+.stgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden;margin:14px 14px 0}
+.stitem{background:var(--bg2);padding:14px 10px;text-align:center}
+.stval{font-size:17px;font-weight:700}.stlbl{font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:3px;text-transform:uppercase}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 14px 0}
+.mcard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative}
+.mbadge{position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px}
+.mbadge.pos{background:var(--green-dim);color:var(--green)}.mbadge.neg{background:var(--red-dim);color:var(--red)}
+.mval{font-size:22px;font-weight:700}.mlbl{font-size:11px;color:var(--text-dim);margin-top:4px}
+.mbar{height:2px;background:var(--border);border-radius:1px;margin-top:10px}
+.mbf{height:100%;border-radius:1px}.mbf.g{background:var(--gold)}.mbf.r{background:var(--red)}
+.pcard{background:linear-gradient(135deg,#1a1710,#111);border:1px solid rgba(201,168,76,.3);border-radius:var(--r);padding:18px;margin:0 14px}
+.plbl{font-size:10px;font-weight:600;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase}
+.prow{display:flex;justify-content:space-between;align-items:flex-start;margin-top:6px}
+.pval{font-size:36px;font-weight:700}
+.pbadge{display:inline-flex;align-items:center;gap:4px;background:var(--red-dim);color:var(--red);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;margin-top:4px}
+.pstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+.pstat{background:var(--bg3);border-radius:10px;padding:10px 8px;text-align:center}
+.psv{font-size:14px;font-weight:700}.psl{font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;text-transform:uppercase}
+.ccrd{margin:8px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.ctabs{display:flex;border-bottom:1px solid var(--border);margin-top:12px}
+.ctab{flex:1;text-align:center;padding:8px 4px;font-size:11px;color:var(--text-dim);cursor:pointer;position:relative}
+.ctab.active{color:var(--gold)}.ctab.active::after{content:'';position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:var(--gold);border-radius:1px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px}
+.fcard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.fico{width:36px;height:36px;background:var(--bg3);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);margin-bottom:12px}
+.ftit{font-size:14px;font-weight:700;margin-bottom:6px}.fdesc{font-size:11px;color:var(--text-dim);line-height:1.5}
+.footer{margin-top:40px;border-top:1px solid var(--border);padding:28px 20px;text-align:center}
+.flinks{display:flex;justify-content:center;gap:20px;margin-bottom:20px}
+.flink{font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;cursor:pointer}
+.fbot{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-dim);letter-spacing:1px}
+
+/* ===== MARKETS ===== */
+.mhdr{padding:14px}
+.mhtit{font-size:20px;font-weight:700;color:var(--gold);letter-spacing:1px}
+.mhsub{font-size:12px;color:var(--text-dim);margin-top:3px;display:flex;align-items:center;gap:6px}
+.mhlive{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--green)}
+.msbar{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden;margin:12px 14px 0}
+.msbi{background:var(--bg2);padding:10px;text-align:center}
+.msbv{font-size:14px;font-weight:700}.msbl{font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;text-transform:uppercase}
+.ntabs{display:flex;gap:8px;overflow-x:auto;padding:0 14px}
+.ntabs::-webkit-scrollbar{display:none}
+.ntab{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);cursor:pointer;transition:all .2s;white-space:nowrap}
+.ntab.active{background:var(--gold-dim);border-color:rgba(201,168,76,.4)}
+.ntname{font-size:12px;font-weight:600;color:var(--text-dim)}.ntab.active .ntname{color:var(--gold)}
+.ndot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.srow{display:flex;gap:8px;margin:12px 14px 0}
+.tcnt{font-size:12px;color:var(--text-dim);margin:10px 14px 6px}
+.tlist{display:flex;flex-direction:column;margin:0 14px;gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden}
+.trow{background:var(--bg2);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .2s}
+.trow:hover{background:var(--bg3)}
+.trank{font-size:11px;color:var(--text-dim);width:18px;text-align:center;flex-shrink:0;font-family:'Space Mono',monospace}
+.tava{width:40px;height:40px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--gold);overflow:hidden;flex-shrink:0;border:1px solid var(--border)}
+.tava img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.tinf{flex:1;min-width:0}
+.tnam{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tpair{font-size:11px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tdex{font-size:10px;color:var(--text-dim);background:var(--bg3);border-radius:4px;padding:1px 5px;display:inline-block;margin-top:3px}
+.trht{text-align:right;flex-shrink:0}
+.tprice{font-size:14px;font-weight:700;color:var(--text);font-family:'Space Mono',monospace}
+.tchg{font-size:12px;font-weight:700;margin-top:3px}
+.tchg.pos{color:var(--green)}.tchg.neg{color:var(--red)}
+.tvol{font-size:10px;color:var(--text-dim);margin-top:2px}
+
+/* Token detail */
+.tdet{background:var(--bg3);padding:12px 14px;border-top:1px solid var(--border);display:none}
+.tdet.open{display:block}
+.tdchg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.tdci{background:var(--bg2);border-radius:8px;padding:6px;text-align:center}
+.tdperiod{font-size:9px;color:var(--text-dim);letter-spacing:1px}
+.tdpct{font-size:13px;font-weight:700;margin-top:2px}
+.tdpct.pos{color:var(--green)}.tdpct.neg{color:var(--red)}
+.tdgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.tdlbl{font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.tdval{font-size:13px;font-weight:600;margin-top:2px}
+.tdbtns{display:flex;gap:8px}
+.tdbuy{flex:1;background:var(--gold-dim);border:1px solid rgba(201,168,76,.35);border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer}
+.tdsell{flex:1;background:var(--red-dim);border:1px solid rgba(231,76,60,.3);border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;color:var(--red);cursor:pointer}
+.tddex{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:600;color:var(--text-mid);cursor:pointer}
+
+/* States */
+.loading{padding:40px 20px;text-align:center}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+.ltxt{font-size:13px;color:var(--text-dim)}
+.estate{padding:30px 20px;text-align:center}
+.eico{font-size:36px;margin-bottom:12px}.etxt{font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6}
+.retrybtn{background:var(--gold-dim);border:1px solid rgba(201,168,76,.3);border-radius:10px;padding:10px 20px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer;display:inline-block;margin-top:8px}
+
+/* PORTFOLIO */
+.recalc{margin:14px 14px 0;background:var(--red-dim);border:1px solid rgba(231,76,60,.3);border-radius:var(--r);padding:13px;text-align:center;font-size:12px;font-weight:700;color:var(--red);letter-spacing:1px;cursor:pointer;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px}
+.svdtokens{margin:10px 14px 0;background:var(--green-dim);border:1px solid rgba(46,204,113,.2);border-radius:var(--r);padding:14px}
+.svlbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--green);text-transform:uppercase;margin-bottom:10px}
+.svtoks{display:flex;flex-wrap:wrap;gap:7px}
+.svtok{background:transparent;border:1px solid rgba(46,204,113,.4);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600}
+.svtok span{color:var(--green)}
+.posact{display:flex;gap:8px;margin:12px 14px 0}
+.sortbtn{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:11px;font-size:12px;color:var(--text-mid);text-align:center;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.clsbtn{background:var(--red-dim);border:1px solid rgba(231,76,60,.3);border-radius:var(--r);padding:11px 16px;font-size:12px;font-weight:700;color:var(--red);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.poslist{margin:10px 14px 0;display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden}
+.positem{background:var(--bg2);padding:14px;display:flex;align-items:center;gap:12px}
+.posava{width:44px;height:44px;border-radius:50%;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.posnm{font-size:15px;font-weight:700}.posamt{font-size:12px;color:var(--text-dim);margin-top:2px}
+.posval{font-size:16px;font-weight:700}
+.pnlpos{font-size:12px;color:var(--green);margin-top:2px}.pnlneg{font-size:12px;color:var(--red);margin-top:2px}
+.posclose{width:28px;height:28px;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--red);flex-shrink:0;font-size:12px}
+.pnlper{margin:14px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.ppgrd{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.ppitm{text-align:center}
+.ppper{font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:5px;text-transform:uppercase}
+.ppval{font-size:16px;font-weight:700;color:var(--red)}.ppusd{font-size:11px;color:var(--text-dim);margin-top:2px}
+.wrgrd{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 14px 0}
+.wrcrd{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.wrlbl{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px}
+.wrval{font-size:32px;font-weight:700;color:var(--gold)}.wrsub{font-size:11px;color:var(--text-dim);margin-top:4px}
+.wrbar{height:2px;background:var(--border);border-radius:1px;margin-top:10px}
+.wrbf{height:100%;background:var(--gold);border-radius:1px;width:67%}
+.pacts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 14px 0}
+.pact1{background:linear-gradient(135deg,#2a2410,#1c1a0e);border:1px solid rgba(201,168,76,.35);border-radius:var(--r);padding:14px;font-size:12px;font-weight:700;color:var(--gold);letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px}
+.pact2{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-size:12px;font-weight:600;color:var(--text-mid);letter-spacing:1px;text-transform:uppercase;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px}
+
+/* SIGNALS */
+.sgcnts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 14px}
+.sgci{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;text-align:center}
+.sgcv{font-size:28px;font-weight:700}.sgcl{font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:3px;text-transform:uppercase}
+.sggrd{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px}
+.sgcard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px;cursor:pointer;transition:border-color .2s}
+.sgcard:hover{border-color:rgba(201,168,76,.3)}
+.sghdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sgava{width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sgbadge{margin-left:auto;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.sgbadge.buy{background:rgba(46,204,113,.15);color:var(--green);border:1px solid rgba(46,204,113,.3)}
+.sgbadge.sell{background:var(--red-dim);color:var(--red);border:1px solid rgba(231,76,60,.3)}
+.sgpch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px}
+.sgpci{text-align:center}
+.sgpbt{display:flex;gap:5px;margin-bottom:8px}
+.sgbuy{flex:1;background:var(--gold-dim);border:1px solid rgba(201,168,76,.3);border-radius:20px;padding:7px;font-size:11px;font-weight:700;color:var(--gold);cursor:pointer;text-align:center}
+.sgsell{flex:1;background:var(--red-dim);border:1px solid rgba(231,76,60,.3);border-radius:20px;padding:7px;font-size:11px;font-weight:700;color:var(--red);cursor:pointer;text-align:center}
+.sgsub{display:flex;gap:5px}
+.sgsubb{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 4px;font-size:10px;color:var(--text-dim);cursor:pointer;text-align:center}
+.riskrow{display:flex;align-items:center;gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--text-dim)}
+.riskval{font-size:11px;font-weight:700;color:var(--text-mid)}
+.netsel{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:7px 12px;font-size:12px;color:var(--text-mid);cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- SIDE MENU -->
+<div class="smenu" id="sideMenu" onclick="bgClose(event)">
+ <div class="mpanel">
+  <div class="mtop">
+   <div class="logo"><div class="logo-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9"/></svg></div><div><span class="logo-oko">ОКО </span><span class="logo-vis">VISION</span></div></div>
+   <div class="mclose" onclick="closeMenu()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+  </div>
+  <div class="wsec">
+   <div style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--gold);letter-spacing:1px"><div class="wdot"></div>ПОДКЛЮЧЁН</div>
+   <div style="font-size:12px;color:var(--text-mid);margin-top:4px">6KE5CA...aiXj</div>
+   <div style="font-size:18px;font-weight:700;margin-top:8px">$7</div>
+   <div style="font-size:12px;color:var(--green)">+0.7%</div>
+  </div>
+  <div class="mslabel">НАВИГАЦИЯ</div>
+  <div class="mitem" id="mi-home" onclick="go('home')"><div class="miico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></div><div><div class="mitit">Главная</div><div class="misub">Dashboard</div></div><div style="color:var(--text-dim);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem" id="mi-signals" onclick="go('signals')"><div class="miico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14"/></svg></div><div><div class="mitit">Сигналы</div><div class="misub">Рынки и токены</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:6px"><span class="mibadge live">LIVE</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--text-dim)"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem" id="mi-markets" onclick="go('markets')"><div class="miico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mitit">Markets</div><div class="misub">Live DexScreener</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:6px"><span class="mibadge live">LIVE</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--text-dim)"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem" id="mi-portfolio" onclick="go('portfolio')"><div class="miico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><div><div class="mitit">Портфель</div><div class="misub">Позиции и P&L</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:700;color:var(--gold)">$7</span><span style="font-size:11px;color:var(--green)">+0.7%</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--text-dim)"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem"><div class="miico">🎁</div><div><div class="mitit">Рефералы</div><div class="misub">Зарабатывай с друзьями</div></div><div style="color:var(--text-dim);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem"><div class="miico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mitit">Analytics</div><div class="misub">Бэктест стратегий</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:6px"><span class="mibadge new">NEW</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--text-dim)"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mslabel">ПРОЧЕЕ</div>
+  <div class="mitem"><div class="miico">⚙️</div><div><div class="mitit">Настройки</div><div class="misub">Кошелёк и параметры</div></div><div style="color:var(--text-dim);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem"><div class="miico">👥</div><div><div class="mitit">Leaderboard</div><div class="misub">Копи-трейдинг</div></div><div style="color:var(--text-dim);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem"><div class="miico">🔀</div><div><div class="mitit">Bridge</div><div class="misub">Мост между сетями</div></div><div style="color:var(--text-dim);margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div></div>
+  <div class="mitem exit"><div class="miico">→</div><div><div class="mitit">Выход</div><div class="misub">Отключить кошелёк</div></div></div>
+  <div class="mslabel">ИНСТРУМЕНТЫ</div>
+  <div style="margin:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;color:var(--text-mid)">Тема</span><div style="display:flex;gap:8px"><div style="width:36px;height:36px;border-radius:50%;background:var(--gold-dim);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">⚡</div><div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">🎤</div></div></div>
+  <div style="text-align:center;font-size:10px;color:var(--text-dim);padding:16px;letter-spacing:1px;font-family:'Space Mono',monospace">OKO Vision Terminal v3.2.1</div>
+ </div>
+</div>
+
+<!-- HEADER -->
+<div class="hdr">
+ <div class="logo" onclick="go('home')">
+  <div class="logo-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9"/></svg></div>
+  <div><span class="logo-oko">ОКО </span><span class="logo-vis">VISION</span></div>
+ </div>
+ <div class="hdr-r">
+  <div class="wbadge"><div class="wdot"></div>6KE5...aiXj</div>
+  <div class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+  <div class="ibtn" onclick="openMenu()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+ </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker">
+ <div class="ticker-track" id="tickTr">
+  <span class="live-b"><span class="ldot"></span>LIVE</span>
+  <div class="ti"><span class="tn">SOL</span><span class="tp">$142.5</span><span class="tpos">+0.78%</span></div>
+  <div class="ti"><span class="tn">WIF</span><span class="tp">$0.187</span><span class="tneg">-1.34%</span></div>
+  <div class="ti"><span class="tn">BONK</span><span class="tp">$0.0000148</span><span class="tneg">-1.89%</span></div>
+  <div class="ti"><span class="tn">PEPE</span><span class="tp">$0.0000072</span><span class="tpos">+4.3%</span></div>
+  <div class="ti"><span class="tn">JUP</span><span class="tp">$0.48</span><span class="tpos">+2.1%</span></div>
+  <div class="ti"><span class="tn">RAY</span><span class="tp">$2.34</span><span class="tneg">-0.9%</span></div>
+  <span class="live-b" style="margin-left:20px"><span class="ldot"></span>LIVE</span>
+  <div class="ti"><span class="tn">SOL</span><span class="tp">$142.5</span><span class="tpos">+0.78%</span></div>
+  <div class="ti"><span class="tn">WIF</span><span class="tp">$0.187</span><span class="tneg">-1.34%</span></div>
+  <div class="ti"><span class="tn">BONK</span><span class="tp">$0.0000148</span><span class="tneg">-1.89%</span></div>
+  <div class="ti"><span class="tn">PEPE</span><span class="tp">$0.0000072</span><span class="tpos">+4.3%</span></div>
+  <div class="ti"><span class="tn">JUP</span><span class="tp">$0.48</span><span class="tpos">+2.1%</span></div>
+  <div class="ti"><span class="tn">RAY</span><span class="tp">$2.34</span><span class="tneg">-0.9%</span></div>
+ </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- HOME -->
+<!-- ====================================================== -->
+<div class="page active" id="page-home">
+ <div style="margin:14px 14px 0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+  <div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;background:var(--bg3);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--gold)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 14a2 2 0 100-4 2 2 0 000 4z"/></svg></div><div><div style="font-size:12px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:6px"><div class="wdot"></div>КОШЕЛЁК ПОДКЛЮЧЁН</div><div style="font-size:12px;color:var(--text-dim);margin-top:2px">6KE5...aiXj 📋</div></div></div>
+  <div style="display:flex;gap:8px"><div style="width:30px;height:30px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px">📋</div><div style="width:30px;height:30px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px">↗</div><div style="width:30px;height:30px;background:var(--red-dim);border:1px solid rgba(231,76,60,.3);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--red)">→</div></div>
+ </div>
+ <div class="hero">
+  <div style="font-size:10px;color:var(--text-dim);letter-spacing:2px;position:absolute;right:20px;top:36px;text-align:right;line-height:1.6">OKO VISION TERMINAL<br>EST. 2024</div>
+  <div style="font-size:11px;font-weight:600;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px">BUILT</div>
+  <div class="hbig">FOR TRADERS</div>
+  <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-top:2px">создано для трейдеров</div>
+  <div style="font-size:12px;font-weight:300;letter-spacing:3px;color:var(--text-dim);text-align:right;margin-top:14px">TO</div>
+  <div class="hwin">WIN.</div>
+  <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-align:right;margin-top:2px">чтобы побеждать</div>
+  <div style="margin-top:18px;font-size:13px;line-height:1.7;color:var(--text-mid)"><strong style="color:var(--text)">Создано на абсолютном доверии. Разработано для успеха каждого трейдера.</strong> <span style="font-size:11px;color:var(--text-dim)">Безопасно, мощно, лично.</span></div>
+  <div style="margin-top:4px;font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase">EVERY TRADE. EVERY DAY.</div>
+  <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">
+   <button style="background:#f0ead8;color:#111;border:none;border-radius:var(--r);padding:16px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;width:100%" onclick="go('markets')">EXPLORE MARKETS →</button>
+   <div style="text-align:center;font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:-4px">исследовать рынки</div>
+   <button style="background:transparent;color:var(--text-mid);border:1px solid var(--border);border-radius:var(--r);padding:16px;font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;width:100%" onclick="go('signals')">SIGNAL BOARD</button>
+   <div style="text-align:center;font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:-4px">сигналы</div>
+  </div>
+ </div>
+ <div class="stgrid">
+  <div class="stitem"><div class="stval">284K+</div><div class="stlbl">Traders</div></div>
+  <div class="stitem"><div class="stval">$4.2B</div><div class="stlbl">Daily Vol</div></div>
+  <div class="stitem"><div class="stval">28</div><div class="stlbl">Countries</div></div>
+ </div>
+ <div class="mgrid">
+  <div class="mcard"><div style="color:var(--text-dim);margin-bottom:8px;font-size:14px">💰</div><div class="mbadge pos">+12.4%</div><div class="mval">$4.2B</div><div class="mlbl">Total Volume</div><div class="mbar"><div class="mbf g" style="width:80%"></div></div></div>
+  <div class="mcard"><div style="color:var(--text-dim);margin-bottom:8px;font-size:14px">📊</div><div class="mbadge pos">+5.8%</div><div class="mval">284K</div><div class="mlbl">Active Traders</div><div class="mbar"><div class="mbf g" style="width:65%"></div></div></div>
+  <div class="mcard"><div style="color:var(--text-dim);margin-bottom:8px;font-size:14px">📈</div><div class="mbadge pos">+1.2%</div><div class="mval">72.3%</div><div class="mlbl">Win Rate</div><div class="mbar"><div class="mbf g" style="width:72%"></div></div></div>
+  <div class="mcard"><div style="color:var(--text-dim);margin-bottom:8px;font-size:14px">📉</div><div class="mbadge neg">-0.4%</div><div class="mval">34.7%</div><div class="mlbl">Avg Return</div><div class="mbar"><div class="mbf r" style="width:35%"></div></div></div>
+ </div>
+ <div class="sec-lbl">LIVE DASHBOARD <span style="width:8px;height:8px;background:var(--gold);border-radius:50%;display:inline-block;animation:pulse 1.5s ease infinite;margin-left:4px"></span></div>
+ <div class="pcard">
+  <div class="plbl">TOTAL PORTFOLIO VALUE</div>
+  <div class="prow"><div class="pval">$9.53</div><div><div style="font-size:18px;font-weight:700;color:var(--red)">$1.12</div><div class="pbadge">↘ -10.84%</div><div style="font-size:10px;color:var(--text-dim);margin-top:4px">ЗА ВСЁ ВРЕМЯ</div></div></div>
+  <div style="font-size:11px;color:var(--text-dim);margin-top:6px">📁 0.0436 SOL · реальный баланс 🔄</div>
+  <div style="font-size:11px;color:var(--gold);margin-top:2px">6KE5CA...aiXj ↗</div>
+  <div class="pstats"><div class="pstat"><div class="psv">$6.78</div><div class="psl">Вложено</div></div><div class="pstat"><div class="psv">$0.10</div><div class="psl">Реализовано</div></div><div class="pstat"><div class="psv">4</div><div class="psl">Позиций</div></div></div>
+ </div>
+ <div class="ccrd">
+  <div style="display:flex;justify-content:space-between;align-items:center"><div><div><span style="font-size:22px;font-weight:700;color:var(--red)">$1.82</span><span style="font-size:13px;color:var(--text-dim)"> -16.19%</span></div><div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;text-transform:uppercase">PNL · 30D</div></div><div style="display:flex;gap:4px"><div style="width:28px;height:28px;background:var(--gold-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px">📈</div><div style="width:28px;height:28px;background:var(--bg3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px">📊</div></div></div>
+  <div class="ctabs"><div class="ctab">1H</div><div class="ctab">24H</div><div class="ctab">7D</div><div class="ctab active">30D</div><div class="ctab">ALL</div></div>
+  <div style="margin-top:12px"><canvas id="homeChart" height="140" style="width:100%"></canvas></div>
+  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:6px"><span>26 март</span><span>27 март</span><span>27 март</span><span>27 март</span></div>
+ </div>
+ <div style="margin:14px 14px 0;background:var(--bg2);border:1px solid rgba(201,168,76,.2);border-radius:var(--r);padding:14px;cursor:pointer" onclick="go('markets')">
+  <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;font-weight:600;color:var(--gold)">📊 Открыть Маркеты</span><span style="font-size:12px;color:var(--text-dim)">DexScreener →</span></div>
+  <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Trending токены, топ объёмы, новые пары — в реальном времени</div>
+ </div>
+ <div class="sec-lbl" style="margin-top:10px">CORE FEATURES</div>
+ <div class="fgrid">
+  <div class="fcard"><div class="fico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><div class="ftit">OKO Intelligence</div><div class="fdesc">AI market scanning with real-time pattern recognition across 500+ instruments.</div></div>
+  <div class="fcard"><div class="fico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="ftit">Fortress Security</div><div class="fdesc">Military-grade encryption. Funds protected 24/7 with multi-sig vaults.</div></div>
+  <div class="fcard"><div class="fico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg></div><div class="ftit">Ultra-Low Latency</div><div class="fdesc">Execute trades in under 0.3ms via co-located servers across 12 global hubs.</div></div>
+  <div class="fcard"><div class="fico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div><div class="ftit">Global Markets</div><div class="fdesc">Access 10,000+ assets across Crypto, Forex, Commodities and Indices.</div></div>
+  <div class="fcard"><div class="fico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="ftit">Pro Analytics</div><div class="fdesc">Advanced charting, sentiment analysis, institutional-grade data.</div></div>
+  <div class="fcard"><div class="fico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><div class="ftit">Trust Protocol</div><div class="fdesc">Fully regulated. Licensed in 28 countries. Trust is our foundation.</div></div>
+ </div>
+ <div class="footer">
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px"><div class="logo-icon" style="width:28px;height:28px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9"/></svg></div><span style="font-size:16px;font-weight:700;color:var(--gold);letter-spacing:2px">ОКО VISION</span></div>
+  <div style="font-size:13px;color:var(--text-mid);margin-bottom:4px">Your Trusted Gateway to Infinite Gains.</div>
+  <div style="font-size:12px;color:var(--gold);margin-bottom:20px">Built on absolute trust. Designed for every trader's success.</div>
+  <div class="flinks"><span class="flink">Privacy</span><span class="flink">Terms</span><span class="flink">Support</span><span class="flink">API</span><span class="flink">Careers</span></div>
+  <div class="fbot"><span>© 2026 OKO Vision Terminal</span><span style="display:flex;align-items:center;gap:5px;color:var(--gold);font-weight:600"><span style="width:6px;height:6px;background:var(--gold);border-radius:50%;display:inline-block"></span>ALL SYSTEMS OPERATIONAL</span></div>
+ </div>
+ <div class="bot"></div>
+</div>
+
+<!-- ====================================================== -->
+<!-- MARKETS (DexScreener Live) -->
+<!-- ====================================================== -->
+<div class="page" id="page-markets">
+ <div class="mhdr">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+   <div>
+    <div class="mhtit">MARKETS</div>
+    <div class="mhsub"><div class="mhlive"><div class="ldot" style="background:var(--green)"></div>LIVE</div>· DexScreener · <span id="lastUpd">—</span></div>
+   </div>
+   <div class="rbtn" id="rfBtn" onclick="loadMarkets()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></div>
+  </div>
+ </div>
+
+ <!-- Stats bar -->
+ <div class="msbar">
+  <div class="msbi"><div class="msbv" id="sPairs">—</div><div class="msbl">Пар</div></div>
+  <div class="msbi"><div class="msbv" id="sVol">—</div><div class="msbl">Объём 24H</div></div>
+  <div class="msbi"><div class="msbv" id="sChain">—</div><div class="msbl">Сеть</div></div>
+ </div>
+
+ <!-- Network tabs -->
+ <div class="ntabs" style="margin-top:12px" id="netTabs">
+  <div class="ntab active" data-chain="solana" onclick="switchChain('solana',this)"><div class="ndot" style="background:#9945ff"></div><span class="ntname">Solana</span></div>
+  <div class="ntab" data-chain="ethereum" onclick="switchChain('ethereum',this)"><div class="ndot" style="background:#627eea"></div><span class="ntname">Ethereum</span></div>
+  <div class="ntab" data-chain="bsc" onclick="switchChain('bsc',this)"><div class="ndot" style="background:#f0b90b"></div><span class="ntname">BSC</span></div>
+  <div class="ntab" data-chain="base" onclick="switchChain('base',this)"><div class="ndot" style="background:#0052ff"></div><span class="ntname">Base</span></div>
+  <div class="ntab" data-chain="arbitrum" onclick="switchChain('arbitrum',this)"><div class="ndot" style="background:#28a0f0"></div><span class="ntname">Arbitrum</span></div>
+  <div class="ntab" data-chain="sui" onclick="switchChain('sui',this)"><div class="ndot" style="background:#4ca3ff"></div><span class="ntname">Sui</span></div>
+ </div>
+
+ <!-- Mode tabs -->
+ <div class="tabs" style="margin-top:10px">
+  <div class="tab active" id="mTab-trending" onclick="switchMode('trending',this)">🔥 Trending</div>
+  <div class="tab" id="mTab-new" onclick="switchMode('new',this)">🆕 Новые</div>
+  <div class="tab" id="mTab-gainers" onclick="switchMode('gainers',this)">📈 Гейнеры</div>
+  <div class="tab" id="mTab-volume" onclick="switchMode('volume',this)">💎 Объём</div>
+ </div>
+
+ <!-- Search -->
+ <div class="srow">
+  <input class="sinp" id="mSearch" type="text" placeholder="🔍  Поиск токена, символа или адреса..." oninput="filterToks()">
+ </div>
+
+ <div class="tcnt" id="tokCnt"></div>
+ <div class="tlist" id="tokList">
+  <div class="loading"><div class="spinner"></div><div class="ltxt">Загружаем данные с DexScreener...</div></div>
+ </div>
+ <div class="bot"></div>
+</div>
+
+<!-- ====================================================== -->
+<!-- PORTFOLIO -->
+<!-- ====================================================== -->
+<div class="page" id="page-portfolio">
+ <div class="phdr"><div class="bbtn" onclick="go('home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></div><div><div class="ptit">PORTFOLIO</div><div class="psub">4 позиций · реал-тайм PNL</div></div></div>
+ <div style="margin:14px 14px 0">
+  <div class="pcard">
+   <div class="plbl">TOTAL PORTFOLIO VALUE</div>
+   <div class="prow"><div class="pval">$9.53</div><div><div style="font-size:18px;font-weight:700;color:var(--red)">$1.12</div><div class="pbadge">↘ -10.84%</div><div style="font-size:10px;color:var(--text-dim);margin-top:4px">ЗА ВСЁ ВРЕМЯ</div></div></div>
+   <div style="font-size:11px;color:var(--text-dim);margin-top:6px">📁 0.0436 SOL · реальный баланс 🔄</div><div style="font-size:11px;color:var(--gold);margin-top:2px">6KE5CA...aiXj ↗</div>
+   <div class="pstats"><div class="pstat"><div class="psv">$6.78</div><div class="psl">Вложено</div></div><div class="pstat"><div class="psv">$0.10</div><div class="psl">Реализовано</div></div><div class="pstat"><div class="psv">4</div><div class="psl">Позиций</div></div></div>
+  </div>
+ </div>
+ <div class="ccrd">
+  <div style="display:flex;justify-content:space-between;align-items:center"><div><div><span style="font-size:22px;font-weight:700;color:var(--red)">$1.82</span><span style="font-size:13px;color:var(--text-dim)"> -16.19%</span></div><div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;text-transform:uppercase">PNL · 30D</div></div><div style="display:flex;gap:4px"><div style="width:28px;height:28px;background:var(--gold-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px">📈</div><div style="width:28px;height:28px;background:var(--bg3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px">📊</div></div></div>
+  <div class="ctabs"><div class="ctab">1H</div><div class="ctab">24H</div><div class="ctab">7D</div><div class="ctab active">30D</div><div class="ctab">ALL</div></div>
+  <div style="margin-top:12px"><canvas id="portChart" height="140" style="width:100%"></canvas></div>
+  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:6px"><span>26 март</span><span>27 март</span><span>27 март</span><span>27 март</span></div>
+ </div>
+ <div class="pnlper"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase">PNL ПО ПЕРИОДАМ</div><div class="ppgrd"><div class="ppitm"><div class="ppper">24H</div><div class="ppval">-16.2%</div><div class="ppusd">$2</div></div><div class="ppitm"><div class="ppper">7D</div><div class="ppval">-16.2%</div><div class="ppusd">$2</div></div><div class="ppitm"><div class="ppper">30D</div><div class="ppval">-16.2%</div><div class="ppusd">$2</div></div><div class="ppitm"><div class="ppper">ALL</div><div class="ppval">-16.2%</div><div class="ppusd">$2</div></div></div></div>
+ <div class="wrgrd">
+  <div class="wrcrd"><div class="wrlbl">WIN RATE</div><div class="wrval">67%</div><div class="wrbar"><div class="wrbf"></div></div><div class="wrsub">2/9 сделок</div></div>
+  <div class="wrcrd"><div class="wrlbl">ПОЗИЦИИ</div><div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between"><div><div style="font-size:10px;color:var(--text-dim)">ЛУЧШАЯ</div><div style="font-size:14px;font-weight:700">AINL</div></div><div style="font-size:13px;font-weight:700;color:var(--green)">+1.0%</div></div></div><div><div style="display:flex;justify-content:space-between"><div><div style="font-size:10px;color:var(--text-dim)">ХУДШАЯ</div><div style="font-size:14px;font-weight:700">berenstain</div></div><div style="font-size:13px;font-weight:700;color:var(--red)">-50.5%</div></div></div></div>
+ </div>
+ <div class="pacts"><div class="pact1">📈 ТОРГОВЛЯ</div><div class="pact2">📋 COPY TRADE</div></div>
+ <div class="recalc">🔄 ПЕРЕСЧИТАТЬ ВЛОЖЕНО / PNL</div>
+ <div class="svdtokens"><div class="svlbl">СОХРАНЕНО В ХРАНИЛИЩЕ (7 токенов)</div><div class="svtoks"><div class="svtok">FOMO <span>$1.10</span></div><div class="svtok">HIROTAKA <span>$1.84</span></div><div class="svtok">LOST <span>$1.28</span></div><div class="svtok">NOELIA <span>$1.05</span></div><div class="svtok">AINL <span>$2.00</span></div><div class="svtok">CHIBI <span>$2.00</span></div><div class="svtok">BERENSTAIN <span>$1.50</span></div></div></div>
+ <div class="tabs"><div class="tab active">ПОЗИЦИИ (4)</div><div class="tab">ИСТОРИЯ</div><div class="tab">СТАТИСТИКА</div></div>
+ <div class="posact"><div class="sortbtn">⇅ Баланс ↓</div><div class="clsbtn">🗑 Закрыть (4)</div></div>
+ <div class="poslist">
+  <div class="positem"><div class="posava">⭐</div><div style="flex:1"><div class="posnm">AINL</div><div class="posamt">6.80K AINL</div></div><div style="text-align:right"><div class="posval">$2.02</div><div class="pnlpos">+0.02$ · 0.99%</div></div><div class="posclose">✕</div></div>
+  <div class="positem"><div class="posava" style="background:#1a1a2e">🎭</div><div style="flex:1"><div class="posnm">CHIBI</div><div class="posamt">2.35K CHIBI</div></div><div style="text-align:right"><div class="posval">$1.77</div><div class="pnlneg">-0.23$ · 11.59%</div></div><div class="posclose">✕</div></div>
+  <div class="positem"><div class="posava" style="background:#eee">⬜</div><div style="flex:1"><div class="posnm">Lost</div><div class="posamt">6.25K Lost</div></div><div style="text-align:right"><div class="posval">$1.23</div><div class="pnlneg">-0.05$ · 4.03%</div></div><div class="posclose">✕</div></div>
+  <div class="positem"><div class="posava">🐻</div><div style="flex:1"><div class="posnm">berenstain</div><div class="posamt">9.68K berenstain</div></div><div style="text-align:right"><div class="posval">$0.74</div><div class="pnlneg">-0.76$ · 50.49%</div></div><div class="posclose">✕</div></div>
+ </div>
+ <div class="bot"></div>
+</div>
+
+<!-- ====================================================== -->
+<!-- SIGNALS -->
+<!-- ====================================================== -->
+<div class="page" id="page-signals">
+ <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px">
+  <div style="display:flex;align-items:center;gap:10px"><div class="bbtn" onclick="go('home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></div><div><div style="font-size:18px;font-weight:700;letter-spacing:1px">SIGNAL BOARD</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px">Обновлено 06:44:11</div></div></div>
+  <div class="netsel"><div style="width:8px;height:8px;background:#9945ff;border-radius:50%"></div>Solana ▾</div>
+ </div>
+ <div class="sgcnts"><div class="sgci"><div class="sgcv">0</div><div class="sgcl">VOL SPIKE</div></div><div class="sgci"><div class="sgcv">0</div><div class="sgcl">WHALE</div></div><div class="sgci"><div class="sgcv">2</div><div class="sgcl">AI BUY</div></div></div>
+ <div class="srow"><input class="sinp" type="text" placeholder="🔍  Поиск токена..."><div class="rbtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></div></div>
+ <div class="chip-row" style="margin-top:10px"><div class="chip active">All</div><div class="chip">🔥 Volume Spike</div><div class="chip">🐋 Whale</div><div class="chip">✅ BUY</div><div class="chip">📉 SELL</div></div>
+ <div style="font-size:12px;color:var(--text-dim);margin:12px 14px 8px">6 сигналов · Solana</div>
+ <div class="sggrd">
+  <div class="sgcard"><div class="sghdr"><div class="sgava">🎭</div><div><div style="font-size:13px;font-weight:700">LEGACY</div><div style="font-size:10px;color:var(--text-dim);margin-top:1px">The Lega...</div></div><div class="sgbadge buy">↗ BUY 67</div></div><div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Капитализация</div><div style="font-size:14px;font-weight:700">$795.0K</div></div><div class="sgpch"><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">5M</div><div style="font-size:11px;font-weight:700;color:var(--red)">-1.54%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">1H</div><div style="font-size:11px;font-weight:700;color:var(--green)">+3.65%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">24H</div><div style="font-size:11px;font-weight:700;color:var(--green)">+41.1%</div></div></div><div style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Vol 24H</span><span style="color:var(--text-mid)">$99K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Liq</span><span style="color:var(--text-mid)">$77.6K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>DEX</span><span style="color:var(--text-mid)">pumpsw...</span></div></div><div class="sgpbt"><div class="sgbuy">↗ КУПИТЬ</div><div class="sgsell">↘ ПРОДАТЬ</div></div><div class="sgsub"><div class="sgsubb">📊 ГРАФИК</div><div class="sgsubb">⚙ SL/TP</div><div class="sgsubb">↗ DEX</div></div><div class="riskrow">🛡 РИСК <span class="riskval">15</span> Безопасно ✅</div></div>
+  <div class="sgcard"><div class="sghdr"><div class="sgava">🦍</div><div><div style="font-size:13px;font-weight:700">APES</div><div style="font-size:10px;color:var(--text-dim);margin-top:1px">Apes Tog...</div></div><div class="sgbadge buy">↗ BUY 63</div></div><div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Капитализация</div><div style="font-size:14px;font-weight:700">$242.5K</div></div><div class="sgpch"><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">5M</div><div style="font-size:11px;font-weight:700;color:var(--green)">+1.69%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">1H</div><div style="font-size:11px;font-weight:700;color:var(--green)">+10.4%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">24H</div><div style="font-size:11px;font-weight:700;color:var(--red)">-56.8%</div></div></div><div style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Vol 24H</span><span style="color:var(--text-mid)">$96K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Liq</span><span style="color:var(--text-mid)">$45.5K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>DEX</span><span style="color:var(--text-mid)">pumpsw...</span></div></div><div class="sgpbt"><div class="sgbuy">↗ КУПИТЬ</div><div class="sgsell">↘ ПРОДАТЬ</div></div><div class="sgsub"><div class="sgsubb">📊 ГРАФИК</div><div class="sgsubb">⚙ SL/TP</div><div class="sgsubb">↗ DEX</div></div><div class="riskrow">🛡 РИСК <span class="riskval">15</span> Безопасно ✅</div></div>
+  <div class="sgcard"><div class="sghdr"><div class="sgava">🐕</div><div><div style="font-size:13px;font-weight:700">TARO</div><div style="font-size:10px;color:var(--text-dim);margin-top:1px">Rvotaro</div></div><div class="sgbadge sell">↘ SELL 37</div></div><div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Капитализация</div><div style="font-size:14px;font-weight:700">$143.2K</div></div><div class="sgpch"><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">5M</div><div style="font-size:11px;font-weight:700;color:var(--red)">-2.1%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">1H</div><div style="font-size:11px;font-weight:700;color:var(--red)">-8.4%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">24H</div><div style="font-size:11px;font-weight:700;color:var(--red)">-23.1%</div></div></div><div style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Vol 24H</span><span style="color:var(--text-mid)">$54K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Liq</span><span style="color:var(--text-mid)">$22.3K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>DEX</span><span style="color:var(--text-mid)">pumpsw...</span></div></div><div class="sgpbt"><div class="sgbuy">↗ КУПИТЬ</div><div class="sgsell">↘ ПРОДАТЬ</div></div><div class="sgsub"><div class="sgsubb">📊 ГРАФИК</div><div class="sgsubb">⚙ SL/TP</div><div class="sgsubb">↗ DEX</div></div><div class="riskrow">🛡 РИСК <span class="riskval">42</span> Средний ⚠️</div></div>
+  <div class="sgcard"><div class="sghdr"><div class="sgava">🎌</div><div><div style="font-size:13px;font-weight:700">CHIBI</div><div style="font-size:10px;color:var(--text-dim);margin-top:1px">Chibifica...</div></div><div class="sgbadge sell">↘ SELL 25</div></div><div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Капитализация</div><div style="font-size:14px;font-weight:700">$88.4K</div></div><div class="sgpch"><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">5M</div><div style="font-size:11px;font-weight:700;color:var(--red)">-0.9%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">1H</div><div style="font-size:11px;font-weight:700;color:var(--red)">-4.2%</div></div><div class="sgpci"><div style="font-size:9px;color:var(--text-dim)">24H</div><div style="font-size:11px;font-weight:700;color:var(--red)">-11.6%</div></div></div><div style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Vol 24H</span><span style="color:var(--text-mid)">$31K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>Liq</span><span style="color:var(--text-mid)">$18.1K</span></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>DEX</span><span style="color:var(--text-mid)">pumpsw...</span></div></div><div class="sgpbt"><div class="sgbuy">↗ КУПИТЬ</div><div class="sgsell">↘ ПРОДАТЬ</div></div><div class="sgsub"><div class="sgsubb">📊 ГРАФИК</div><div class="sgsubb">⚙ SL/TP</div><div class="sgsubb">↗ DEX</div></div><div class="riskrow">🛡 РИСК <span class="riskval">38</span> Средний ⚠️</div></div>
+ </div>
+ <div class="bot"></div>
+</div>
+
+<script>
+// ===== STATE =====
+let chain = 'solana', mode = 'trending', pairs = [];
+
+// ===== NAV =====
+function go(p) {
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  closeMenu(); window.scrollTo(0,0);
+  document.querySelectorAll('.mitem[id^="mi-"]').forEach(el=>el.classList.remove('active'));
+  const m=document.getElementById('mi-'+p); if(m)m.classList.add('active');
+  if(p==='home') setTimeout(drawHome,80);
+  if(p==='portfolio') setTimeout(drawPort,80);
+  if(p==='markets' && pairs.length===0) loadMarkets();
+}
+function openMenu(){document.getElementById('sideMenu').classList.add('open')}
+function closeMenu(){document.getElementById('sideMenu').classList.remove('open')}
+function bgClose(e){if(e.target===document.getElementById('sideMenu'))closeMenu()}
+
+// ===== CHAIN / MODE =====
+function switchChain(c,el){
+  chain=c; pairs=[];
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  loadMarkets();
+}
+function switchMode(m,el){
+  mode=m;
+  document.querySelectorAll('.tab[id^="mTab"]').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+// ===== DEXSCREENER API =====
+const CHAIN_QUERY={solana:'SOL USDC',ethereum:'WETH USDC',bsc:'WBNB BUSD',base:'ETH BASE',arbitrum:'ARB WETH',sui:'SUI USDC'};
+
+async function loadMarkets(){
+  const btn=document.getElementById('rfBtn');
+  btn.classList.add('spin');
+  showLoad();
+  try{
+    // Primary: search endpoint
+    const q=CHAIN_QUERY[chain]||'ETH';
+    const url=`https://api.dexscreener.com/latest/dex/search/?q=${encodeURIComponent(q)}`;
+    const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    pairs=(d.pairs||[]).filter(p=>p.chainId===chain);
+    // fallback broader search
+    if(pairs.length<5){
+      const r2=await fetch(`https://api.dexscreener.com/latest/dex/search/?q=${chain}`,{signal:AbortSignal.timeout(8000)});
+      const d2=await r2.json();
+      pairs=(d2.pairs||[]).filter(p=>p.chainId===chain);
+    }
+    updStats(); render();
+    document.getElementById('lastUpd').textContent=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }catch(e){showErr(e.message)}
+  finally{btn.classList.remove('spin')}
+}
+
+// ===== RENDER =====
+function render(){
+  let ps=[...pairs];
+  if(mode==='trending'||mode==='volume') ps.sort((a,b)=>pf(b.volume?.h24)-pf(a.volume?.h24));
+  else if(mode==='new') ps.sort((a,b)=>(b.pairCreatedAt||0)-(a.pairCreatedAt||0));
+  else if(mode==='gainers') ps.sort((a,b)=>pf(b.priceChange?.h24)-pf(a.priceChange?.h24));
+  const q=document.getElementById('mSearch').value.toLowerCase().trim();
+  if(q) ps=ps.filter(p=>(p.baseToken?.symbol||'').toLowerCase().includes(q)||(p.baseToken?.name||'').toLowerCase().includes(q)||(p.baseToken?.address||'').toLowerCase().includes(q));
+  document.getElementById('tokCnt').textContent=`${ps.length} пар · ${cname(chain)}`;
+  if(!ps.length){document.getElementById('tokList').innerHTML='<div class="estate"><div class="eico">🔍</div><div class="etxt">Ничего не найдено</div></div>';return}
+  document.getElementById('tokList').innerHTML=ps.slice(0,80).map((p,i)=>row(p,i)).join('');
+}
+
+function row(p,i){
+  const sym=p.baseToken?.symbol||'?';
+  const name=p.baseToken?.name||sym;
+  const price=fPrice(p.priceUsd);
+  const c24=pf(p.priceChange?.h24);
+  const c1h=pf(p.priceChange?.h1);
+  const c5m=pf(p.priceChange?.m5);
+  const vol=fCmp(p.volume?.h24||0);
+  const liq=fCmp(p.liquidity?.usd||0);
+  const mc=p.fdv?fCmp(p.fdv):'—';
+  const dex=p.dexId||'';
+  const addr=p.pairAddress||'';
+  const cls=c24>=0?'pos':'neg';
+  const sgn=c24>=0?'+':'';
+  const img=p.info?.imageUrl||'';
+  const ltr=sym.charAt(0).toUpperCase();
+  const buys=p.txns?.h24?.buys??'—';
+  const sells=p.txns?.h24?.sells??'—';
+  const age=p.pairCreatedAt?ago(p.pairCreatedAt):'—';
+  const link=`https://dexscreener.com/${p.chainId}/${addr}`;
+  return`<div>
+<div class="trow" onclick="tog('d${i}')">
+  <div class="trank">${i+1}</div>
+  <div class="tava">${img?`<img src="${img}" alt="${ltr}" onerror="this.style.display='none';this.parentNode.textContent='${ltr}'">`:`${ltr}`}</div>
+  <div class="tinf"><div class="tnam">${sym}</div><div class="tpair">${name}</div><div class="tdex">${dex}</div></div>
+  <div class="trht"><div class="tprice">${price}</div><div class="tchg ${cls}">${sgn}${c24.toFixed(2)}%</div><div class="tvol">Vol $${vol}</div></div>
+</div>
+<div class="tdet" id="d${i}">
+  <div class="tdchg">
+    <div class="tdci"><div class="tdperiod">5M</div><div class="tdpct ${c5m>=0?'pos':'neg'}">${c5m>=0?'+':''}${c5m.toFixed(1)}%</div></div>
+    <div class="tdci"><div class="tdperiod">1H</div><div class="tdpct ${c1h>=0?'pos':'neg'}">${c1h>=0?'+':''}${c1h.toFixed(1)}%</div></div>
+    <div class="tdci"><div class="tdperiod">24H</div><div class="tdpct ${cls}">${sgn}${c24.toFixed(1)}%</div></div>
+    <div class="tdci"><div class="tdperiod">FDV</div><div class="tdpct" style="color:var(--gold)">$${mc}</div></div>
+  </div>
+  <div class="tdgrid">
+    <div><div class="tdlbl">Ликвидность</div><div class="tdval">$${liq}</div></div>
+    <div><div class="tdlbl">Объём 24H</div><div class="tdval">$${vol}</div></div>
+    <div><div class="tdlbl">Покупок 24H</div><div class="tdval" style="color:var(--green)">${buys}</div></div>
+    <div><div class="tdlbl">Продаж 24H</div><div class="tdval" style="color:var(--red)">${sells}</div></div>
+    <div><div class="tdlbl">Создана</div><div class="tdval">${age}</div></div>
+    <div><div class="tdlbl">DEX</div><div class="tdval">${dex}</div></div>
+  </div>
+  <div class="tdbtns">
+    <div class="tdbuy" onclick="event.stopPropagation()">↗ КУПИТЬ</div>
+    <div class="tdsell" onclick="event.stopPropagation()">↘ ПРОДАТЬ</div>
+    <div class="tddex" onclick="event.stopPropagation();window.open('${link}','_blank')">↗ DEX</div>
+  </div>
+</div>
+</div>`;
+}
+
+function tog(id){
+  const d=document.getElementById(id); if(!d)return;
+  const was=d.classList.contains('open');
+  document.querySelectorAll('.tdet.open').forEach(x=>x.classList.remove('open'));
+  if(!was)d.classList.add('open');
+}
+function filterToks(){render()}
+
+// ===== STATS =====
+function updStats(){
+  const tv=pairs.reduce((s,p)=>s+pf(p.volume?.h24),0);
+  document.getElementById('sPairs').textContent=pairs.length;
+  document.getElementById('sVol').textContent='$'+fCmp(tv);
+  document.getElementById('sChain').textContent=cname(chain);
+}
+
+// ===== STATES =====
+function showLoad(){document.getElementById('tokList').innerHTML='<div class="loading"><div class="spinner"></div><div class="ltxt">Загружаем данные с DexScreener...</div></div>';document.getElementById('tokCnt').textContent=''}
+function showErr(msg){document.getElementById('tokList').innerHTML=`<div class="estate"><div class="eico">⚠️</div><div class="etxt">Ошибка: ${msg}<br><small style="font-size:10px;opacity:.7">DexScreener API может быть заблокирован браузером (CORS).<br>Откройте файл через локальный веб-сервер или расширение CORS.</small></div><div class="retrybtn" onclick="loadMarkets()">🔄 Повторить</div></div>`}
+
+// ===== HELPERS =====
+function pf(v){return parseFloat(v)||0}
+function fPrice(p){
+  if(!p)return'$0';
+  const n=pf(p);
+  if(n>=1000)return'$'+n.toLocaleString('en',{maximumFractionDigits:2});
+  if(n>=1)return'$'+n.toFixed(4);
+  if(n>=0.01)return'$'+n.toFixed(6);
+  return'$'+n.toPrecision(4);
+}
+function fCmp(n){
+  n=pf(n);
+  if(n>=1e9)return(n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return(n/1e6).toFixed(2)+'M';
+  if(n>=1e3)return(n/1e3).toFixed(1)+'K';
+  return n.toFixed(0);
+}
+function cname(c){return{solana:'Solana',ethereum:'Ethereum',bsc:'BSC',base:'Base',arbitrum:'Arbitrum',sui:'Sui'}[c]||c}
+function ago(ts){
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return s+'с назад';
+  if(s<3600)return Math.floor(s/60)+'м назад';
+  if(s<86400)return Math.floor(s/3600)+'ч назад';
+  return Math.floor(s/86400)+'д назад';
+}
+
+// ===== CHARTS =====
+function drawChart(id){
+  const c=document.getElementById(id); if(!c)return;
+  const dpr=window.devicePixelRatio||1;
+  c.width=c.offsetWidth*dpr; c.height=140*dpr;
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
+  const w=c.offsetWidth,h=140;
+  ctx.clearRect(0,0,w,h);
+  const raw=[11.5,11.8,11.2,11.6,10.5,10.2,2.5,4.5,5.5,4.0,2.0,7.5,9.2,9.5,9.4,9.5,9.3,9.4,9.5,9.4];
+  const min=0,max=12;
+  const pts=raw.map((v,i)=>({x:i/(raw.length-1)*w,y:h-((v-min)/(max-min))*(h-15)-5}));
+  const g=ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'rgba(231,76,60,.25)'); g.addColorStop(1,'rgba(231,76,60,0)');
+  ctx.beginPath(); ctx.moveTo(pts[0].x,h); ctx.lineTo(pts[0].x,pts[0].y);
+  pts.forEach((p,i)=>{if(i)ctx.lineTo(p.x,p.y)});
+  ctx.lineTo(pts[pts.length-1].x,h); ctx.closePath(); ctx.fillStyle=g; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+  pts.forEach((p,i)=>{if(i)ctx.lineTo(p.x,p.y)});
+  ctx.strokeStyle='#e74c3c'; ctx.lineWidth=2; ctx.stroke();
+  [3,6,9,12].forEach(v=>{
+    const y=h-((v-min)/(max-min))*(h-15)-5;
+    ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.25)'; ctx.font='9px Inter';
+    ctx.fillText('$'+v,2,y-2);
+  });
+}
+function drawHome(){drawChart('homeChart')}
+function drawPort(){drawChart('portChart')}
+
+// ===== INIT =====
+drawHome();
+window.addEventListener('resize',()=>{drawHome();drawPort()});
+</script>
+</body>
+</html>
