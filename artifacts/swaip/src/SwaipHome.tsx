@@ -904,7 +904,8 @@ function Sheet({open,onClose,title,c,children}:{open:boolean;onClose:()=>void;ti
 /* ══ Типы ══ */
 interface SwaipHomeProps{userHash:string;apiBase:string;sessionToken?:string;onLogout:()=>void;onOldMode?:()=>void;}
 interface DocAtt{url:string;name:string;size:number;mime:string;}
-interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:number;bookingBooked?:number;bookingLabel?:string;}
+interface BookingSlot{time:string;booked:boolean;}
+interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:BookingSlot[];bookingLabel?:string;}
 interface ClassicWork{id:string;imageUrl:string;title:string;desc:string;}
 interface ClassicReview{id:string;imageUrl:string;caption?:string;date:string;}
 interface PriceItem{id:string;name:string;price:string;desc:string;photo:string;unit:string;slots:string[];}
@@ -1256,10 +1257,12 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
     setPosts(prev=>prev.map(p=>p.id===id?{...p,liked:!p.liked,likes:p.liked?p.likes-1:p.likes+1}:p));
     try{fetch(`${apiBase}/api/interactions/${id}/like`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:getSessionToken()||''})}).catch(()=>{});}catch{}
   };
-  const handleBook=(id:string)=>{
-    setPosts(prev=>prev.map(p=>p.id!==id||!p.hasBooking?p:
-      p.bookingSlots!==undefined&&(p.bookingBooked||0)>=p.bookingSlots?p
-      :{...p,bookingBooked:(p.bookingBooked||0)+1}));
+  const handleBook=(id:string,time?:string)=>{
+    setPosts(prev=>prev.map(p=>{
+      if(p.id!==id||!p.hasBooking)return p;
+      if(!time||!p.bookingSlots?.length)return p;
+      return {...p,bookingSlots:p.bookingSlots.map(s=>s.time===time?{...s,booked:true}:s)};
+    }));
   };
 
   useEffect(()=>{
@@ -1861,11 +1864,11 @@ function CommentsSheet({postId,session,authorHash,authorName,authorNick,authorAv
   );
 }
 
-function PostCard({p,name,avatarSrc,onLike,onComment,onBook,c,accent,style=1}:{p:Post;name:string;avatarSrc:string;onLike:(id:string)=>void;onComment?:(id:string)=>void;onBook?:(id:string)=>void;c:Pal;accent?:string;style?:number}){
+function PostCard({p,name,avatarSrc,onLike,onComment,onBook,c,accent,style=1}:{p:Post;name:string;avatarSrc:string;onLike:(id:string)=>void;onComment?:(id:string)=>void;onBook?:(id:string,time?:string)=>void;c:Pal;accent?:string;style?:number}){
   const ac=accent||'#60a5fa';
   const [lb,setLb]=useState(false);
   const [docViewer,setDocViewer]=useState<{url:string;name:string;mime:string}|null>(null);
-  const [booked,setBooked]=useState(false);
+  const [bookedTime,setBookedTime]=useState<string|null>(null);
 
   const handleShare=async()=>{
     const text=p.text||'';
@@ -1939,52 +1942,62 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,c,accent,style=1}:{p
     </div>
   ):null;
 
-  /* ── Кнопка «Записаться» ── */
-  const slotsLeft=p.bookingSlots!==undefined?(p.bookingSlots-(p.bookingBooked||0)):null;
+  /* ── Блок «Записаться» — временны́е слоты ── */
+  const slots=p.bookingSlots||[];
+  const freeSlots=slots.filter(s=>!s.booked);
   const bookEl=p.hasBooking?(
-    <div style={{padding:'6px 12px 10px'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+    <div style={{margin:'4px 0 8px',padding:'10px 12px',borderRadius:12,background:`${ac}0d`,border:`1px solid ${ac}33`}}>
+      {/* Заголовок */}
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
         <div style={{display:'flex',gap:1}}>
-          {[0,1].map(i=>(
-            <motion.span key={i} style={{fontSize:13,color:ac,display:'block'}}
-              animate={{x:[3,0,3],opacity:[0.3,1,0.3]}}
-              transition={{repeat:Infinity,duration:1.1,delay:i*0.22,ease:'easeInOut'}}>→</motion.span>
-          ))}
+          {[0,1].map(i=><motion.span key={i} style={{fontSize:11,color:ac}}
+            animate={{x:[2,0,2],opacity:[0.3,1,0.3]}}
+            transition={{repeat:Infinity,duration:1.1,delay:i*0.22}}>→</motion.span>)}
         </div>
-        {booked?(
-          <motion.div initial={{scale:0.9}} animate={{scale:1}}
-            style={{display:'flex',alignItems:'center',gap:5,padding:'8px 18px',borderRadius:22,
-              background:'rgba(16,185,129,0.15)',border:'1.5px solid rgba(16,185,129,0.45)'}}>
-            <span>✅</span>
-            <span style={{fontSize:12,fontWeight:800,color:'#34d399'}}>Вы записаны!</span>
-          </motion.div>
-        ):(
-          <motion.button whileTap={{scale:0.92}} whileHover={{scale:1.03}}
-            onClick={()=>{if(slotsLeft===0)return;setBooked(true);onBook?.(p.id);}}
-            style={{display:'flex',alignItems:'center',gap:6,padding:'9px 20px',borderRadius:22,border:'none',
-              cursor:slotsLeft===0?'default':'pointer',fontWeight:800,fontSize:13,
-              background:slotsLeft===0?'rgba(255,255,255,0.07)':`linear-gradient(135deg,${ac}dd,${ac}88)`,
-              color:slotsLeft===0?c.sub:'#fff',
-              boxShadow:slotsLeft===0?'none':`0 3px 14px ${ac}44`}}>
-            <motion.span animate={{y:[0,-2,0]}} transition={{repeat:Infinity,duration:1.4}}>📅</motion.span>
-            {p.bookingLabel||'Записаться'}
-            {slotsLeft!==null&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,
-              background:'rgba(0,0,0,0.22)',color:slotsLeft===0?'#f87171':'rgba(255,255,255,0.85)',fontWeight:600}}>
-              {slotsLeft===0?'мест нет':`${slotsLeft} мест`}
-            </span>}
-          </motion.button>
-        )}
+        <span style={{fontSize:13,fontWeight:800,color:ac,flex:1,textAlign:'center'}}>{p.bookingLabel||'Записаться'}</span>
         <div style={{display:'flex',gap:1,transform:'scaleX(-1)'}}>
-          {[0,1].map(i=>(
-            <motion.span key={i} style={{fontSize:13,color:ac,display:'block'}}
-              animate={{x:[3,0,3],opacity:[0.3,1,0.3]}}
-              transition={{repeat:Infinity,duration:1.1,delay:i*0.22,ease:'easeInOut'}}>→</motion.span>
-          ))}
+          {[0,1].map(i=><motion.span key={i} style={{fontSize:11,color:ac}}
+            animate={{x:[2,0,2],opacity:[0.3,1,0.3]}}
+            transition={{repeat:Infinity,duration:1.1,delay:i*0.22}}>→</motion.span>)}
         </div>
       </div>
-      {(p.bookingBooked||0)>0&&(
-        <p style={{margin:'5px 0 0',textAlign:'center',fontSize:10,color:c.sub}}>
-          Записались: <strong style={{color:ac}}>{p.bookingBooked}</strong>{p.bookingSlots?` из ${p.bookingSlots}`:''}
+      {bookedTime?(
+        /* Подтверждение */
+        <motion.div initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}
+          style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'10px'}}>
+          <span style={{fontSize:22}}>✅</span>
+          <span style={{fontSize:13,fontWeight:800,color:'#34d399'}}>Вы записаны!</span>
+          <span style={{fontSize:11,color:c.sub}}>Время: <strong style={{color:ac}}>{bookedTime}</strong></span>
+        </motion.div>
+      ):slots.length>0?(
+        /* Сетка слотов */
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,justifyContent:'center'}}>
+          {slots.map(s=>(
+            <motion.button key={s.time} whileTap={s.booked?{}:{scale:0.92}}
+              onClick={()=>{if(s.booked)return;setBookedTime(s.time);onBook?.(p.id,s.time);}}
+              style={{padding:'7px 14px',borderRadius:20,border:`1.5px solid ${s.booked?'rgba(255,255,255,0.1)':ac+'66'}`,
+                background:s.booked?'rgba(255,255,255,0.04)':`${ac}18`,
+                color:s.booked?c.sub:ac,fontSize:12,fontWeight:700,cursor:s.booked?'default':'pointer',
+                textDecoration:s.booked?'line-through':'none',opacity:s.booked?0.45:1,
+                transition:'all 0.15s'}}>
+              {s.booked?'🔒':''} {s.time}
+            </motion.button>
+          ))}
+        </div>
+      ):(
+        /* Нет слотов — просто кнопка */
+        <motion.button whileTap={{scale:0.92}} onClick={()=>{setBookedTime('✓');onBook?.(p.id);}}
+          disabled={!!bookedTime}
+          style={{display:'flex',alignItems:'center',gap:6,padding:'9px 20px',borderRadius:22,border:'none',
+            width:'100%',justifyContent:'center',cursor:'pointer',fontWeight:800,fontSize:13,
+            background:`linear-gradient(135deg,${ac}cc,${ac}88)`,color:'#fff',boxShadow:`0 3px 14px ${ac}33`}}>
+          <motion.span animate={{y:[0,-2,0]}} transition={{repeat:Infinity,duration:1.4}}>📅</motion.span>
+          {p.bookingLabel||'Записаться'}
+        </motion.button>
+      )}
+      {slots.length>0&&!bookedTime&&(
+        <p style={{margin:'6px 0 0',textAlign:'center',fontSize:10,color:c.sub}}>
+          Свободно: <strong style={{color:ac}}>{freeSlots.length}</strong> из <strong>{slots.length}</strong>
         </p>
       )}
     </div>
@@ -4950,7 +4963,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
             const raw=p as any;
             const docUrls:DocAtt[]|undefined=raw.docUrls&&raw.docUrls.length?raw.docUrls:undefined;
             const newPost:Post={id:`p_${Date.now()}`,text:p.content||'',img:p.imageUrl||undefined,videoUrl:p.videoUrl||undefined,audioUrl:p.audioUrl||undefined,docUrls,likes:0,liked:false,comments:0,ts:'только что',
-              ...(raw.hasBooking?{hasBooking:true,bookingBooked:0,bookingLabel:raw.bookingLabel||'Записаться',bookingSlots:raw.bookingSlots||undefined}:{})};
+              ...(raw.hasBooking?{hasBooking:true,bookingLabel:raw.bookingLabel||'Записаться',bookingSlots:Array.isArray(raw.bookingSlots)?raw.bookingSlots:[]}:{})};
             setPosts(prev=>[newPost,...prev]);
           }}
         />
@@ -4971,7 +4984,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       <div style={{padding:'10px 10px 0',background:feedBgGradient||c.deep,backgroundAttachment:'fixed'}}>
         {tab==='feed'?(
           <>
-            {posts.map(p=><PostCard key={p.id} p={p} name={profName} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} onBook={(id)=>setPosts(prev=>prev.map(q=>q.id!==id||!q.hasBooking?q:q.bookingSlots!==undefined&&(q.bookingBooked||0)>=q.bookingSlots?q:{...q,bookingBooked:(q.bookingBooked||0)+1}))} c={c} accent={activeAccent} style={postCardStyle}/>)}
+            {posts.map(p=><PostCard key={p.id} p={p} name={profName} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} onBook={(id,time)=>setPosts(prev=>prev.map(q=>{if(q.id!==id||!q.hasBooking||!time||!q.bookingSlots?.length)return q;return{...q,bookingSlots:q.bookingSlots.map(s=>s.time===time?{...s,booked:true}:s)};}))} c={c} accent={activeAccent} style={postCardStyle}/>)}
             <motion.button whileTap={{scale:0.97}}
               style={{width:'100%',padding:'11px',borderRadius:12,background:`rgba(160,160,200,0.07)`,
                 border:`1px solid ${c.borderB}`,cursor:'pointer',fontWeight:800,fontSize:12,marginBottom:12,color:c.mid}}>
@@ -7017,8 +7030,12 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const selfieRecRef=useRef<MediaRecorder|null>(null);
   /* Запись */
   const [postHasBooking,setPostHasBooking]=useState(false);
-  const [postBookingSlots,setPostBookingSlots]=useState(5);
+  const [postBookingSlots,setPostBookingSlots]=useState<BookingSlot[]>([]);
   const [postBookingLabel,setPostBookingLabel]=useState('Записаться');
+  const [postBookingTimeInput,setPostBookingTimeInput]=useState('');
+  const QUICK_TIMES=['9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+  const addBookingSlot=(t:string)=>{const v=t.trim();if(!v||postBookingSlots.some(s=>s.time===v))return;setPostBookingSlots(p=>[...p,{time:v,booked:false}]);};
+  const removeBookingSlot=(t:string)=>setPostBookingSlots(p=>p.filter(s=>s.time!==t));
 
   useEffect(()=>{
     if(!selfieOpen||selfieBlob)return;
@@ -7133,7 +7150,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const stopSelfieRec=()=>{selfieRecRef.current?.stop();setSelfieRec(false);};
   const discardSelfie=()=>{selfieStreamRef.current?.getTracks().forEach(t=>t.stop());selfieStreamRef.current=null;if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);};
 
-  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPostHasBooking(false);setPostBookingSlots(5);setPostBookingLabel('Записаться');};
+  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');};
 
   const handlePost=async()=>{
     const hasAnyContent=!!(text.trim()||imgFile||vidFile||docFiles.length||musicFile||postHasBooking);
@@ -7143,7 +7160,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
       const[imgUrl,vidUrl,docs,musUrl]=await Promise.all([uploadImg(),uploadVid(),uploadDocs(),uploadMusic()]);
       const defaultContent=vidUrl?'🎬':imgUrl?'📷':musUrl?'🎵':docs.length?'📎':vidFile?'🎬':imgFile?'📷':musicFile?'🎵':docFiles.length?'📎'
         :postHasBooking?`📅 ${postBookingLabel||'Записаться'}`:'';
-      const bookingExtra=postHasBooking?{hasBooking:true,bookingBooked:0,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots||undefined}:{};
+      const bookingExtra=postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots.length?postBookingSlots:[]}:{};
       const apiContent=text.trim()||defaultContent;
       const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||undefined,docUrls:docs.length?docs:undefined,...bookingExtra};
       try{
@@ -7298,18 +7315,55 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
               </span>
             </div>
             {postHasBooking&&(
-              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:10}}>
+                {/* Название кнопки */}
                 <input value={postBookingLabel} onChange={e=>setPostBookingLabel(e.target.value)}
-                  placeholder="Текст кнопки: Записаться"
+                  placeholder="Текст кнопки: Записаться на маникюр"
                   style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,
                     background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',
                     color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
-                <input type="number" min={0} max={999} value={postBookingSlots}
-                  onChange={e=>setPostBookingSlots(Number(e.target.value))}
-                  placeholder="Кол-во мест (0 = без лимита)"
-                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,
-                    background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',
-                    color:'#fff',fontSize:12,outline:'none',textAlign:'center',fontFamily:'"Montserrat",sans-serif'}}/>
+                {/* Быстрые слоты */}
+                <div>
+                  <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:6,fontWeight:600}}>Выбери время слотов:</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                    {QUICK_TIMES.map(t=>{
+                      const sel=postBookingSlots.some(s=>s.time===t);
+                      return <button key={t} onClick={()=>sel?removeBookingSlot(t):addBookingSlot(t)}
+                        style={{padding:'5px 11px',borderRadius:16,fontSize:11,fontWeight:700,cursor:'pointer',border:'none',
+                          background:sel?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.08)',
+                          color:sel?'#34d399':'rgba(255,255,255,0.55)',transition:'all 0.15s'}}>
+                        {sel?'✓ ':''}{t}
+                      </button>;
+                    })}
+                  </div>
+                </div>
+                {/* Своё время */}
+                <div style={{display:'flex',gap:6}}>
+                  <input value={postBookingTimeInput} onChange={e=>setPostBookingTimeInput(e.target.value)}
+                    onKeyDown={e=>{if(e.key==='Enter'){addBookingSlot(postBookingTimeInput);setPostBookingTimeInput('');}}}
+                    placeholder="Своё время: 8:30"
+                    style={{flex:1,padding:'7px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',
+                      border:'1px solid rgba(255,255,255,0.1)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                  <button onClick={()=>{addBookingSlot(postBookingTimeInput);setPostBookingTimeInput('');}}
+                    style={{padding:'7px 13px',borderRadius:8,border:'none',background:'rgba(16,185,129,0.25)',
+                      color:'#34d399',fontSize:12,fontWeight:700,cursor:'pointer'}}>+ Добавить</button>
+                </div>
+                {/* Выбранные слоты */}
+                {postBookingSlots.length>0&&(
+                  <div>
+                    <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:5,fontWeight:600}}>Добавленные слоты ({postBookingSlots.length}):</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                      {postBookingSlots.map(s=>(
+                        <div key={s.time} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:14,
+                          background:'rgba(16,185,129,0.18)',border:'1px solid rgba(16,185,129,0.35)'}}>
+                          <span style={{fontSize:11,color:'#34d399',fontWeight:700}}>🕐 {s.time}</span>
+                          <button onClick={()=>removeBookingSlot(s.time)}
+                            style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:0,fontSize:12,lineHeight:1}}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

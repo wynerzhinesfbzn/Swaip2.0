@@ -35,8 +35,7 @@ interface ChannelPost {
   episodeNum?: number;
   /* booking */
   hasBooking?: boolean;
-  bookingSlots?: number;
-  bookingBooked?: number;
+  bookingSlots?: {time:string;booked:boolean}[];
   bookingLabel?: string;
 }
 
@@ -291,14 +290,15 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,...patch}));
   };
 
-  const bookPost=(chId:string,postId:string)=>{
-    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>
-      p.id!==postId||!p.hasBooking||(p.bookingSlots!==undefined&&(p.bookingBooked||0)>=p.bookingSlots)?p
-      :{...p,bookingBooked:(p.bookingBooked||0)+1}
-    )}));
+  const bookPost=(chId:string,postId:string,time?:string)=>{
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>{
+      if(p.id!==postId||!p.hasBooking)return p;
+      if(!time||!p.bookingSlots?.length)return p;
+      return{...p,bookingSlots:p.bookingSlots.map(s=>s.time===time?{...s,booked:true}:s)};
+    })}));
   };
 
-  const editPostBooking=(chId:string,postId:string,patch:{bookingSlots?:number;bookingLabel?:string;hasBooking?:boolean})=>{
+  const editPostBooking=(chId:string,postId:string,patch:{bookingSlots?:{time:string;booked:boolean}[];bookingLabel?:string;hasBooking?:boolean})=>{
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>
       p.id!==postId?p:{...p,...patch}
     )}));
@@ -309,7 +309,7 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
     const newPost:ChannelPost={
       ...post,id:uid(),reactions:{fire:0,rocket:0,gem:0,heart:0,think:0},
       views:0,createdAt:Date.now(),isPinned:false,
-      ...(post.hasBooking?{hasBooking:true,bookingBooked:post.bookingBooked??0,bookingLabel:post.bookingLabel||'Записаться',bookingSlots:post.bookingSlots}:{}),
+      ...(post.hasBooking?{hasBooking:true,bookingLabel:post.bookingLabel||'Записаться',bookingSlots:post.bookingSlots||[]}:{}),
     };
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:[newPost,...ch.posts]}));
   };
@@ -332,7 +332,7 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
             onReact={reactToPost} onVote={voteInPoll}
             onOpenCapsule={openCapsule} onPin={pinPost} onDelete={deletePost}
             onUpdate={(patch)=>updateChannel(openCh.id,patch)}
-            onBook={(postId)=>bookPost(openCh.id,postId)}
+            onBook={(postId,time)=>bookPost(openCh.id,postId,time)}
             onEditBooking={(postId,patch)=>editPostBooking(openCh.id,postId,patch)}
             activeRubric={activeRubric} onRubric={setActiveRubric}
             onCompose={()=>setShowCompose(true)}
@@ -505,8 +505,8 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
   onPin:(chId:string,postId:string)=>void;
   onDelete:(chId:string,postId:string)=>void;
   onUpdate:(patch:Partial<SwaipChannel>)=>void;
-  onBook:(postId:string)=>void;
-  onEditBooking:(postId:string,patch:{bookingSlots?:number;bookingLabel?:string;hasBooking?:boolean})=>void;
+  onBook:(postId:string,time?:string)=>void;
+  onEditBooking:(postId:string,patch:{bookingSlots?:{time:string;booked:boolean}[];bookingLabel?:string;hasBooking?:boolean})=>void;
   activeRubric:string|null;onRubric:(r:string|null)=>void;
   onCompose:()=>void;
   onAddPost:(chId:string,post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>void;
@@ -713,7 +713,7 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
             onOpenCapsule={()=>onOpenCapsule(ch.id,post.id)}
             onPin={()=>onPin(ch.id,post.id)}
             onDelete={()=>onDelete(ch.id,post.id)}
-            onBook={()=>onBook(post.id)}
+            onBook={(time)=>onBook(post.id,time)}
             onEditBooking={(patch)=>onEditBooking(post.id,patch)}/>
         ))}
       </div>
@@ -816,21 +816,25 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
 /* ══════════════════════════════════════════════════════
    КАРТОЧКА ПОСТА
 ══════════════════════════════════════════════════════ */
+const CH_QUICK_TIMES=['9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+
 function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDelete,onBook,onEditBooking}:{
   post:ChannelPost;ch:SwaipChannel;c:Props['c'];accent:string;tick:number;
   onReact:(key:ReactionKey)=>void;onVote:(idx:number)=>void;
   onOpenCapsule:()=>void;onPin:()=>void;onDelete:()=>void;
-  onBook:()=>void;
-  onEditBooking:(patch:{bookingSlots?:number;bookingLabel?:string;hasBooking?:boolean})=>void;
+  onBook:(time?:string)=>void;
+  onEditBooking:(patch:{bookingSlots?:{time:string;booked:boolean}[];bookingLabel?:string;hasBooking?:boolean})=>void;
 }) {
   const [showActions,setShowActions]=useState(false);
   const [showBookEdit,setShowBookEdit]=useState(false);
-  const [bookSlotsDraft,setBookSlotsDraft]=useState(post.bookingSlots??5);
   const [bookLabelDraft,setBookLabelDraft]=useState(post.bookingLabel||'Записаться');
-  const [booked,setBooked]=useState(false);
+  const [bookSlotsDraft,setBookSlotsDraft]=useState<{time:string;booked:boolean}[]>(post.bookingSlots||[]);
+  const [bookTimeInput,setBookTimeInput]=useState('');
+  const [bookedTime,setBookedTime]=useState<string|null>(null);
   const isPinned=ch.pinnedPostId===post.id;
   const score=calcPostScore(post.reactions);
-  const slotsLeft=post.bookingSlots!==undefined?(post.bookingSlots-(post.bookingBooked||0)):null;
+  const slots=post.bookingSlots||[];
+  const freeSlots=slots.filter(s=>!s.booked);
 
   /* Закрытая капсула */
   if(post.type==='capsule'&&!post.capsuleOpened&&post.opensAt&&Date.now()<post.opensAt) {
@@ -964,10 +968,10 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
         </div>
       )}
 
-      {/* ── Кнопка «Записаться» ── */}
+      {/* ── Блок «Записаться» — временны́е слоты ── */}
       {post.hasBooking&&(
         <div style={{padding:'4px 14px 14px'}}>
-          {/* Мини-редактор слотов (для автора, через ⋯ меню) */}
+          {/* Редактор слотов для автора */}
           <AnimatePresence>
             {showBookEdit&&(
               <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}}
@@ -982,15 +986,43 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
                         background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
                   </div>
                   <div>
-                    <p style={{margin:'0 0 4px',fontSize:11,color:c.sub}}>Количество мест (0 = без лимита)</p>
-                    <input type="number" min={0} max={999} value={bookSlotsDraft}
-                      onChange={e=>setBookSlotsDraft(Number(e.target.value))}
-                      style={{width:'100%',boxSizing:'border-box',padding:'8px 12px',borderRadius:10,
-                        background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none',textAlign:'center'}}/>
+                    <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Слоты (нажми для добавления):</p>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:6}}>
+                      {CH_QUICK_TIMES.map(t=>{
+                        const sel=bookSlotsDraft.some(s=>s.time===t);
+                        return <button key={t} onClick={()=>sel?setBookSlotsDraft(d=>d.filter(s=>s.time!==t)):setBookSlotsDraft(d=>[...d,{time:t,booked:false}])}
+                          style={{padding:'4px 10px',borderRadius:14,fontSize:11,fontWeight:700,cursor:'pointer',border:'none',
+                            background:sel?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.08)',
+                            color:sel?'#34d399':'rgba(255,255,255,0.55)'}}>
+                          {sel?'✓ ':''}{t}
+                        </button>;
+                      })}
+                    </div>
+                    <div style={{display:'flex',gap:6}}>
+                      <input value={bookTimeInput} onChange={e=>setBookTimeInput(e.target.value)}
+                        placeholder="Своё время: 8:30"
+                        style={{flex:1,padding:'6px 10px',borderRadius:8,background:c.bg,
+                          border:`1px solid ${c.border}`,color:c.light,fontSize:12,outline:'none'}}/>
+                      <button onClick={()=>{if(bookTimeInput.trim()){setBookSlotsDraft(d=>[...d,{time:bookTimeInput.trim(),booked:false}]);setBookTimeInput('');}}}
+                        style={{padding:'6px 12px',borderRadius:8,border:'none',background:'rgba(16,185,129,0.25)',
+                          color:'#34d399',fontSize:12,fontWeight:700,cursor:'pointer'}}>+</button>
+                    </div>
+                    {bookSlotsDraft.length>0&&(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
+                        {bookSlotsDraft.map(s=>(
+                          <div key={s.time} style={{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:12,
+                            background:'rgba(16,185,129,0.15)',border:'1px solid rgba(16,185,129,0.3)'}}>
+                            <span style={{fontSize:11,color:'#34d399',fontWeight:700}}>🕐 {s.time}</span>
+                            <button onClick={()=>setBookSlotsDraft(d=>d.filter(x=>x.time!==s.time))}
+                              style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:0,fontSize:11}}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div style={{display:'flex',gap:8}}>
                     <motion.button whileTap={{scale:0.95}} onClick={()=>{
-                      onEditBooking({bookingSlots:bookSlotsDraft||undefined,bookingLabel:bookLabelDraft||'Записаться'});
+                      onEditBooking({bookingSlots:bookSlotsDraft,bookingLabel:bookLabelDraft||'Записаться'});
                       setShowBookEdit(false);
                     }} style={{flex:1,padding:'9px',borderRadius:10,border:'none',cursor:'pointer',
                       background:accent,color:'#fff',fontWeight:800,fontSize:12}}>Сохранить</motion.button>
@@ -998,7 +1030,7 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
                       onEditBooking({hasBooking:false});setShowBookEdit(false);
                     }} style={{padding:'9px 14px',borderRadius:10,border:`1px solid rgba(239,68,68,0.4)`,
                       background:'rgba(239,68,68,0.08)',color:'#ef4444',cursor:'pointer',fontWeight:700,fontSize:12}}>
-                      Убрать кнопку
+                      Убрать
                     </motion.button>
                     <motion.button whileTap={{scale:0.95}} onClick={()=>setShowBookEdit(false)}
                       style={{padding:'9px 12px',borderRadius:10,border:`1px solid ${c.border}`,
@@ -1009,81 +1041,60 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
             )}
           </AnimatePresence>
 
-          {/* Строка с анимированными стрелками + кнопкой */}
-          <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-            {/* Левые стрелки */}
-            <div style={{display:'flex',gap:2}}>
-              {[0,1].map(i=>(
-                <motion.span key={i} style={{fontSize:14,color:ch.vibeColor,display:'block'}}
-                  animate={{x:[4,0,4],opacity:[0.4,1,0.4]}}
-                  transition={{repeat:Infinity,duration:1.1,delay:i*0.2,ease:'easeInOut'}}>
-                  →
-                </motion.span>
-              ))}
+          {/* Блок со слотами */}
+          <div style={{padding:'10px 12px',borderRadius:12,background:`${ch.vibeColor}0d`,border:`1px solid ${ch.vibeColor}33`}}>
+            {/* Заголовок */}
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+              <div style={{display:'flex',gap:1}}>
+                {[0,1].map(i=><motion.span key={i} style={{fontSize:11,color:ch.vibeColor}}
+                  animate={{x:[2,0,2],opacity:[0.3,1,0.3]}}
+                  transition={{repeat:Infinity,duration:1.1,delay:i*0.22}}>→</motion.span>)}
+              </div>
+              <span style={{fontSize:13,fontWeight:800,color:ch.vibeColor,flex:1,textAlign:'center'}}>{post.bookingLabel||'Записаться'}</span>
+              <div style={{display:'flex',gap:1,transform:'scaleX(-1)'}}>
+                {[0,1].map(i=><motion.span key={i} style={{fontSize:11,color:ch.vibeColor}}
+                  animate={{x:[2,0,2],opacity:[0.3,1,0.3]}}
+                  transition={{repeat:Infinity,duration:1.1,delay:i*0.22}}>→</motion.span>)}
+              </div>
             </div>
-
-            {/* Кнопка «Записаться» */}
-            {booked?(
-              <motion.div initial={{scale:0.9}} animate={{scale:1}}
-                style={{display:'flex',alignItems:'center',gap:6,padding:'9px 22px',borderRadius:24,
-                  background:'linear-gradient(135deg,rgba(16,185,129,0.2),rgba(5,150,105,0.15))',
-                  border:'1.5px solid rgba(16,185,129,0.5)'}}>
-                <motion.span animate={{scale:[1,1.3,1]}} transition={{repeat:1,duration:0.4}}>✅</motion.span>
+            {bookedTime?(
+              <motion.div initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}
+                style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'10px'}}>
+                <span style={{fontSize:22}}>✅</span>
                 <span style={{fontSize:13,fontWeight:800,color:'#34d399'}}>Вы записаны!</span>
-                {slotsLeft!==null&&slotsLeft>0&&(
-                  <span style={{fontSize:11,color:'rgba(52,211,153,0.7)'}}>· осталось {slotsLeft}</span>
-                )}
+                <span style={{fontSize:11,color:c.sub}}>Время: <strong style={{color:ch.vibeColor}}>{bookedTime}</strong></span>
               </motion.div>
+            ):slots.length>0?(
+              <div style={{display:'flex',flexWrap:'wrap',gap:6,justifyContent:'center'}}>
+                {slots.map(s=>(
+                  <motion.button key={s.time} whileTap={s.booked?{}:{scale:0.92}}
+                    onClick={()=>{if(s.booked)return;setBookedTime(s.time);onBook(s.time);}}
+                    style={{padding:'7px 14px',borderRadius:20,
+                      border:`1.5px solid ${s.booked?'rgba(255,255,255,0.1)':ch.vibeColor+'66'}`,
+                      background:s.booked?'rgba(255,255,255,0.04)':`${ch.vibeColor}18`,
+                      color:s.booked?c.sub:ch.vibeColor,fontSize:12,fontWeight:700,
+                      cursor:s.booked?'default':'pointer',
+                      textDecoration:s.booked?'line-through':'none',opacity:s.booked?0.45:1}}>
+                    {s.booked?'🔒 ':''}{s.time}
+                  </motion.button>
+                ))}
+              </div>
             ):(
-              <motion.button
-                whileTap={{scale:0.93}}
-                whileHover={{scale:1.04}}
-                onClick={()=>{
-                  if(slotsLeft===0)return;
-                  setBooked(true);
-                  onBook();
-                }}
+              <motion.button whileTap={{scale:0.92}} onClick={()=>{setBookedTime('✓');onBook(undefined);}}
                 style={{display:'flex',alignItems:'center',gap:7,padding:'10px 24px',borderRadius:24,
-                  border:'none',cursor:slotsLeft===0?'default':'pointer',
-                  background:slotsLeft===0
-                    ?'rgba(255,255,255,0.07)'
-                    :`linear-gradient(135deg,${ch.vibeColor}ee,${accent}cc)`,
-                  color:slotsLeft===0?c.sub:'#fff',
-                  boxShadow:slotsLeft===0?'none':`0 3px 16px ${ch.vibeColor}55`,
-                  fontSize:14,fontWeight:800}}>
-                <motion.span animate={{y:[0,-2,0]}} transition={{repeat:Infinity,duration:1.4,ease:'easeInOut'}}>
-                  📅
-                </motion.span>
+                  border:'none',cursor:'pointer',width:'100%',justifyContent:'center',
+                  background:`linear-gradient(135deg,${ch.vibeColor}ee,${accent}cc)`,
+                  color:'#fff',boxShadow:`0 3px 16px ${ch.vibeColor}44`,fontSize:14,fontWeight:800}}>
+                <motion.span animate={{y:[0,-2,0]}} transition={{repeat:Infinity,duration:1.4}}>📅</motion.span>
                 {post.bookingLabel||'Записаться'}
-                {slotsLeft!==null&&(
-                  <span style={{fontSize:10,fontWeight:600,
-                    padding:'2px 7px',borderRadius:20,
-                    background:'rgba(0,0,0,0.25)',color:slotsLeft===0?'#ef4444':'rgba(255,255,255,0.85)'}}>
-                    {slotsLeft===0?'мест нет':`${slotsLeft} мест`}
-                  </span>
-                )}
               </motion.button>
             )}
-
-            {/* Правые стрелки */}
-            <div style={{display:'flex',gap:2,transform:'scaleX(-1)'}}>
-              {[0,1].map(i=>(
-                <motion.span key={i} style={{fontSize:14,color:ch.vibeColor,display:'block'}}
-                  animate={{x:[4,0,4],opacity:[0.4,1,0.4]}}
-                  transition={{repeat:Infinity,duration:1.1,delay:i*0.2,ease:'easeInOut'}}>
-                  →
-                </motion.span>
-              ))}
-            </div>
+            {slots.length>0&&!bookedTime&&(
+              <p style={{margin:'6px 0 0',textAlign:'center',fontSize:10,color:c.sub}}>
+                Свободно: <strong style={{color:ch.vibeColor}}>{freeSlots.length}</strong> из <strong>{slots.length}</strong>
+              </p>
+            )}
           </div>
-
-          {/* Счётчик записавшихся */}
-          {(post.bookingBooked||0)>0&&(
-            <p style={{margin:'6px 0 0',textAlign:'center',fontSize:11,color:c.sub}}>
-              Уже записались: <strong style={{color:ch.vibeColor}}>{post.bookingBooked}</strong>
-              {post.bookingSlots?` из ${post.bookingSlots}`:''}
-            </p>
-          )}
         </div>
       )}
 
@@ -1176,8 +1187,11 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
 
   /* ── Запись ── */
   const [hasBooking,setHasBooking]=useState(false);
-  const [bookingSlots,setBookingSlots]=useState(5);
+  const [bookingSlots,setBookingSlots]=useState<{time:string;booked:boolean}[]>([]);
   const [bookingLabel,setBookingLabel]=useState('Записаться');
+  const [bookingTimeInput,setBookingTimeInput]=useState('');
+  const addBSlot=(t:string)=>{const v=t.trim();if(!v||bookingSlots.some(s=>s.time===v))return;setBookingSlots(d=>[...d,{time:v,booked:false}]);};
+  const remBSlot=(t:string)=>setBookingSlots(d=>d.filter(s=>s.time!==t));
 
   /* ── Фото ── */
   const [imgFile,setImgFile]=useState<File|null>(null);
@@ -1294,7 +1308,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
       if(type==='announce'&&announceAt)base.announceAt=new Date(announceAt).getTime();
       if(type==='capsule'&&opensAt)Object.assign(base,{opensAt:new Date(opensAt).getTime(),capsuleOpened:false});
       if(type==='episode')Object.assign(base,{seriesName,episodeNum});
-      if(hasBooking){Object.assign(base,{hasBooking:true,bookingBooked:0,bookingLabel:bookingLabel||'Записаться',bookingSlots:bookingSlots||undefined});}
+      if(hasBooking){Object.assign(base,{hasBooking:true,bookingLabel:bookingLabel||'Записаться',bookingSlots:bookingSlots});}
       onPublish(base);
     }finally{setPublishing(false);}
   };
@@ -1618,30 +1632,49 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
                   <div>
                     <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Текст кнопки</p>
                     <input value={bookingLabel} onChange={e=>setBookingLabel(e.target.value)}
-                      placeholder="Записаться"
+                      placeholder="Записаться на маникюр"
                       style={{width:'100%',boxSizing:'border-box',padding:'9px 12px',borderRadius:10,
                         background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
                   </div>
                   <div>
-                    <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Количество мест (0 = без лимита)</p>
-                    <input type="number" min={0} max={999} value={bookingSlots}
-                      onChange={e=>setBookingSlots(Number(e.target.value))}
-                      style={{width:'100%',boxSizing:'border-box',padding:'9px 12px',borderRadius:10,
-                        background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none',textAlign:'center'}}/>
-                  </div>
-                  {/* Превью кнопки */}
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px 0 2px'}}>
-                    <span style={{fontSize:12,color:c.sub}}>→→</span>
-                    <div style={{padding:'9px 22px',borderRadius:24,
-                      background:'linear-gradient(135deg,rgba(16,185,129,0.7),rgba(5,150,105,0.6))',
-                      color:'#fff',fontWeight:800,fontSize:13,display:'flex',alignItems:'center',gap:6}}>
-                      <span>📅</span>
-                      {bookingLabel||'Записаться'}
-                      {bookingSlots>0&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,
-                        background:'rgba(0,0,0,0.25)'}}>{bookingSlots} мест</span>}
+                    <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Выбери слоты записи:</p>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:6}}>
+                      {CH_QUICK_TIMES.map(t=>{
+                        const sel=bookingSlots.some(s=>s.time===t);
+                        return <button key={t} onClick={()=>sel?remBSlot(t):addBSlot(t)}
+                          style={{padding:'5px 11px',borderRadius:16,fontSize:11,fontWeight:700,cursor:'pointer',border:'none',
+                            background:sel?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.08)',
+                            color:sel?'#34d399':'rgba(255,255,255,0.55)'}}>
+                          {sel?'✓ ':''}{t}
+                        </button>;
+                      })}
                     </div>
-                    <span style={{fontSize:12,color:c.sub}}>←←</span>
+                    <div style={{display:'flex',gap:6}}>
+                      <input value={bookingTimeInput} onChange={e=>setBookingTimeInput(e.target.value)}
+                        onKeyDown={e=>{if(e.key==='Enter'){addBSlot(bookingTimeInput);setBookingTimeInput('');}}}
+                        placeholder="Своё время: 8:30"
+                        style={{flex:1,padding:'7px 10px',borderRadius:8,background:c.bg,
+                          border:`1px solid ${c.border}`,color:c.light,fontSize:12,outline:'none'}}/>
+                      <button onClick={()=>{addBSlot(bookingTimeInput);setBookingTimeInput('');}}
+                        style={{padding:'7px 12px',borderRadius:8,border:'none',background:'rgba(16,185,129,0.25)',
+                          color:'#34d399',fontSize:12,fontWeight:700,cursor:'pointer'}}>+ Добавить</button>
+                    </div>
                   </div>
+                  {bookingSlots.length>0&&(
+                    <div>
+                      <p style={{margin:'0 0 5px',fontSize:11,color:c.sub}}>Добавленные слоты ({bookingSlots.length}):</p>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                        {bookingSlots.map(s=>(
+                          <div key={s.time} style={{display:'flex',alignItems:'center',gap:3,padding:'3px 10px',borderRadius:14,
+                            background:'rgba(16,185,129,0.15)',border:'1px solid rgba(16,185,129,0.3)'}}>
+                            <span style={{fontSize:11,color:'#34d399',fontWeight:700}}>🕐 {s.time}</span>
+                            <button onClick={()=>remBSlot(s.time)}
+                              style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:0,fontSize:11}}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
