@@ -841,10 +841,35 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
   const [bookSlotsDraft,setBookSlotsDraft]=useState<{time:string;booked:boolean}[]>(post.bookingSlots||[]);
   const [bookTimeInput,setBookTimeInput]=useState('');
   const [bookedTime,setBookedTime]=useState<string|null>(null);
-  const [showBookForm,setShowBookForm]=useState(false);
-  const [bookFormSlot,setBookFormSlot]=useState('');
-  const [bookFormName,setBookFormName]=useState('');
-  const [bookFormPhone,setBookFormPhone]=useState('');
+  const [showChChat,setShowChChat]=useState(false);
+  const [chChatMsgs,setChChatMsgs]=useState<{role:'bot'|'user';text:string}[]>([]);
+  const [chChatInput,setChChatInput]=useState('');
+  const [chChatStep,setChChatStep]=useState<'chat'|'confirm'|'done'>('chat');
+  const [chChatSlot,setChChatSlot]=useState('');
+  const [chChatName,setChChatName]=useState('');
+  const [chChatPhone,setChChatPhone]=useState('');
+  const chBotName=(()=>{try{return localStorage.getItem('sw_ai_name')||'Алина';}catch{return'Алина';}})();
+  const chSpeak=(text:string)=>{
+    if(!('speechSynthesis' in window))return;
+    window.speechSynthesis.cancel();
+    const utt=new SpeechSynthesisUtterance(text);
+    utt.lang='ru-RU';utt.rate=0.92;utt.pitch=1.05;
+    const vs=window.speechSynthesis.getVoices();const rv=vs.find(v=>v.lang.startsWith('ru'));if(rv)utt.voice=rv;
+    window.speechSynthesis.speak(utt);
+  };
+  const getTimeOfDayCh=()=>{const h=new Date().getHours();if(h>=5&&h<12)return'Доброе утро';if(h>=12&&h<17)return'Добрый день';if(h>=17)return'Добрый вечер';return'Доброй ночи';};
+  const BOT_HELLOS=['Рада помочь с записью 😊','На связи! Давайте подберём время 🌟','Здравствуйте! Выберем удобный слот ✨'];
+  const openChChat=(preSlot?:string)=>{
+    const avail=(post.bookingSlots||[]).filter(s=>!s.booked).map(s=>s.time);
+    const tg=getTimeOfDayCh();
+    const greeting=`${tg}! Я ${chBotName} 😊 ${BOT_HELLOS[Math.floor(Math.random()*BOT_HELLOS.length)]}`+
+      (avail.length>0?`\n\nВот свободные окошки:\n${avail.map(s=>'📅 '+fmtChSlot(s)).join('\n')}\n\nВыберите удобное время!`
+        :'\n\nК сожалению, свободных слотов нет 😔');
+    setChChatMsgs([{role:'bot',text:greeting}]);
+    setChChatStep('chat');setChChatSlot(preSlot||'');setChChatName('');setChChatPhone('');setChChatInput('');
+    setShowChChat(true);
+    setTimeout(()=>chSpeak(`${tg}! Я ${chBotName}. Выберите удобное время для записи!`),200);
+  };
   const isPinned=ch.pinnedPostId===post.id;
   const score=calcPostScore(post.reactions);
   const slots=post.bookingSlots||[];
@@ -889,7 +914,7 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
     );
   }
 
-  return (
+  return (<>
     <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}
       style={{background:c.card,borderRadius:18,overflow:'hidden',marginBottom:12,
         border:isPinned?'1px solid rgba(234,179,8,0.4)':'1px solid '+c.border}}>
@@ -1057,30 +1082,28 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
             )}
           </AnimatePresence>
 
-          {/* Блок со слотами — стиль прайс-листа */}
+          {/* Блок со слотами — стиль прайс-листа, чат Алины */}
           <motion.div style={{background:'linear-gradient(135deg,rgba(29,78,216,0.13),rgba(124,58,237,0.09))',
-            border:'1px solid rgba(99,102,241,0.28)',borderRadius:18,padding:'14px',overflow:'hidden'}}>
-            {/* Заголовок */}
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:slots.length>0&&!bookedTime&&!showBookForm?10:0}}>
+            border:'1px solid rgba(99,102,241,0.28)',borderRadius:18,padding:'14px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:slots.length>0&&!bookedTime?10:0}}>
               <div style={{flex:1}}>
                 <div style={{fontSize:14,fontWeight:800,color:'#fff'}}>{post.bookingLabel||'Записаться'}</div>
                 {slots.length>0&&<div style={{fontSize:11,color:'rgba(255,255,255,0.45)',marginTop:2}}>
-                  {freeSlots.length} слот{freeSlots.length===1?'':'ов'} свободно
+                  {freeSlots.length} слот{freeSlots.length===1?'':'ов'} свободно · {chBotName} ответит
                 </div>}
               </div>
-              {!bookedTime&&!showBookForm&&(
-                <motion.div whileTap={{scale:0.93}} onClick={()=>{setBookFormSlot('');setShowBookForm(true);}}
+              {!bookedTime&&(
+                <motion.div whileTap={{scale:0.93}} onClick={()=>openChChat()}
                   style={{background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',borderRadius:10,
                     padding:'8px 14px',fontSize:12,fontWeight:800,color:'#fff',cursor:'pointer',flexShrink:0}}>
                   Записаться →
                 </motion.div>
               )}
             </div>
-            {/* Зелёные чипы как в прайсе */}
-            {slots.length>0&&!bookedTime&&!showBookForm&&(
+            {slots.length>0&&!bookedTime&&(
               <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
                 {slots.slice(0,3).map(s=>(
-                  <div key={s.time} onClick={()=>{if(s.booked)return;setBookFormSlot(s.time);setShowBookForm(true);}}
+                  <div key={s.time} onClick={()=>{if(s.booked)return;openChChat(s.time);}}
                     style={{background:s.booked?'rgba(239,68,68,0.1)':'rgba(34,197,94,0.1)',
                       border:`1px solid ${s.booked?'rgba(239,68,68,0.25)':'rgba(34,197,94,0.25)'}`,
                       borderRadius:8,padding:'4px 10px',fontSize:11,fontWeight:600,
@@ -1090,67 +1113,16 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
                 ))}
                 {slots.length>3&&(
                   <div style={{background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'4px 10px',
-                    fontSize:11,color:'rgba(255,255,255,0.4)'}}>
-                    +{slots.length-3} ещё
-                  </div>
+                    fontSize:11,color:'rgba(255,255,255,0.4)'}}>+{slots.length-3} ещё</div>
                 )}
               </div>
             )}
-            {/* Форма */}
-            {showBookForm&&!bookedTime&&(
-              <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}}
-                style={{marginTop:10,display:'flex',flexDirection:'column',gap:8}}>
-                {slots.length>0&&(
-                  <div>
-                    <div style={{fontSize:11,color:'rgba(255,255,255,0.45)',marginBottom:5}}>Выберите время:</div>
-                    <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-                      {slots.filter(s=>!s.booked).map(s=>(
-                        <div key={s.time} onClick={()=>setBookFormSlot(s.time)}
-                          style={{background:bookFormSlot===s.time?'rgba(34,197,94,0.25)':'rgba(34,197,94,0.08)',
-                            border:`1.5px solid ${bookFormSlot===s.time?'rgba(34,197,94,0.7)':'rgba(34,197,94,0.2)'}`,
-                            borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:700,
-                            color:'#4ade80',cursor:'pointer',transition:'all 0.15s'}}>
-                          📅 {fmtChSlot(s.time)}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <input value={bookFormName} onChange={e=>setBookFormName(e.target.value)}
-                  placeholder="Ваше имя *"
-                  style={{padding:'9px 12px',borderRadius:10,background:'rgba(255,255,255,0.07)',
-                    border:'1px solid rgba(255,255,255,0.12)',color:'#fff',fontSize:13,outline:'none'}}/>
-                <input value={bookFormPhone} onChange={e=>setBookFormPhone(e.target.value)}
-                  placeholder="Телефон *" type="tel"
-                  style={{padding:'9px 12px',borderRadius:10,background:'rgba(255,255,255,0.07)',
-                    border:'1px solid rgba(255,255,255,0.12)',color:'#fff',fontSize:13,outline:'none'}}/>
-                <div style={{display:'flex',gap:8}}>
-                  <motion.button whileTap={{scale:0.95}} onClick={()=>{
-                    if(!bookFormName.trim()||!bookFormPhone.trim())return;
-                    if(slots.length>0&&!bookFormSlot)return;
-                    const slot=bookFormSlot||'✓';
-                    setBookedTime(slot);setShowBookForm(false);onBook(slot);
-                  }} style={{flex:1,padding:'10px',borderRadius:10,border:'none',cursor:'pointer',
-                    background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',color:'#fff',fontWeight:800,fontSize:13}}>
-                    ✅ Отправить заявку
-                  </motion.button>
-                  <motion.button whileTap={{scale:0.95}} onClick={()=>setShowBookForm(false)}
-                    style={{padding:'10px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.1)',
-                      background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:13}}>
-                    Отмена
-                  </motion.button>
-                </div>
-              </motion.div>
-            )}
-            {/* Подтверждение */}
             {bookedTime&&(
               <motion.div initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}}
-                style={{marginTop:10,textAlign:'center',padding:'10px 0'}}>
-                <div style={{fontSize:22,marginBottom:6}}>🎉</div>
-                <div style={{fontSize:13,fontWeight:800,color:'#6ee7b7',marginBottom:4}}>Заявка отправлена!</div>
-                <div style={{fontSize:11,color:'rgba(255,255,255,0.5)'}}>
-                  {bookFormName&&`${bookFormName} · `}{bookedTime!=='✓'?fmtChSlot(bookedTime):''}
-                </div>
+                style={{marginTop:4,textAlign:'center',padding:'6px 0'}}>
+                <div style={{fontSize:20,marginBottom:4}}>🎉</div>
+                <div style={{fontSize:13,fontWeight:800,color:'#6ee7b7',marginBottom:3}}>Заявка отправлена!</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.45)'}}>{bookedTime!=='✓'?fmtChSlot(bookedTime):''}</div>
               </motion.div>
             )}
           </motion.div>
@@ -1179,6 +1151,124 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
         </div>
       </div>
     </motion.div>
+
+    {/* Чат Алины — запись из канала */}
+    {showChChat&&(()=>{
+      const availCh=(post.bookingSlots||[]).filter(s=>!s.booked).map(s=>s.time);
+      const handleChMsg=(text:string)=>{
+        const msgs=[...chChatMsgs,{role:'user' as const,text}];
+        setChChatMsgs(msgs);setChChatInput('');
+        setTimeout(()=>{
+          let reply='';let speech='';
+          if(chChatStep==='chat'){
+            const lower=text.toLowerCase();
+            const matched=availCh.find(s=>{const t=s.split(' ')[1];return text.includes(t||'')||fmtChSlot(s).toLowerCase().split(' ').some(w=>lower.includes(w)&&w.length>2);})||
+              availCh.find(s=>lower.includes(s.split(' ')[1]?.split(':')[0]||''));
+            if(matched){
+              setChChatSlot(matched);setChChatStep('confirm');
+              reply=`Отлично, ${fmtChSlot(matched)} — свободно! 🎉\n\nКак вас зовут?`;
+              speech=`Отлично! ${fmtChSlot(matched)} свободно. Как вас зовут?`;
+            }else if(availCh.length===0){
+              reply='К сожалению, все слоты заняты 😔';speech='Все слоты заняты.';
+            }else{
+              reply=`Не нашла такое время 🙈\n\nВот что есть:\n${availCh.map(s=>'📅 '+fmtChSlot(s)).join('\n')}\n\nВыберите! 😊`;
+              speech='Не нашла такое время. Выберите один из доступных слотов.';
+            }
+          }else if(chChatStep==='confirm'){
+            if(!chChatName){
+              setChChatName(text.trim());
+              reply=`${text.trim()}, приятно! 😊\n\nТеперь оставьте телефон 📱`;
+              speech=`${text.trim()}, приятно познакомиться! Укажите телефон.`;
+            }else if(!chChatPhone){
+              setChChatPhone(text.trim());setChChatStep('done');
+              const slot=chChatSlot;
+              reply=`Всё готово! 🎉\n\n👤 ${chChatName}\n📅 ${fmtChSlot(slot)}\n📱 ${text.trim()}\n\nЖдём вас! — ${chBotName}`;
+              speech='Замечательно! Запись подтверждена. Ждём вас!';
+              setBookedTime(slot||'✓');setShowChChat(false);onBook(slot||'✓');
+              chSpeak(speech);return;
+            }
+          }
+          if(reply){setChChatMsgs(m=>[...m,{role:'bot',text:reply}]);chSpeak(speech||reply.replace(/[📅😊🎉📱👇🌟🙈😔]/g,''));}
+        },600);
+      };
+      return(
+        <AnimatePresence key="chcbg">
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+            onClick={()=>setShowChChat(false)}
+            style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',backdropFilter:'blur(10px)',zIndex:5000}}/>
+          <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}}
+            transition={{type:'spring',stiffness:290,damping:30}}
+            style={{position:'fixed',bottom:0,left:0,right:0,zIndex:5001,
+              background:'linear-gradient(180deg,#0a0d14,#070a10)',borderRadius:'28px 28px 0 0',
+              border:'1px solid rgba(99,102,241,0.25)',height:'88vh',display:'flex',flexDirection:'column'}}>
+            <div style={{padding:'18px 18px 14px',borderBottom:'1px solid rgba(255,255,255,0.07)',
+              display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+              <div style={{width:42,height:42,borderRadius:'50%',background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:800,color:'#fff',flexShrink:0}}>
+                {chBotName[0]?.toUpperCase()||'А'}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:800,color:'#fff',fontFamily:'"Montserrat",sans-serif'}}>{chBotName}</div>
+                <div style={{fontSize:10,color:'rgba(99,102,241,0.8)',fontFamily:'"Montserrat",sans-serif'}}>
+                  {chChatStep==='done'?'✅ Запись подтверждена':`📋 ${post.bookingLabel||'Запись'} · онлайн`}
+                </div>
+              </div>
+              <motion.button whileTap={{scale:0.9}} onClick={()=>setShowChChat(false)}
+                style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',
+                  borderRadius:'50%',width:32,height:32,cursor:'pointer',color:'rgba(255,255,255,0.5)',
+                  fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>✕</motion.button>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'16px',display:'flex',flexDirection:'column',gap:10}}>
+              {chChatMsgs.map((msg,i)=>(
+                <div key={i} style={{display:'flex',justifyContent:msg.role==='user'?'flex-end':'flex-start'}}>
+                  {msg.role==='bot'&&(
+                    <div style={{width:28,height:28,borderRadius:'50%',flexShrink:0,marginRight:8,marginTop:2,
+                      background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',display:'flex',alignItems:'center',
+                      justifyContent:'center',fontSize:12,fontWeight:800,color:'#fff'}}>{chBotName[0]?.toUpperCase()||'А'}</div>
+                  )}
+                  <motion.div initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}}
+                    style={{maxWidth:'75%',padding:'10px 14px',
+                      background:msg.role==='user'?'linear-gradient(135deg,#1d4ed8,#2563eb)':'rgba(255,255,255,0.07)',
+                      borderRadius:msg.role==='user'?'18px 18px 4px 18px':'4px 18px 18px 18px',
+                      border:msg.role==='bot'?'1px solid rgba(255,255,255,0.08)':'none'}}>
+                    <p style={{margin:0,fontSize:12,color:'#fff',lineHeight:1.55,fontFamily:'"Montserrat",sans-serif',whiteSpace:'pre-line'}}>{msg.text}</p>
+                  </motion.div>
+                </div>
+              ))}
+              {chChatStep==='chat'&&availCh.length>0&&(
+                <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:4}}>
+                  {availCh.map(s=>(
+                    <motion.button key={s} whileTap={{scale:0.95}} onClick={()=>handleChMsg(s.split(' ')[1]||s)}
+                      style={{background:'rgba(99,102,241,0.12)',border:'1px solid rgba(99,102,241,0.3)',
+                        borderRadius:20,padding:'7px 14px',cursor:'pointer',color:'#a5b4fc',
+                        fontSize:12,fontWeight:600,fontFamily:'"Montserrat",sans-serif'}}>
+                      📅 {fmtChSlot(s)}
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {chChatStep!=='done'&&(
+              <div style={{padding:'12px 14px 28px',borderTop:'1px solid rgba(255,255,255,0.07)',
+                display:'flex',gap:8,flexShrink:0}}>
+                <input value={chChatInput} onChange={e=>setChChatInput(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter'&&chChatInput.trim())handleChMsg(chChatInput.trim());}}
+                  placeholder={chChatStep==='confirm'&&!chChatName?'Ваше имя…':chChatStep==='confirm'&&!chChatPhone?'Ваш телефон +7…':'Напишите желаемое время…'}
+                  type={chChatStep==='confirm'&&chChatName?'tel':'text'}
+                  style={{flex:1,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',
+                    borderRadius:22,padding:'11px 16px',color:'#fff',fontSize:13,outline:'none',
+                    fontFamily:'"Montserrat",sans-serif'}}/>
+                <motion.button whileTap={{scale:0.88}} onClick={()=>{if(chChatInput.trim())handleChMsg(chChatInput.trim());}}
+                  style={{background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',border:'none',
+                    borderRadius:'50%',width:44,height:44,cursor:'pointer',fontSize:18,flexShrink:0,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>➤</motion.button>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      );
+    })()}
+  </>
   );
 }
 
