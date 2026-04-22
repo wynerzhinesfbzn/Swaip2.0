@@ -258,19 +258,36 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     stopAll();
     setSpokenText(''); setInterim(''); setTranslSpoken('');
     setListening(true);
+
+    /* Запоминаем какие result-индексы уже обработали — защита от двойного срабатывания */
+    let lastProcessedIndex = -1;
+
     const r = new SR() as SpeechAny;
     recogRef.current = r;
-    r.lang = getLang(theirLang).tts;
-    r.interimResults = true; r.continuous = true;
+    /* Используем BCP-47 код для распознавания речи СОБЕСЕДНИКА */
+    r.lang           = getLang(theirLang).tts;
+    r.interimResults = true;
+    r.continuous     = true;
+    r.maxAlternatives = 1;
+
     r.onresult = (e:any) => {
       let fin='', tmp='';
-      for (let i=e.resultIndex;i<e.results.length;i++) {
-        if (e.results[i].isFinal) fin+=e.results[i][0].transcript;
-        else tmp+=e.results[i][0].transcript;
+      for (let i = Math.max(e.resultIndex, lastProcessedIndex + 1); i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          fin += e.results[i][0].transcript;
+          lastProcessedIndex = i;
+        } else {
+          tmp += e.results[i][0].transcript;
+        }
       }
       if (tmp) setInterim(tmp);
       if (fin) {
-        setSpokenText(prev=>prev+(prev?' ':'')+fin);
+        /* Заменяем весь накопленный текст последней финальной фразой
+           (не накапливаем prev+fin — это основная причина дублирования) */
+        setSpokenText(prev => {
+          const next = prev ? prev + ' ' + fin.trim() : fin.trim();
+          return next;
+        });
         setInterim('');
         if (silenceRef.current) clearTimeout(silenceRef.current);
         silenceRef.current = setTimeout(()=>{ r.stop(); setListening(false); }, 2500);
@@ -410,19 +427,32 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         {(spokenText||interim||listening) && (
           <div style={{ borderRadius:12, border:`1px solid ${LINE}`, background:CARD,
             marginBottom:8, padding:'10px 12px' }}>
+            {/* Метка: слушаем речь на языке собеседника */}
             <div style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.07em',
               textTransform:'uppercase', marginBottom:6 }}>
-              {theirL.flag} → {myL.flag}
+              {theirL.flag} {theirL.name} → {myL.flag} {myL.name}
             </div>
-            <div style={{ fontSize:13, color:TEXT, lineHeight:1.6, marginBottom:translSpoken?6:0 }}>
-              {spokenText||<span style={{ color:SUB, fontStyle:'italic' }}>{t('speakHere')}</span>}
-              {interim&&<span style={{ color:SUB, fontStyle:'italic' }}>{spokenText?' ':''}{interim}</span>}
-            </div>
-            {translSpoken&&(
-              <div style={{ borderTop:`1px solid ${LINE}`, paddingTop:7,
-                display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ flex:1, fontSize:15, fontWeight:800, color:accent, lineHeight:1.5 }}>
-                  {translSpoken}
+
+            {/* Промежуточный текст (пока говорят) */}
+            {interim && !translSpoken && (
+              <div style={{ fontSize:13, color:SUB, fontStyle:'italic', lineHeight:1.6 }}>
+                {interim}
+              </div>
+            )}
+
+            {/* Если перевод готов — показываем ТОЛЬКО его крупно */}
+            {translSpoken ? (
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:17, fontWeight:900, color:accent, lineHeight:1.5 }}>
+                    {translSpoken}
+                  </div>
+                  {/* Оригинал — мелко, для справки */}
+                  {spokenText && theirLang !== myLang && (
+                    <div style={{ fontSize:10, color:SUB, marginTop:3, fontStyle:'italic' }}>
+                      {theirL.name}: {spokenText}
+                    </div>
+                  )}
                 </div>
                 <motion.button whileTap={{ scale:0.88 }}
                   onClick={()=>speakText(translSpoken, myLang)}
@@ -432,6 +462,16 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                   🔊
                 </motion.button>
               </div>
+            ) : (
+              /* Перевод ещё грузится — показываем оригинал */
+              !interim && (
+                <div style={{ fontSize:13, color:TEXT, lineHeight:1.6 }}>
+                  {spokenText
+                    ? <span style={{ color:SUB, fontStyle:'italic' }}>⏳ {spokenText}</span>
+                    : <span style={{ color:SUB, fontStyle:'italic' }}>{t('speakHere')}</span>
+                  }
+                </div>
+              )
             )}
           </div>
         )}
