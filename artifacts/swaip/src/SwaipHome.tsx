@@ -4949,7 +4949,8 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           onPostCreated={(p)=>{
             const raw=p as any;
             const docUrls:DocAtt[]|undefined=raw.docUrls&&raw.docUrls.length?raw.docUrls:undefined;
-            const newPost:Post={id:`p_${Date.now()}`,text:p.content||'',img:p.imageUrl||undefined,videoUrl:p.videoUrl||undefined,audioUrl:p.audioUrl||undefined,docUrls,likes:0,liked:false,comments:0,ts:'только что'};
+            const newPost:Post={id:`p_${Date.now()}`,text:p.content||'',img:p.imageUrl||undefined,videoUrl:p.videoUrl||undefined,audioUrl:p.audioUrl||undefined,docUrls,likes:0,liked:false,comments:0,ts:'только что',
+              ...(raw.hasBooking?{hasBooking:true,bookingBooked:0,bookingLabel:raw.bookingLabel||'Записаться',bookingSlots:raw.bookingSlots||undefined}:{})};
             setPosts(prev=>[newPost,...prev]);
           }}
         />
