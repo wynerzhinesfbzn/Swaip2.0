@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import SwpExchange from './SwpExchange';
 import AccessibilityAssistant from './AccessibilityAssistant';
+import ChannelsScreen from './ChannelsScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessagesScreen, CallCtx, useUnreadCount } from './ProMessaging';
 import { useCallSignaling, RINGTONE_OPTIONS, RINGTONE_PREF_KEY } from './useCallSignaling';
@@ -2381,7 +2382,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [currentScreen,setCurrentScreen]=useState<'home'|'meetings'|'exchange'|'assistant'>('home');
 
   /* ── Навигация и звонки (до условных возвратов!) ── */
-  const [navTab,setNavTab]=useState<'home'|'messages'>('home');
+  const [navTab,setNavTab]=useState<'home'|'messages'|'channels'>('home');
   const [chatTarget,setChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [secretChatTarget,setSecretChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [ringtoneId, setRingtoneId] = useSaved<RingtoneId>(RINGTONE_PREF_KEY, 'classic');
@@ -3392,6 +3393,22 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           onViewProfile={hash=>{ setProfileViewHash(hash); }}
           onFindPeople={()=>{ setNavTab('home'); setTimeout(()=>{ setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); },120); }}/>
         <CallOverlayUI call={call} peerInfo={callPeerInfo} apiBase={apiBase}/>
+      </div>
+    )}
+
+    {/* ═══ ЭКРАН: КАНАЛЫ ═══ */}
+    {navTab==='channels'&&currentScreen==='home'&&(
+      <div style={{position:'fixed',inset:0,zIndex:800,overflowY:'auto',
+        background:c.bg,display:'flex',flexDirection:'column'}}>
+        <ChannelsScreen
+          userHash={userHash}
+          isDark={isDark}
+          c={c}
+          accent={activeAccent}
+          userName={profName}
+          userAvatar={avatarSrc||undefined}
+          isActive={navTab==='channels'}
+        />
       </div>
     )}
 
@@ -6582,27 +6599,37 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       {/* Главная */}
       <motion.button whileTap={{scale:0.88}} onClick={()=>setNavTab('home')}
         style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:navTab==='home'?c.accent:c.sub,padding:'4px 20px',minWidth:60}}>
+          color:navTab==='home'?c.accent:c.sub,padding:'4px 14px',minWidth:52}}>
         <span style={{fontSize:22,lineHeight:1}}>🏠</span>
         <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Главная</span>
       </motion.button>
       {/* Сообщения с бейджем */}
       <motion.button whileTap={{scale:0.88}} onClick={()=>setNavTab('messages')}
         style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:navTab==='messages'?c.accent:c.sub,padding:'4px 20px',minWidth:60,position:'relative'}}>
+          color:navTab==='messages'?c.accent:c.sub,padding:'4px 14px',minWidth:52,position:'relative'}}>
         <span style={{fontSize:22,lineHeight:1}}>💬</span>
         {unreadCount>0&&(
-          <span style={{position:'absolute',top:0,right:12,minWidth:18,height:18,borderRadius:9,background:'#ef4444',
+          <span style={{position:'absolute',top:0,right:6,minWidth:18,height:18,borderRadius:9,background:'#ef4444',
             color:'#fff',fontSize:10,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 4px'}}>
             {unreadCount>99?'99+':unreadCount}
           </span>
         )}
         <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Чаты</span>
       </motion.button>
+      {/* Каналы */}
+      <motion.button whileTap={{scale:0.88}} onClick={()=>setNavTab('channels')}
+        style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
+          color:navTab==='channels'?c.accent:c.sub,padding:'4px 14px',minWidth:52,position:'relative'}}>
+        <span style={{fontSize:22,lineHeight:1}}>📡</span>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Каналы</span>
+        {navTab==='channels'&&<motion.div layoutId="nav_indicator"
+          style={{position:'absolute',bottom:-2,left:'50%',transform:'translateX(-50%)',
+            width:20,height:2,borderRadius:1,background:c.accent}}/>}
+      </motion.button>
       {/* Поиск — встроенный */}
       <motion.button whileTap={{scale:0.88}} onClick={()=>setShowSearch(v=>!v)}
         style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:showSearch?c.accent:c.sub,padding:'4px 20px',minWidth:60}}>
+          color:showSearch?c.accent:c.sub,padding:'4px 14px',minWidth:52}}>
         <span style={{fontSize:22,lineHeight:1}}>🔍</span>
         <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Поиск</span>
       </motion.button>
