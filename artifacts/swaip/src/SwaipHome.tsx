@@ -3795,9 +3795,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                   const f=e.target.files?.[0];if(!f)return;
                   if(galUrl)URL.revokeObjectURL(galUrl);
                   resetOverlays();setGalBuffer(null);
-                  /* Читаем весь файл в ArrayBuffer СРАЗУ пока ссылка гарантированно жива */
-                  f.arrayBuffer().then(buf=>{setGalBuffer(buf);}).catch(()=>{});
-                  setGalFile(f);setGalUrl(URL.createObjectURL(f));setGalType('video');
+                  /* objectURL держит ссылку на данные даже после e.target.value=''; не отзывается при очистке input */
+                  const blobUrl=URL.createObjectURL(f);
+                  setGalFile(f);setGalUrl(blobUrl);setGalType('video');
                   e.target.value='';
                 }}/>
                 {!galUrl&&!storySuccess?(
@@ -3855,11 +3855,20 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                           ↺ Заново
                         </motion.button>
                         {!storyUploading?(
-                          <motion.button whileTap={{scale:0.9}} onClick={()=>{
-                            if(!galFile)return;
-                            const safeFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'video/mp4'}):galFile;
+                          <motion.button whileTap={{scale:0.9}} onClick={async()=>{
+                            if(!galFile||!galUrl)return;
                             const txt=ovItems.filter(it=>it.type==='text').map(it=>it.text).join(' ').trim();
-                            setStoryError(null);submitStory('video',safeFile,txt||undefined,ovItems.length>0?ovItems:undefined);
+                            setStoryError(null);
+                            /* Читаем данные из объектного URL — он гарантированно жив, в отличие от File после очистки input */
+                            let safeFile:File=galFile;
+                            try{
+                              const res=await fetch(galUrl);
+                              const blob=await res.blob();
+                              safeFile=new File([blob],galFile.name,{type:blob.type||galFile.type||'video/mp4'});
+                            }catch{
+                              if(galBuffer)safeFile=new File([galBuffer],galFile.name,{type:galFile.type||'video/mp4'});
+                            }
+                            submitStory('video',safeFile,txt||undefined,ovItems.length>0?ovItems:undefined);
                           }} style={{flex:1,padding:'11px',borderRadius:99,background:'linear-gradient(135deg,#059669,#10b981)',border:'none',cursor:'pointer',color:'#fff',fontSize:14,fontWeight:900,boxShadow:'0 4px 16px rgba(5,150,105,0.5)'}}>
                             ✓ Опубликовать
                           </motion.button>
@@ -3949,10 +3958,17 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                             if(!galFile||!galUrl)return;
                             let uploadFile:File;
                             if(ovItems.length>0){
+                              /* compositePhoto рисует на canvas — работает напрямую с galUrl (blob URL) */
                               try{const cb=await compositePhoto(galUrl);uploadFile=new File([cb],galFile.name,{type:'image/jpeg'});}
-                              catch{uploadFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'image/jpeg'}):galFile;}
+                              catch{
+                                /* Fallback: читаем blob из объектного URL */
+                                try{const res=await fetch(galUrl);const b=await res.blob();uploadFile=new File([b],galFile.name,{type:b.type||galFile.type||'image/jpeg'});}
+                                catch{uploadFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'image/jpeg'}):galFile;}
+                              }
                             }else{
-                              uploadFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'image/jpeg'}):galFile;
+                              /* Читаем blob из объектного URL — гарантированно жив после e.target.value='' */
+                              try{const res=await fetch(galUrl);const b=await res.blob();uploadFile=new File([b],galFile.name,{type:b.type||galFile.type||'image/jpeg'});}
+                              catch{uploadFile=galBuffer?new File([galBuffer],galFile.name,{type:galFile.type||'image/jpeg'}):galFile;}
                             }
                             const txt=ovItems.filter(it=>it.type==='text').map(it=>it.text).join(' ').trim();
                             setStoryError(null);submitStory('image',uploadFile,txt||undefined);
