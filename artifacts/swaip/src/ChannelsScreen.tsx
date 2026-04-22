@@ -9,10 +9,11 @@ type ReactionKey = keyof Reaction;
 
 interface ChannelPost {
   id: string;
-  type: 'text'|'photo'|'video'|'poll'|'announce'|'capsule'|'episode';
+  type: 'text'|'photo'|'video'|'audio'|'poll'|'announce'|'capsule'|'episode';
   text: string;
   imageUrl?: string;
   videoUrl?: string;
+  audioUrl?: string;
   rubric?: string;
   reactions: Reaction;
   myReaction?: ReactionKey;
@@ -900,6 +901,14 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
       {post.videoUrl&&<video src={post.videoUrl} controls playsInline preload="metadata"
         style={{width:'100%',maxHeight:360,objectFit:'contain',background:'#000',display:'block'}}/>}
 
+      {/* Аудио */}
+      {post.audioUrl&&(
+        <div style={{padding:'0 14px 10px',display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:20,flexShrink:0}}>{post.type==='audio'?'🎵':'🎙️'}</span>
+          <audio controls src={post.audioUrl} style={{flex:1,height:36}}/>
+        </div>
+      )}
+
       {/* Опрос */}
       {post.type==='poll'&&post.pollOptions&&(
         <PollBlock opts={post.pollOptions} votedIdx={post.pollVotedIdx}
@@ -984,14 +993,15 @@ function PollBlock({opts,votedIdx,question,onVote,c}:{
 /* ══════════════════════════════════════════════════════
    СОЗДАНИЕ ПОСТА
 ══════════════════════════════════════════════════════ */
-function ComposePost({ch,c,accent,isDark,onClose,onPublish}:{
+const _getTok=()=>{try{return localStorage.getItem('swaip_session')||'';}catch{return '';}};
+
+function ComposePost({ch,c,accent,onClose,onPublish}:{
   ch:SwaipChannel;c:Props['c'];accent:string;isDark:boolean;
   onClose:()=>void;
   onPublish:(post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>void;
 }) {
   const [type,setType]=useState<ChannelPost['type']>('text');
   const [text,setText]=useState('');
-  const [imageUrl,setImageUrl]=useState('');
   const [rubric,setRubric]=useState('');
   const [isExclusive,setIsExclusive]=useState(false);
   const [pollQ,setPollQ]=useState('');
@@ -1000,61 +1010,157 @@ function ComposePost({ch,c,accent,isDark,onClose,onPublish}:{
   const [opensAt,setOpensAt]=useState('');
   const [seriesName,setSeriesName]=useState('');
   const [episodeNum,setEpisodeNum]=useState(1);
-  const [uploading,setUploading]=useState(false);
+  const [publishing,setPublishing]=useState(false);
+
+  /* ── Фото ── */
+  const [imgFile,setImgFile]=useState<File|null>(null);
+  const [imgPrev,setImgPrev]=useState('');
+  const [imgLoading,setImgLoading]=useState(false);
   const imgRef=useRef<HTMLInputElement>(null);
+  const clearImg=()=>{if(imgPrev)URL.revokeObjectURL(imgPrev);setImgFile(null);setImgPrev('');};
+
+  /* ── Видео ── */
+  const [vidFile,setVidFile]=useState<File|null>(null);
+  const [vidPrev,setVidPrev]=useState('');
+  const [vidLoading,setVidLoading]=useState(false);
+  const [vidProgress,setVidProgress]=useState(0);
+  const vidRef=useRef<HTMLInputElement>(null);
+  const clearVid=()=>{if(vidPrev)URL.revokeObjectURL(vidPrev);setVidFile(null);setVidPrev('');setVidProgress(0);};
+
+  /* ── Голос ── */
+  const [voiceRec,setVoiceRec]=useState(false);
+  const [voiceBlob,setVoiceBlob]=useState<Blob|null>(null);
+  const [voiceUrl,setVoiceUrl]=useState('');
+  const voiceRecRef=useRef<MediaRecorder|null>(null);
+
+  /* ── Музыка ── */
+  const [musicFile,setMusicFile]=useState<File|null>(null);
+  const [musicName,setMusicName]=useState('');
+  const [musicLoading,setMusicLoading]=useState(false);
+  const [musicError,setMusicError]=useState('');
+  const musicRef=useRef<HTMLInputElement>(null);
+  const clearMusic=()=>{setMusicFile(null);setMusicName('');setMusicError('');if(musicRef.current)musicRef.current.value='';};
 
   const POST_TYPES:[ChannelPost['type'],string,string][]=[
-    ['text','✍️','Текст'],['photo','📸','Фото'],['poll','📊','Опрос'],
+    ['text','✍️','Текст'],['photo','📸','Фото'],['video','🎬','Видео'],
+    ['audio','🎵','Аудио'],['poll','📊','Опрос'],
     ['announce','📣','Анонс'],['capsule','⏳','Капсула'],['episode','📺','Эпизод'],
   ];
 
-  const handlePublish=()=>{
-    if(type==='text'&&!text.trim())return;
-    if(type==='poll'&&(!pollQ.trim()||pollOpts.filter(o=>o.trim()).length<2))return;
-    const base={type,text:text.trim(),rubric:rubric||undefined,isExclusive};
-    if(type==='poll')Object.assign(base,{pollQuestion:pollQ,pollOptions:pollOpts.filter(o=>o.trim()).map(t=>({text:t,votes:0}))});
-    if(type==='announce'&&announceAt)Object.assign(base,{announceAt:new Date(announceAt).getTime()});
-    if(type==='capsule'&&opensAt)Object.assign(base,{opensAt:new Date(opensAt).getTime(),capsuleOpened:false});
-    if(type==='episode')Object.assign(base,{seriesName,episodeNum});
-    if(imageUrl)Object.assign(base,{imageUrl});
-    onPublish(base as Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>);
-  };
-
-  const uploadImage=async(f:File)=>{
-    const url=URL.createObjectURL(f);
-    setUploading(true);
+  /* ── Загрузка ── */
+  const uploadImg=async():Promise<string>=>{
+    if(!imgFile)return'';setImgLoading(true);
     try{
       const r=await fetch(`${window.location.origin}/api/image-upload`,{
-        method:'POST',headers:{'Content-Type':f.type},body:f});
-      if(r.ok){const{url:u}=await r.json();setImageUrl(u);}
-      else setImageUrl(url);
-    }catch{setImageUrl(url);}finally{setUploading(false);}
+        method:'POST',headers:{'Content-Type':imgFile.type,'x-session-token':_getTok()},body:imgFile});
+      if(r.ok){const{url}=await r.json();return url;}
+      return imgPrev;
+    }catch{return imgPrev;}finally{setImgLoading(false);}
   };
+
+  const uploadVid=async():Promise<string>=>{
+    if(!vidFile)return'';setVidLoading(true);setVidProgress(20);
+    try{
+      const r=await fetch(`${window.location.origin}/api/video-upload`,{
+        method:'POST',
+        headers:{'Content-Type':vidFile.type||'video/mp4','x-filename':vidFile.name,'x-session-token':_getTok()},
+        body:vidFile});
+      setVidProgress(90);
+      if(r.ok){setVidProgress(100);const{url}=await r.json();return url;}
+      return vidPrev;
+    }catch{return vidPrev;}finally{setVidLoading(false);}
+  };
+
+  const uploadVoice=async(blob:Blob):Promise<string>=>{
+    try{
+      const r=await fetch(`${window.location.origin}/api/audio-upload`,{
+        method:'POST',headers:{'Content-Type':blob.type||'audio/webm'},body:blob});
+      if(r.ok){const{url}=await r.json();return url;}
+    }catch{}
+    return URL.createObjectURL(blob);
+  };
+
+  const uploadMusic=async():Promise<string>=>{
+    if(!musicFile)return'';setMusicLoading(true);setMusicError('');
+    try{
+      const r=await fetch(`${window.location.origin}/api/audio-upload`,{
+        method:'POST',headers:{'Content-Type':musicFile.type||'audio/mpeg','x-filename':musicFile.name,'x-session-token':_getTok()},
+        body:musicFile});
+      if(r.ok){const{url}=await r.json();return url;}
+      setMusicError('Ошибка загрузки');return'';
+    }catch{setMusicError('Ошибка сети');return'';}finally{setMusicLoading(false);}
+  };
+
+  /* ── Голос MediaRecorder ── */
+  const startVoice=async()=>{
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+      const mr=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
+      const chunks:BlobPart[]=[];
+      mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+      mr.onstop=()=>{stream.getTracks().forEach(t=>t.stop());const b=new Blob(chunks,{type:mr.mimeType});setVoiceBlob(b);setVoiceUrl(URL.createObjectURL(b));setVoiceRec(false);};
+      mr.start();voiceRecRef.current=mr;setVoiceRec(true);setVoiceBlob(null);setVoiceUrl('');
+    }catch(e:any){alert('Нет доступа к микрофону: '+e.message);}
+  };
+  const stopVoice=()=>voiceRecRef.current?.stop();
+
+  /* ── Публикация ── */
+  const handlePublish=async()=>{
+    if(publishing)return;
+    if(type==='text'&&!text.trim()&&!imgFile)return;
+    if(type==='poll'&&(!pollQ.trim()||pollOpts.filter(o=>o.trim()).length<2))return;
+    setPublishing(true);
+    try{
+      const [iUrl,vUrl,mUrl]= await Promise.all([
+        (type==='photo'||type==='text'||type==='episode')?uploadImg():Promise.resolve(''),
+        (type==='video')?uploadVid():Promise.resolve(''),
+        (type==='audio'&&musicFile)?uploadMusic():
+          (type==='audio'&&voiceBlob)?uploadVoice(voiceBlob):Promise.resolve(''),
+      ]);
+      const base:any={type,text:text.trim(),rubric:rubric||undefined,isExclusive};
+      if(iUrl)base.imageUrl=iUrl;
+      if(vUrl)base.videoUrl=vUrl;
+      if(mUrl)base.audioUrl=mUrl;
+      if(type==='poll')Object.assign(base,{pollQuestion:pollQ,pollOptions:pollOpts.filter(o=>o.trim()).map(t=>({text:t,votes:0}))});
+      if(type==='announce'&&announceAt)base.announceAt=new Date(announceAt).getTime();
+      if(type==='capsule'&&opensAt)Object.assign(base,{opensAt:new Date(opensAt).getTime(),capsuleOpened:false});
+      if(type==='episode')Object.assign(base,{seriesName,episodeNum});
+      onPublish(base);
+    }finally{setPublishing(false);}
+  };
+
+  const fmtSize=(b:number)=>b>=1048576?`${(b/1048576).toFixed(1)} МБ`:b>=1024?`${(b/1024).toFixed(0)} КБ`:`${b} Б`;
+  const canPublish=!publishing&&!imgLoading&&!vidLoading&&!musicLoading&&
+    (type!=='text'||!!text.trim()||!!imgFile)&&
+    (type!=='poll'||(!!pollQ.trim()&&pollOpts.filter(o=>o.trim()).length>=2))&&
+    (type!=='video'||!!vidFile||!!vidPrev)&&
+    (type!=='audio'||!!musicFile||!!voiceBlob);
 
   return (
     <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}}
       transition={{type:'spring',damping:28,stiffness:280}}
       style={{position:'fixed',inset:0,zIndex:900,background:c.bg,overflowY:'auto',paddingBottom:40}}>
 
-      {/* Заголовок */}
-      <div style={{display:'flex',alignItems:'center',gap:12,padding:'16px 16px 12px',
+      {/* ── Заголовок ── */}
+      <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px 12px',
         borderBottom:`1px solid ${c.border}`,position:'sticky',top:0,background:c.bg,zIndex:2}}>
-        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',
-          fontSize:16,color:c.sub,padding:4}}>✕</button>
+        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',fontSize:16,color:c.sub,padding:4}}>✕</button>
         <div style={{flex:1}}>
           <p style={{margin:0,fontSize:15,fontWeight:800,color:c.light}}>Новый пост</p>
-          <p style={{margin:0,fontSize:11,color:c.sub}}>{ch.name}</p>
+          <p style={{margin:0,fontSize:11,color:c.sub}}>{ch.name} · {ch.vibe}</p>
         </div>
-        <motion.button whileTap={{scale:0.95}} onClick={handlePublish}
-          style={{padding:'9px 20px',borderRadius:20,border:'none',cursor:'pointer',
-            background:`linear-gradient(135deg,${ch.vibeColor}cc,${accent})`,
-            color:'#fff',fontSize:13,fontWeight:800}}>
-          Опубликовать
+        <motion.button whileTap={{scale:0.95}} onClick={handlePublish} disabled={!canPublish}
+          style={{padding:'9px 20px',borderRadius:20,border:'none',cursor:canPublish?'pointer':'default',
+            background:canPublish?`linear-gradient(135deg,${ch.vibeColor}cc,${accent})`:'rgba(255,255,255,0.1)',
+            color:canPublish?'#fff':'rgba(255,255,255,0.3)',fontSize:13,fontWeight:800,transition:'all 0.2s'}}>
+          {publishing?'⬆️ …':vidLoading?`🎬 ${vidProgress}%`:musicLoading?'🎵 …':'Опубликовать'}
         </motion.button>
       </div>
 
       <div style={{padding:'16px'}}>
-        {/* Тип поста */}
+
+        {/* ── Тип поста ── */}
         <div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:16,scrollbarWidth:'none',paddingBottom:4}}>
           {POST_TYPES.map(([t,emoji,label])=>(
             <motion.button key={t} whileTap={{scale:0.9}} onClick={()=>setType(t)}
@@ -1067,98 +1173,225 @@ function ComposePost({ch,c,accent,isDark,onClose,onPublish}:{
           ))}
         </div>
 
-        {/* Рубрика */}
+        {/* ── Рубрика ── */}
         {ch.rubrics.length>0&&(
           <div style={{marginBottom:14}}>
             <p style={{margin:'0 0 6px',fontSize:11,color:c.sub,fontWeight:700}}>РУБРИКА</p>
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
               <button onClick={()=>setRubric('')}
                 style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${rubric===''?accent:c.border}`,
-                  background:rubric===''?`${accent}25`:'transparent',color:rubric===''?accent:c.sub,
-                  fontSize:11,fontWeight:700,cursor:'pointer'}}>Без рубрики</button>
+                  background:rubric===''?`${accent}25`:'transparent',color:rubric===''?accent:c.sub,fontSize:11,fontWeight:700,cursor:'pointer'}}>Без рубрики</button>
               {ch.rubrics.map(r=>(
                 <button key={r} onClick={()=>setRubric(r)}
                   style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${rubric===r?accent:c.border}`,
-                    background:rubric===r?`${accent}25`:'transparent',color:rubric===r?accent:c.sub,
-                    fontSize:11,fontWeight:700,cursor:'pointer'}}>{r}</button>
+                    background:rubric===r?`${accent}25`:'transparent',color:rubric===r?accent:c.sub,fontSize:11,fontWeight:700,cursor:'pointer'}}>{r}</button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Текст */}
-        <textarea value={text} onChange={e=>setText(e.target.value)}
-          placeholder={type==='capsule'?'Подсказка (будет видна до открытия)…':'Что хочешь рассказать?'}
-          style={{width:'100%',minHeight:120,background:c.card,border:`1px solid ${c.border}`,
-            borderRadius:14,padding:'12px 14px',color:c.light,fontSize:15,lineHeight:1.6,
-            resize:'none',outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}/>
+        {/* ── Текстовое поле ── */}
+        {type!=='poll'&&(
+          <textarea value={text} onChange={e=>setText(e.target.value)} autoFocus
+            placeholder={
+              type==='capsule'?'Подсказка (будет видна до открытия)…':
+              type==='video'?'Подпись к видео (необязательно)…':
+              type==='audio'?'Описание трека (необязательно)…':
+              'Что хочешь рассказать?'}
+            style={{width:'100%',minHeight:100,background:c.card,border:`1px solid ${c.border}`,
+              borderRadius:14,padding:'12px 14px',color:c.light,fontSize:15,lineHeight:1.6,
+              resize:'none',outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}/>
+        )}
 
-        {/* Фото */}
+        {/* ── Фото (для text/photo/episode) ── */}
         {(type==='text'||type==='photo'||type==='episode')&&(
           <div style={{marginTop:12}}>
-            {imageUrl
-              ?<div style={{position:'relative'}}>
-                <img src={imageUrl} alt="" style={{width:'100%',borderRadius:12,objectFit:'cover',maxHeight:200}}/>
-                <button onClick={()=>setImageUrl('')} style={{position:'absolute',top:6,right:6,
-                  width:28,height:28,borderRadius:'50%',background:'rgba(0,0,0,0.7)',
-                  border:'none',color:'#fff',cursor:'pointer',fontSize:14}}>✕</button>
+            {imgPrev
+              ?<div style={{position:'relative',borderRadius:12,overflow:'hidden'}}>
+                <img src={imgPrev} alt="" style={{width:'100%',maxHeight:240,objectFit:'contain',background:'#000',display:'block'}}/>
+                {imgLoading&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.5)'}}>
+                  <motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
+                    style={{width:28,height:28,border:'3px solid rgba(255,255,255,0.2)',borderTopColor:'#fff',borderRadius:'50%'}}/>
+                </div>}
+                {!imgLoading&&<button onClick={clearImg} style={{position:'absolute',top:8,right:8,width:30,height:30,
+                  borderRadius:'50%',background:'rgba(0,0,0,0.7)',border:'none',color:'#fff',cursor:'pointer',fontSize:15}}>✕</button>}
               </div>
               :<motion.button whileTap={{scale:0.97}} onClick={()=>imgRef.current?.click()}
-                style={{width:'100%',padding:'14px',borderRadius:12,border:`1.5px dashed ${c.border}`,
-                  background:'transparent',color:c.sub,fontSize:13,cursor:'pointer'}}>
-                {uploading?'⬆️ Загружаем…':'📸 Добавить фото'}
+                style={{width:'100%',marginTop:8,padding:'16px',borderRadius:12,border:`1.5px dashed ${c.border}`,
+                  background:'transparent',color:c.sub,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                <span style={{fontSize:22}}>📸</span> Добавить фото
               </motion.button>}
             <input ref={imgRef} type="file" accept="image/*" style={{display:'none'}}
-              onChange={e=>{const f=e.target.files?.[0];if(f)uploadImage(f);e.target.value='';}}/>
+              onChange={e=>{const f=e.target.files?.[0];if(!f)return;clearImg();setImgFile(f);setImgPrev(URL.createObjectURL(f));e.target.value='';}}/>
           </div>
         )}
 
-        {/* Опрос */}
+        {/* ── Видео ── */}
+        {type==='video'&&(
+          <div style={{marginTop:12}}>
+            {vidPrev
+              ?<div style={{position:'relative',borderRadius:12,overflow:'hidden',background:'#000'}}>
+                <video src={vidPrev} controls style={{width:'100%',maxHeight:300,display:'block'}}/>
+                {vidLoading&&(
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'8px 12px',background:'rgba(0,0,0,0.75)'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+                      <span style={{color:'#fff',fontSize:12,fontWeight:700}}>🎬 Загрузка {vidProgress}%</span>
+                    </div>
+                    <div style={{height:4,background:'rgba(255,255,255,0.15)',borderRadius:2}}>
+                      <div style={{width:`${vidProgress}%`,height:'100%',background:'linear-gradient(90deg,#3b82f6,#8b5cf6)',borderRadius:2,transition:'width 0.4s'}}/>
+                    </div>
+                  </div>
+                )}
+                {!vidLoading&&<button onClick={clearVid} style={{position:'absolute',top:8,right:8,width:30,height:30,
+                  borderRadius:'50%',background:'rgba(0,0,0,0.7)',border:'none',color:'#fff',cursor:'pointer',fontSize:15}}>✕</button>}
+              </div>
+              :<motion.button whileTap={{scale:0.97}} onClick={()=>vidRef.current?.click()}
+                style={{width:'100%',padding:'24px',borderRadius:12,border:`1.5px dashed ${c.border}`,
+                  background:'transparent',color:c.sub,fontSize:13,cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                <span style={{fontSize:36}}>🎬</span>
+                <span style={{fontWeight:700}}>Выбрать видео</span>
+                <span style={{fontSize:11}}>MP4, MOV, WEBM · до 200 МБ</span>
+              </motion.button>}
+            <input ref={vidRef} type="file" accept="video/*" style={{display:'none'}}
+              onChange={e=>{const f=e.target.files?.[0];if(!f)return;clearVid();setVidFile(f);setVidPrev(URL.createObjectURL(f));e.target.value='';}}/>
+          </div>
+        )}
+
+        {/* ── Аудио / Голос / Музыка ── */}
+        {type==='audio'&&(
+          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:12}}>
+            {/* Голосовая запись */}
+            {!musicFile&&(
+              <div>
+                <p style={{margin:'0 0 8px',fontSize:11,color:c.sub,fontWeight:700}}>🎙️ ГОЛОСОВОЕ СООБЩЕНИЕ</p>
+                {voiceRec?(
+                  <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(239,68,68,0.1)',
+                    borderRadius:14,padding:'12px 16px',border:'1px solid rgba(239,68,68,0.3)'}}>
+                    <motion.div animate={{scale:[1,1.3,1]}} transition={{repeat:Infinity,duration:0.9}}
+                      style={{width:12,height:12,borderRadius:'50%',background:'#ef4444',flexShrink:0}}/>
+                    <span style={{color:'#f87171',fontSize:14,flex:1,fontWeight:700}}>Запись идёт…</span>
+                    <motion.button whileTap={{scale:0.88}} onClick={stopVoice}
+                      style={{background:'#ef4444',border:'none',borderRadius:'50%',width:36,height:36,
+                        cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <span style={{color:'#fff',fontSize:16}}>■</span>
+                    </motion.button>
+                  </div>
+                ):voiceUrl?(
+                  <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(59,130,246,0.1)',
+                    borderRadius:14,padding:'10px 14px',border:'1px solid rgba(59,130,246,0.25)'}}>
+                    <span style={{fontSize:20,flexShrink:0}}>🎙️</span>
+                    <audio controls src={voiceUrl} style={{flex:1,height:34}}/>
+                    <button onClick={()=>{setVoiceBlob(null);setVoiceUrl('');}}
+                      style={{background:'rgba(255,255,255,0.1)',border:'none',borderRadius:'50%',
+                        width:28,height:28,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <span style={{fontSize:12,color:c.sub}}>✕</span>
+                    </button>
+                  </div>
+                ):(
+                  <motion.button whileTap={{scale:0.97}} onClick={startVoice}
+                    style={{width:'100%',padding:'16px',borderRadius:12,border:`1.5px dashed ${c.border}`,
+                      background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
+                    <span style={{fontSize:24}}>🎙️</span>
+                    <span style={{color:c.sub,fontSize:13,fontWeight:700}}>Записать голосовое</span>
+                  </motion.button>
+                )}
+              </div>
+            )}
+
+            {/* Разделитель */}
+            {!voiceBlob&&!voiceUrl&&<div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{flex:1,height:1,background:c.border}}/>
+              <span style={{fontSize:11,color:c.sub}}>или</span>
+              <div style={{flex:1,height:1,background:c.border}}/>
+            </div>}
+
+            {/* Музыкальный файл */}
+            {!voiceBlob&&!voiceUrl&&(
+              <div>
+                <p style={{margin:'0 0 8px',fontSize:11,color:c.sub,fontWeight:700}}>🎵 ФАЙЛ ТРЕКА</p>
+                {musicFile?(
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(16,185,129,0.08)',
+                      borderRadius:12,padding:'10px 14px',border:`1px solid ${musicError?'rgba(239,68,68,0.5)':'rgba(16,185,129,0.2)'}`}}>
+                      <span style={{fontSize:22,flexShrink:0}}>{musicLoading?'⏳':'🎵'}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:700,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{musicName}</div>
+                        <div style={{fontSize:11,color:musicLoading?'#a78bfa':c.sub}}>{musicLoading?'Загружаем…':fmtSize(musicFile.size)}</div>
+                      </div>
+                      <button onClick={clearMusic}
+                        style={{background:c.card,border:'none',borderRadius:'50%',width:28,height:28,
+                          cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        <span style={{fontSize:12,color:c.sub}}>✕</span>
+                      </button>
+                    </div>
+                    {musicError&&<p style={{margin:0,fontSize:12,color:'#f87171'}}>⚠️ {musicError}</p>}
+                  </div>
+                ):(
+                  <motion.button whileTap={{scale:0.97}} onClick={()=>musicRef.current?.click()}
+                    style={{width:'100%',padding:'16px',borderRadius:12,border:`1.5px dashed ${c.border}`,
+                      background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
+                    <span style={{fontSize:24}}>🎵</span>
+                    <div style={{textAlign:'left'}}>
+                      <div style={{color:c.sub,fontSize:13,fontWeight:700}}>Загрузить трек</div>
+                      <div style={{color:c.sub,fontSize:10,opacity:0.7}}>MP3, WAV, OGG, M4A, FLAC…</div>
+                    </div>
+                  </motion.button>
+                )}
+                <input ref={musicRef} type="file" style={{display:'none'}}
+                  accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus"
+                  onChange={e=>{const f=e.target.files?.[0];if(!f)return;setMusicFile(f);setMusicName(f.name);setMusicError('');e.target.value='';}}/>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Опрос ── */}
         {type==='poll'&&(
-          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
-            <input value={pollQ} onChange={e=>setPollQ(e.target.value)}
+          <div style={{marginTop:4,display:'flex',flexDirection:'column',gap:8}}>
+            <input value={pollQ} onChange={e=>setPollQ(e.target.value)} autoFocus
               placeholder="Вопрос опроса…"
-              style={{padding:'10px 14px',borderRadius:10,background:c.card,
+              style={{padding:'12px 14px',borderRadius:10,background:c.card,
                 border:`1px solid ${c.border}`,color:c.light,fontSize:14,outline:'none'}}/>
             {pollOpts.map((o,i)=>(
               <div key={i} style={{display:'flex',gap:6}}>
                 <input value={o} onChange={e=>setPollOpts(os=>os.map((v,j)=>j===i?e.target.value:v))}
                   placeholder={`Вариант ${i+1}`}
-                  style={{flex:1,padding:'9px 12px',borderRadius:10,background:c.card,
+                  style={{flex:1,padding:'10px 12px',borderRadius:10,background:c.card,
                     border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
                 {i>1&&<button onClick={()=>setPollOpts(os=>os.filter((_,j)=>j!==i))}
                   style={{background:'none',border:'none',color:c.sub,cursor:'pointer',fontSize:18}}>✕</button>}
               </div>
             ))}
             {pollOpts.length<6&&<button onClick={()=>setPollOpts(os=>[...os,''])}
-              style={{padding:'8px',borderRadius:10,border:`1.5px dashed ${c.border}`,
+              style={{padding:'9px',borderRadius:10,border:`1.5px dashed ${c.border}`,
                 background:'transparent',color:c.sub,fontSize:12,cursor:'pointer'}}>
               + Добавить вариант
             </button>}
           </div>
         )}
 
-        {/* Анонс */}
+        {/* ── Анонс ── */}
         {type==='announce'&&(
           <div style={{marginTop:12}}>
-            <p style={{margin:'0 0 6px',fontSize:11,color:c.sub,fontWeight:700}}>ДАТА И ВРЕМЯ СОБЫТИЯ</p>
+            <p style={{margin:'0 0 6px',fontSize:11,color:c.sub,fontWeight:700}}>📅 ДАТА И ВРЕМЯ СОБЫТИЯ</p>
             <input type="datetime-local" value={announceAt} onChange={e=>setAnnounceAt(e.target.value)}
               style={{width:'100%',padding:'10px 12px',borderRadius:10,background:c.card,
                 border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none',boxSizing:'border-box'}}/>
           </div>
         )}
 
-        {/* Капсула */}
+        {/* ── Капсула ── */}
         {type==='capsule'&&(
           <div style={{marginTop:12}}>
-            <p style={{margin:'0 0 6px',fontSize:11,color:'rgba(251,191,36,0.7)',fontWeight:700}}>ОТКРЫТЬ КАПСУЛУ:</p>
+            <p style={{margin:'0 0 6px',fontSize:11,color:'rgba(251,191,36,0.7)',fontWeight:700}}>⏳ ОТКРЫТЬ КАПСУЛУ:</p>
             <input type="datetime-local" value={opensAt} onChange={e=>setOpensAt(e.target.value)}
               style={{width:'100%',padding:'10px 12px',borderRadius:10,background:'rgba(251,191,36,0.08)',
                 border:'1px solid rgba(251,191,36,0.3)',color:'#fbbf24',fontSize:13,outline:'none',boxSizing:'border-box'}}/>
           </div>
         )}
 
-        {/* Эпизод */}
+        {/* ── Эпизод ── */}
         {type==='episode'&&(
           <div style={{marginTop:12,display:'flex',gap:8}}>
             <input value={seriesName} onChange={e=>setSeriesName(e.target.value)}
@@ -1172,18 +1405,43 @@ function ComposePost({ch,c,accent,isDark,onClose,onPublish}:{
           </div>
         )}
 
-        {/* Эксклюзив */}
-        <div style={{marginTop:14,display:'flex',alignItems:'center',gap:10}}>
-          <button onClick={()=>setIsExclusive(s=>!s)}
-            style={{width:40,height:24,borderRadius:12,border:'none',cursor:'pointer',
-              background:isExclusive?accent:'rgba(255,255,255,0.15)',transition:'all 0.2s',position:'relative'}}>
+        {/* ── Панель медиа-кнопок (для text/photo) ── */}
+        {(type==='text'||type==='photo')&&(
+          <div style={{display:'flex',gap:8,marginTop:14,flexWrap:'wrap'}}>
+            <motion.button whileTap={{scale:0.88}} onClick={()=>imgRef.current?.click()}
+              style={{width:42,height:42,borderRadius:'50%',border:`1px solid ${c.border}`,
+                background:imgFile?'rgba(59,130,246,0.2)':c.card,cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>
+              📷
+            </motion.button>
+            <motion.button whileTap={{scale:0.88}} onClick={()=>{setType('video');}}
+              style={{width:42,height:42,borderRadius:'50%',border:`1px solid ${c.border}`,
+                background:c.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>
+              🎬
+            </motion.button>
+            <motion.button whileTap={{scale:0.88}} onClick={()=>{setType('audio');}}
+              style={{width:42,height:42,borderRadius:'50%',border:`1px solid ${c.border}`,
+                background:c.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>
+              🎵
+            </motion.button>
+          </div>
+        )}
+
+        {/* ── Эксклюзив ── */}
+        <div style={{marginTop:18,display:'flex',alignItems:'center',gap:10,
+          padding:'12px 14px',background:isExclusive?'rgba(251,191,36,0.06)':c.card,
+          borderRadius:14,border:`1px solid ${isExclusive?'rgba(251,191,36,0.3)':c.border}`,
+          transition:'all 0.2s',cursor:'pointer'}} onClick={()=>setIsExclusive(s=>!s)}>
+          <div style={{width:40,height:24,borderRadius:12,border:'none',cursor:'pointer',
+            background:isExclusive?accent:'rgba(255,255,255,0.15)',transition:'all 0.2s',position:'relative',flexShrink:0}}>
             <div style={{position:'absolute',top:3,width:18,height:18,borderRadius:'50%',
               background:'#fff',transition:'left 0.2s',left:isExclusive?19:3}}/>
-          </button>
-          <span style={{fontSize:13,color:isExclusive?'#fbbf24':c.sub,fontWeight:isExclusive?700:400}}>
+          </div>
+          <span style={{fontSize:13,color:isExclusive?'#fbbf24':c.sub,fontWeight:isExclusive?700:500}}>
             🔒 Эксклюзивный пост (только для подписчиков)
           </span>
         </div>
+
       </div>
     </motion.div>
   );
