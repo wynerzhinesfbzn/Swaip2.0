@@ -1877,14 +1877,14 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,c,accent,style=1}:{p
   const [postChatName,setPostChatName]=useState('');
   const [postChatPhone,setPostChatPhone]=useState('');
   const postBotName=typeof window!=='undefined'?(()=>{try{return localStorage.getItem('sw_ai_name')||'Алина';}catch{return'Алина';}})():'Алина';
+  const postAudioRef=useRef<HTMLAudioElement|null>(null);
   const postSpeak=useCallback((text:string)=>{
-    if(!('speechSynthesis' in window))return;
-    window.speechSynthesis.cancel();
-    const utt=new SpeechSynthesisUtterance(text);
-    utt.lang='ru-RU';utt.rate=0.92;utt.pitch=1.05;
-    const vs=window.speechSynthesis.getVoices();
-    const rv=vs.find(v=>v.lang.startsWith('ru'));if(rv)utt.voice=rv;
-    window.speechSynthesis.speak(utt);
+    const clean=text.replace(/[^\u0020-\u007E\u00A0-\u024F\u0400-\u04FF]/g,'').replace(/\s+/g,' ').trim();
+    if(!clean)return;
+    if(postAudioRef.current){postAudioRef.current.pause();postAudioRef.current=null;}
+    const audio=new Audio(`${window.location.origin}/api/tts?text=${encodeURIComponent(clean.slice(0,490))}&lang=ru-RU`);
+    postAudioRef.current=audio;
+    audio.play().catch(()=>{});
   },[]);
   const openPostChat=(preSlot?:string)=>{
     const avail=(p.bookingSlots||[]).filter(s=>!s.booked).map(s=>s.time);
@@ -3540,15 +3540,14 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     window.speechSynthesis.addEventListener('voiceschanged',load);
     return()=>window.speechSynthesis.removeEventListener('voiceschanged',load);
   },[]);
+  const ttsAudioRef=useRef<HTMLAudioElement|null>(null);
   const speakGreeting=useCallback((text:string)=>{
-    if(!('speechSynthesis' in window))return;
-    window.speechSynthesis.cancel();
-    const utt=new SpeechSynthesisUtterance(text);
-    utt.lang='ru-RU';utt.rate=0.92;utt.pitch=1.05;
-    const voices=ttsVoicesRef.current.length>0?ttsVoicesRef.current:window.speechSynthesis.getVoices();
-    const ruVoice=voices.find(v=>v.lang.startsWith('ru'));
-    if(ruVoice)utt.voice=ruVoice;
-    window.speechSynthesis.speak(utt);
+    const clean=text.replace(/[^\u0020-\u007E\u00A0-\u024F\u0400-\u04FF]/g,'').replace(/\s+/g,' ').trim();
+    if(!clean)return;
+    if(ttsAudioRef.current){ttsAudioRef.current.pause();ttsAudioRef.current=null;}
+    const audio=new Audio(`${window.location.origin}/api/tts?text=${encodeURIComponent(clean.slice(0,490))}&lang=ru-RU`);
+    ttsAudioRef.current=audio;
+    audio.play().catch(()=>{});
   },[]);
 
   /* ── Кастомизация виджетов ── */

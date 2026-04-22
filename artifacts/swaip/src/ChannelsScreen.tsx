@@ -849,13 +849,14 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
   const [chChatName,setChChatName]=useState('');
   const [chChatPhone,setChChatPhone]=useState('');
   const chBotName=(()=>{try{return localStorage.getItem('sw_ai_name')||'Алина';}catch{return'Алина';}})();
+  const chAudioRef=useRef<HTMLAudioElement|null>(null);
   const chSpeak=(text:string)=>{
-    if(!('speechSynthesis' in window))return;
-    window.speechSynthesis.cancel();
-    const utt=new SpeechSynthesisUtterance(text);
-    utt.lang='ru-RU';utt.rate=0.92;utt.pitch=1.05;
-    const vs=window.speechSynthesis.getVoices();const rv=vs.find(v=>v.lang.startsWith('ru'));if(rv)utt.voice=rv;
-    window.speechSynthesis.speak(utt);
+    const clean=text.replace(/[^\u0020-\u007E\u00A0-\u024F\u0400-\u04FF]/g,'').replace(/\s+/g,' ').trim();
+    if(!clean)return;
+    if(chAudioRef.current){chAudioRef.current.pause();chAudioRef.current=null;}
+    const audio=new Audio(`${window.location.origin}/api/tts?text=${encodeURIComponent(clean.slice(0,490))}&lang=ru-RU`);
+    chAudioRef.current=audio;
+    audio.play().catch(()=>{});
   };
   const getTimeOfDayCh=()=>{const h=new Date().getHours();if(h>=5&&h<12)return'Доброе утро';if(h>=12&&h<17)return'Добрый день';if(h>=17)return'Добрый вечер';return'Доброй ночи';};
   const BOT_HELLOS=['Рада помочь с записью 😊','На связи! Давайте подберём время 🌟','Здравствуйте! Выберем удобный слот ✨'];

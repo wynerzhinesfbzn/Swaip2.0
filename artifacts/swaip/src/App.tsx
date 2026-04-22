@@ -5974,17 +5974,14 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
     const monthG  = MON_GEN[d.getMonth()];
     return `в ${dayAcc}, ${dateG} ${monthG}, ${timeStr}`;
   };
+  const appTtsAudioRef = useRef<HTMLAudioElement|null>(null);
   const speakGreeting = useCallback((text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'ru-RU'; utt.rate = 0.92; utt.pitch = 1.05;
-    const voices = ttsVoicesRef.current.length > 0
-      ? ttsVoicesRef.current
-      : window.speechSynthesis.getVoices();
-    const ruVoice = voices.find(v => v.lang.startsWith('ru'));
-    if (ruVoice) utt.voice = ruVoice;
-    window.speechSynthesis.speak(utt);
+    const clean = text.replace(/[^\u0020-\u007E\u00A0-\u024F\u0400-\u04FF]/g,'').replace(/\s+/g,' ').trim();
+    if (!clean) return;
+    if (appTtsAudioRef.current) { appTtsAudioRef.current.pause(); appTtsAudioRef.current = null; }
+    const audio = new Audio(`${window.location.origin}/api/tts?text=${encodeURIComponent(clean.slice(0,490))}&lang=ru-RU`);
+    appTtsAudioRef.current = audio;
+    audio.play().catch(() => {});
   }, []);
   /* ── Менеджер записей ── */
   const [showBookingsManager, setShowBookingsManager] = useState(false);
