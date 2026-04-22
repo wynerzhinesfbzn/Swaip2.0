@@ -43,6 +43,7 @@ interface SwaipChannel {
   vibeColor: string;
   coverGradient: string;
   coverPhotoUrl?: string;
+  avatarPhotoUrl?: string;
   category: string;
   tags: string[];
   subscribers: number;
@@ -157,13 +158,15 @@ function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.
 ══════════════════════════════════════════════════════ */
 
 /* Аватар канала */
-function ChanAvatar({ch,size=44}:{ch:SwaipChannel;size?:number}) {
+function ChanAvatar({ch,size=44,onClick}:{ch:SwaipChannel;size?:number;onClick?:()=>void}) {
+  const photo=ch.avatarPhotoUrl||ch.coverPhotoUrl;
   return (
-    <div style={{width:size,height:size,borderRadius:'50%',overflow:'hidden',flexShrink:0,
+    <div onClick={onClick} style={{width:size,height:size,borderRadius:'50%',overflow:'hidden',flexShrink:0,
       background:ch.coverGradient,display:'flex',alignItems:'center',justifyContent:'center',
-      fontSize:size*0.42,border:'2px solid rgba(255,255,255,0.15)',position:'relative'}}>
-      {ch.coverPhotoUrl
-        ?<img src={ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+      fontSize:size*0.42,border:'2px solid rgba(255,255,255,0.15)',position:'relative',
+      cursor:onClick?'pointer':'default'}}>
+      {photo
+        ?<img src={photo} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
         :<span>{ch.vibe}</span>}
       {ch.isVerified&&<span style={{position:'absolute',bottom:-2,right:-2,
         background:'#1d4ed8',borderRadius:'50%',width:size*0.38,height:size*0.38,
@@ -277,6 +280,10 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
       pinnedPostId:ch.pinnedPostId===postId?null:ch.pinnedPostId}));
   };
 
+  const updateChannel=(chId:string,patch:Partial<SwaipChannel>)=>{
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,...patch}));
+  };
+
   /* ── Создание поста ── */
   const addPost=(chId:string,post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>{
     const newPost:ChannelPost={
@@ -303,6 +310,7 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
             onBack={()=>setOpenId(null)}
             onReact={reactToPost} onVote={voteInPoll}
             onOpenCapsule={openCapsule} onPin={pinPost} onDelete={deletePost}
+            onUpdate={(patch)=>updateChannel(openCh.id,patch)}
             activeRubric={activeRubric} onRubric={setActiveRubric}
             onCompose={()=>setShowCompose(true)}
             onAddPost={addPost} tick={tick}/>
@@ -465,7 +473,7 @@ function FeedPostPreview({post,ch,c,accent,onOpen}:{post:ChannelPost;ch:SwaipCha
 /* ══════════════════════════════════════════════════════
    СТРАНИЦА КАНАЛА
 ══════════════════════════════════════════════════════ */
-function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onPin,onDelete,activeRubric,onRubric,onCompose,onAddPost,tick}:{
+function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onPin,onDelete,onUpdate,activeRubric,onRubric,onCompose,onAddPost,tick}:{
   ch:SwaipChannel;c:Props['c'];accent:string;isDark:boolean;
   onBack:()=>void;
   onReact:(chId:string,postId:string,key:ReactionKey)=>void;
@@ -473,13 +481,29 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
   onOpenCapsule:(chId:string,postId:string)=>void;
   onPin:(chId:string,postId:string)=>void;
   onDelete:(chId:string,postId:string)=>void;
+  onUpdate:(patch:Partial<SwaipChannel>)=>void;
   activeRubric:string|null;onRubric:(r:string|null)=>void;
   onCompose:()=>void;
   onAddPost:(chId:string,post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>void;
   tick:number;
 }) {
   const [showCompose,setShowCompose]=useState(false);
+  const [coverUploading,setCoverUploading]=useState(false);
+  const [avatarUploading,setAvatarUploading]=useState(false);
+  const coverFileRef=useRef<HTMLInputElement>(null);
+  const avatarFileRef=useRef<HTMLInputElement>(null);
   const cat=CHANNEL_CATEGORIES.find(x=>x.id===ch.category);
+
+  const uploadPhoto=async(f:File,field:'coverPhotoUrl'|'avatarPhotoUrl',setLoading:(v:boolean)=>void)=>{
+    const local=URL.createObjectURL(f);
+    onUpdate({[field]:local});
+    setLoading(true);
+    try{
+      const r=await fetch(`${window.location.origin}/api/image-upload`,{
+        method:'POST',headers:{'Content-Type':f.type},body:f});
+      if(r.ok){const{url}=await r.json();onUpdate({[field]:url});}
+    }catch{}finally{setLoading(false);}
+  };
 
   const filteredPosts=activeRubric
     ?ch.posts.filter(p=>p.rubric===activeRubric)
@@ -494,28 +518,58 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
   return (
     <div style={{flex:1}}>
       {/* ── Шапка ── */}
-      <div style={{position:'relative',height:160,overflow:'hidden',background:ch.coverGradient}}>
-        {ch.coverPhotoUrl&&<img src={ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',opacity:0.6}}/>}
-        {/* Анимированный пульс-фон */}
-        <motion.div animate={{opacity:[0.15,0.3,0.15]}} transition={{repeat:Infinity,duration:3}}
-          style={{position:'absolute',inset:0,background:`radial-gradient(circle at 30% 50%,${ch.vibeColor}44,transparent 70%)`}}/>
-        <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.7))'}}/>
-        <button onClick={onBack} style={{position:'absolute',top:14,left:14,width:36,height:36,borderRadius:'50%',
+      <div style={{position:'relative',height:160,overflow:'visible',background:ch.coverGradient}}>
+        <div style={{position:'absolute',inset:0,overflow:'hidden'}}>
+          {ch.coverPhotoUrl&&<img src={ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+          {/* Анимированный пульс-фон */}
+          <motion.div animate={{opacity:[0.15,0.3,0.15]}} transition={{repeat:Infinity,duration:3}}
+            style={{position:'absolute',inset:0,background:`radial-gradient(circle at 30% 50%,${ch.vibeColor}44,transparent 70%)`}}/>
+          <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.75))'}}/>
+        </div>
+
+        <button onClick={onBack} style={{position:'absolute',top:14,left:14,zIndex:2,width:36,height:36,borderRadius:'50%',
           background:'rgba(0,0,0,0.4)',border:'1px solid rgba(255,255,255,0.2)',
           color:'#fff',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(8px)'}}>
           ←
         </button>
-        {/* Пульс-индикатор справа */}
-        <div style={{position:'absolute',top:16,right:14,display:'flex',alignItems:'center',gap:6,
-          background:'rgba(0,0,0,0.45)',borderRadius:20,padding:'5px 10px',backdropFilter:'blur(8px)'}}>
+
+        {/* Кнопка смены обложки */}
+        <button onClick={()=>coverFileRef.current?.click()}
+          style={{position:'absolute',top:14,right:14,zIndex:2,display:'flex',alignItems:'center',gap:5,
+            padding:'5px 10px',borderRadius:20,
+            background:coverUploading?'rgba(0,0,0,0.6)':'rgba(0,0,0,0.45)',
+            border:'1px solid rgba(255,255,255,0.2)',color:'#fff',cursor:'pointer',backdropFilter:'blur(8px)',
+            fontSize:11,fontWeight:700}}>
+          {coverUploading?<><motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
+            style={{width:12,height:12,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%'}}/> Загружаем…</>
+            :<>🖼 Обложка</>}
+        </button>
+        <input ref={coverFileRef} type="file" accept="image/*" style={{display:'none'}}
+          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,'coverPhotoUrl',setCoverUploading);e.target.value='';}}/>
+
+        {/* Скрытый input для аватара */}
+        <input ref={avatarFileRef} type="file" accept="image/*" style={{display:'none'}}
+          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,'avatarPhotoUrl',setAvatarUploading);e.target.value='';}}/>
+
+        {/* Пульс-индикатор — теперь чуть левее */}
+        <div style={{position:'absolute',bottom:52,right:14,zIndex:2,display:'flex',alignItems:'center',gap:6,
+          background:'rgba(0,0,0,0.45)',borderRadius:20,padding:'4px 10px',backdropFilter:'blur(8px)'}}>
           <motion.div animate={{scale:[1,1.3,1]}} transition={{repeat:Infinity,duration:1.5}}
             style={{width:8,height:8,borderRadius:'50%',background:ch.vibeColor}}/>
           <span style={{fontSize:11,color:'#fff',fontWeight:700}}>ПУЛЬС {ch.energyLevel}%</span>
         </div>
+
         {/* Инфо */}
-        <div style={{position:'absolute',bottom:12,left:14,right:14}}>
+        <div style={{position:'absolute',bottom:12,left:14,right:14,zIndex:2}}>
           <div style={{display:'flex',alignItems:'flex-end',gap:10}}>
-            <ChanAvatar ch={ch} size={52}/>
+            {/* Аватар кликабелен */}
+            <div style={{position:'relative',flexShrink:0}}>
+              <ChanAvatar ch={ch} size={52} onClick={()=>avatarFileRef.current?.click()}/>
+              {!avatarUploading&&<div style={{position:'absolute',bottom:-2,right:-2,
+                width:18,height:18,borderRadius:'50%',background:accent,
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,cursor:'pointer'}}
+                onClick={()=>avatarFileRef.current?.click()}>📷</div>}
+            </div>
             <div style={{flex:1,minWidth:0}}>
               <p style={{margin:0,fontSize:18,fontWeight:900,color:'#fff',lineHeight:1.1,
                 textShadow:'0 2px 8px rgba(0,0,0,0.6)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
@@ -1034,10 +1088,26 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
   const [rubrics,setRubrics]=useState<string[]>([]);
   const [customRubric,setCustomRubric]=useState('');
   const [isVerified]=useState(false);
+  const [coverPhotoUrl,setCoverPhotoUrl]=useState('');
+  const [avatarPhotoUrl,setAvatarPhotoUrl]=useState('');
+  const [coverUploading,setCoverUploading]=useState(false);
+  const [avatarUploading,setAvatarUploading]=useState(false);
+  const coverFileRef=useRef<HTMLInputElement>(null);
+  const avatarFileRef=useRef<HTMLInputElement>(null);
 
   const vibe=CHANNEL_VIBES[vibeIdx];
   const cover=CHANNEL_GRADIENTS[coverIdx];
   const cat=CHANNEL_CATEGORIES.find(x=>x.id===catId)!;
+
+  const uploadPhoto=async(f:File,setUrl:(u:string)=>void,setLoading:(v:boolean)=>void)=>{
+    const local=URL.createObjectURL(f);
+    setUrl(local);setLoading(true);
+    try{
+      const r=await fetch(`${window.location.origin}/api/image-upload`,{
+        method:'POST',headers:{'Content-Type':f.type},body:f});
+      if(r.ok){const{url}=await r.json();setUrl(url);}
+    }catch{}finally{setLoading(false);}
+  };
 
   const handleCreate=()=>{
     if(!name.trim())return;
@@ -1048,6 +1118,8 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
       description:desc.trim(),
       vibe:vibe.emoji,vibeColor:vibe.color,
       coverGradient:cover.bg,
+      coverPhotoUrl:coverPhotoUrl||undefined,
+      avatarPhotoUrl:avatarPhotoUrl||undefined,
       category:catId,
       tags:tags.split(',').map(t=>t.trim()).filter(Boolean),
       subscribers:0,
@@ -1097,13 +1169,18 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
 
         {/* ── Превью канала ── */}
         <motion.div layout style={{borderRadius:20,overflow:'hidden',marginBottom:20,
-          background:cover.bg,position:'relative',height:120}}>
+          background:cover.bg,position:'relative',height:130}}>
+          {coverPhotoUrl&&<img src={coverPhotoUrl} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>}
           <motion.div animate={{opacity:[0.2,0.4,0.2]}} transition={{repeat:Infinity,duration:3}}
             style={{position:'absolute',inset:0,background:`radial-gradient(circle at 30% 50%,${vibe.color}55,transparent 70%)`}}/>
+          <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 30%,rgba(0,0,0,0.7))'}}/>
           <div style={{position:'absolute',bottom:12,left:14,display:'flex',alignItems:'flex-end',gap:10}}>
-            <div style={{width:48,height:48,borderRadius:'50%',background:`${vibe.color}33`,
-              border:`2px solid ${vibe.color}66`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>
-              {vibe.emoji}
+            <div style={{width:52,height:52,borderRadius:'50%',overflow:'hidden',
+              background:avatarPhotoUrl?'transparent':`${vibe.color}33`,
+              border:`2px solid ${vibe.color}88`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>
+              {avatarPhotoUrl
+                ?<img src={avatarPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                :<span>{vibe.emoji}</span>}
             </div>
             <div>
               <p style={{margin:0,fontSize:16,fontWeight:900,color:'#fff',textShadow:'0 2px 8px rgba(0,0,0,0.5)'}}>
@@ -1116,9 +1193,48 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
           </div>
         </motion.div>
 
+        {/* Скрытые инпуты для загрузки фото */}
+        <input ref={coverFileRef} type="file" accept="image/*" style={{display:'none'}}
+          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,setCoverPhotoUrl,setCoverUploading);e.target.value='';}}/>
+        <input ref={avatarFileRef} type="file" accept="image/*" style={{display:'none'}}
+          onChange={e=>{const f=e.target.files?.[0];if(f)uploadPhoto(f,setAvatarPhotoUrl,setAvatarUploading);e.target.value='';}}/>
+
+
         {/* ─────────────── ШАГ 0: ОБЛИК ─────────────── */}
         {step===0&&(
           <div style={{display:'flex',flexDirection:'column',gap:16}}>
+
+            {/* Загрузка обложки + аватара */}
+            <div style={{display:'flex',gap:10}}>
+              <motion.button whileTap={{scale:0.96}} onClick={()=>coverFileRef.current?.click()}
+                style={{flex:1,padding:'11px 0',borderRadius:14,border:`1.5px dashed ${coverPhotoUrl?accent:c.border}`,
+                  background:coverPhotoUrl?`${accent}15`:'transparent',cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:5,
+                  color:coverPhotoUrl?accent:c.sub}}>
+                {coverUploading
+                  ?<motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
+                    style={{width:20,height:20,border:`2px solid ${c.border}`,borderTopColor:accent,borderRadius:'50%'}}/>
+                  :coverPhotoUrl
+                    ?<img src={coverPhotoUrl} alt="" style={{width:40,height:28,objectFit:'cover',borderRadius:6}}/>
+                    :<span style={{fontSize:24}}>🖼</span>}
+                <span style={{fontSize:11,fontWeight:700}}>{coverPhotoUrl?'Обложка ✓':'Фото обложки'}</span>
+              </motion.button>
+
+              <motion.button whileTap={{scale:0.96}} onClick={()=>avatarFileRef.current?.click()}
+                style={{flex:1,padding:'11px 0',borderRadius:14,border:`1.5px dashed ${avatarPhotoUrl?accent:c.border}`,
+                  background:avatarPhotoUrl?`${accent}15`:'transparent',cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:5,
+                  color:avatarPhotoUrl?accent:c.sub}}>
+                {avatarUploading
+                  ?<motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
+                    style={{width:20,height:20,border:`2px solid ${c.border}`,borderTopColor:accent,borderRadius:'50%'}}/>
+                  :avatarPhotoUrl
+                    ?<img src={avatarPhotoUrl} alt="" style={{width:32,height:32,objectFit:'cover',borderRadius:'50%'}}/>
+                    :<span style={{fontSize:24}}>🤳</span>}
+                <span style={{fontSize:11,fontWeight:700}}>{avatarPhotoUrl?'Аватар ✓':'Фото аватара'}</span>
+              </motion.button>
+            </div>
+
             <div>
               <p style={{margin:'0 0 6px',fontSize:11,color:c.sub,fontWeight:700}}>НАЗВАНИЕ КАНАЛА *</p>
               <input value={name} onChange={e=>setName(e.target.value)}
@@ -1174,7 +1290,32 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
         {step===1&&(
           <div style={{display:'flex',flexDirection:'column',gap:20}}>
             <div>
-              <p style={{margin:'0 0 10px',fontSize:13,fontWeight:800,color:c.light}}>🎨 Тема обложки</p>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <p style={{margin:0,fontSize:13,fontWeight:800,color:c.light}}>🎨 Обложка</p>
+                <div style={{display:'flex',gap:6}}>
+                  <motion.button whileTap={{scale:0.9}} onClick={()=>coverFileRef.current?.click()}
+                    style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${coverPhotoUrl?accent:c.border}`,
+                      background:coverPhotoUrl?`${accent}20`:'transparent',cursor:'pointer',
+                      fontSize:11,fontWeight:700,color:coverPhotoUrl?accent:c.sub}}>
+                    {coverUploading?'⬆️ …':(coverPhotoUrl?'🖼 Заменить':'🖼 Загрузить фото')}
+                  </motion.button>
+                  {coverPhotoUrl&&<motion.button whileTap={{scale:0.9}} onClick={()=>setCoverPhotoUrl('')}
+                    style={{padding:'5px 10px',borderRadius:20,border:'1px solid rgba(239,68,68,0.3)',
+                      background:'rgba(239,68,68,0.1)',cursor:'pointer',fontSize:11,fontWeight:700,color:'#ef4444'}}>
+                    ✕
+                  </motion.button>}
+                </div>
+              </div>
+              {coverPhotoUrl&&(
+                <div style={{borderRadius:12,overflow:'hidden',height:60,marginBottom:8,position:'relative'}}>
+                  <img src={coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
+                    background:'rgba(0,0,0,0.3)'}}>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,0.8)',fontWeight:700}}>Твоя обложка активна</span>
+                  </div>
+                </div>
+              )}
+              <p style={{margin:'0 0 8px',fontSize:11,color:c.sub}}>{coverPhotoUrl?'Градиент будет фоном под фото:':'Или выбери градиент:'}</p>
               <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
                 {CHANNEL_GRADIENTS.map((g,i)=>(
                   <motion.button key={i} whileTap={{scale:0.9}} onClick={()=>setCoverIdx(i)}
@@ -1223,6 +1364,45 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
                 {vibeIdx===9&&'Шоу-формат! Яркий, захватывающий, непредсказуемый контент.'}
               </p>
             </div>
+
+            {/* Аватар канала */}
+            <div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <p style={{margin:0,fontSize:13,fontWeight:800,color:c.light}}>🤳 Аватар канала</p>
+                <div style={{display:'flex',gap:6}}>
+                  <motion.button whileTap={{scale:0.9}} onClick={()=>avatarFileRef.current?.click()}
+                    style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${avatarPhotoUrl?accent:c.border}`,
+                      background:avatarPhotoUrl?`${accent}20`:'transparent',cursor:'pointer',
+                      fontSize:11,fontWeight:700,color:avatarPhotoUrl?accent:c.sub}}>
+                    {avatarUploading?'⬆️ …':(avatarPhotoUrl?'🤳 Заменить':'🤳 Загрузить фото')}
+                  </motion.button>
+                  {avatarPhotoUrl&&<motion.button whileTap={{scale:0.9}} onClick={()=>setAvatarPhotoUrl('')}
+                    style={{padding:'5px 10px',borderRadius:20,border:'1px solid rgba(239,68,68,0.3)',
+                      background:'rgba(239,68,68,0.1)',cursor:'pointer',fontSize:11,fontWeight:700,color:'#ef4444'}}>
+                    ✕
+                  </motion.button>}
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px',
+                background:c.card,borderRadius:14,border:`1px solid ${c.border}`}}>
+                <div style={{width:52,height:52,borderRadius:'50%',overflow:'hidden',flexShrink:0,
+                  background:vibe.color+'22',border:`2px solid ${vibe.color}66`,
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>
+                  {avatarPhotoUrl
+                    ?<img src={avatarPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    :<span>{vibe.emoji}</span>}
+                </div>
+                <div style={{flex:1}}>
+                  <p style={{margin:0,fontSize:13,color:c.light,fontWeight:700}}>
+                    {avatarPhotoUrl?'Твоя фото как аватар':'Аватар = вайб-эмодзи'}
+                  </p>
+                  <p style={{margin:'3px 0 0',fontSize:11,color:c.sub,lineHeight:1.4}}>
+                    {avatarPhotoUrl?'Нажми «Заменить» чтобы загрузить другую':'Загрузи фото логотипа или любое изображение'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
