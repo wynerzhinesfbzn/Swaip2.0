@@ -1,27 +1,92 @@
-# Workspace
+# SWAIP 2.0 — Русскоязычная социальная сеть
 
-## Overview
+## Обзор проекта
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+SWAIP 2.0 — полноценная социальная сеть на русском языке с четырьмя режимами профиля («Про», «Круг», «Сцена», «Эфир»), видеозвонками, E2E-зашифрованным мессенджером, историями, отзывами и криптовалютой SWP.
 
-## Stack
+## Стек технологий
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+| Уровень | Технология |
+|---------|-----------|
+| Монорепозиторий | pnpm workspaces |
+| Node.js | v24 |
+| Фронтенд | React 19 + Vite 7 + TailwindCSS |
+| Бэкенд | Express 5 (TypeScript) |
+| БД | PostgreSQL + Drizzle ORM |
+| Видеозвонки | LiveKit SDK |
+| Хранилище файлов | Google Cloud Storage (GCS) |
+| Шифрование | @noble/curves (Ed25519) |
+| Push-уведомления | web-push |
+| Валидация | Zod v4 + drizzle-zod |
+| Сборка | esbuild (ESM bundle) |
 
-## Key Commands
+## Структура проекта
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+```
+artifacts/
+  api-server/       — Express 5 бэкенд (порт 8080)
+    src/routes/     — 20+ маршрутов API
+    src/lib/        — sessionAuth, objectStorage, GCS, WebSocket
+    src/middlewares/ — contentFilter
+    src/services/   — callSignaling, meetingChatWs
+  swaip/            — React+Vite фронтенд (порт 18921, previewPath: /)
+    src/App.tsx     — главный компонент (~15K строк)
+    src/SwaipHome.tsx — домашний экран
+    src/pages/      — дополнительные страницы
+    src/hooks/      — кастомные хуки
+lib/
+  db/               — схема БД (13 таблиц), Drizzle ORM
+  api-spec/         — OpenAPI yaml
+  api-client-react/ — сгенерированные React Query хуки
+  api-zod/          — сгенерированные Zod схемы
+```
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+## Основные команды
+
+```bash
+# Проверка типов
+pnpm --filter @workspace/api-server run typecheck
+
+# Пересборка бэкенда
+pnpm --filter @workspace/api-server run build
+
+# Применить схему БД
+pnpm --filter @workspace/db run push
+
+# Регенерация API хуков (из openapi.yaml)
+pnpm --filter @workspace/api-spec run codegen
+```
+
+## Воркфлоу
+
+- **API Server** (`artifacts/api-server: API Server`) — Express 5, порт 8080
+- **SWAIP Frontend** (`artifacts/swaip: web`) — Vite dev, порт 18921
+
+## TypeScript — статус
+
+Все 17 ошибок TS исправлены (2025-04-22):
+- `objectStorage.ts` — приведение типа `response.json() as {signed_url: string}`
+- `audioUpload.ts` — исправлена деструктуризация `[meta]` вместо `[[meta]]`
+- `broadcasts.ts` — `authorMode` заменён на `'pro'` (нет в схеме comments)
+- `chunkUpload.ts` — инициализация `let url = ""`
+- `meetings.ts` (7 мест) — `req.params as { meetingId: string }`
+- `messaging.ts` — SSE handler: `Promise<void>` + явные `return`
+- `reviews.ts` (3 места) — `req.params as { hash: string }`
+- `stories.ts` (3 места) — добавлены `return` перед `res.json()`/`res.status()`
+- `tts.ts` — добавлен `return` перед `res.send()`
+
+## База данных — схема (13 таблиц)
+
+accounts, sessions, loginLogs, follows, broadcasts, broadcastReactions,
+broadcastComments, commentReactions, stories, messaging (conversations,
+messages, conversationParticipants, messageReactions), meetings,
+meetingParticipants, meetingMessages, meetingLogs, reviews, swpWallets,
+moderationReports, moderationBans, moderationLog, pushSubscriptions
+
+## Известные ограничения (из аудита)
+
+- `/api/git-push` — не требует авторизации (risk: code injection)
+- `SESSION_SECRET` используется и для сессий и для шифрования сообщений
+- Инвайт-коды: поиск без индекса (full table scan при росте)
+- Курс SWP — захардкожен, не из реального источника
+- `App.tsx` — монстр-компонент (~15K строк), нужен рефакторинг
