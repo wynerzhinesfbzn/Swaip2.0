@@ -2059,6 +2059,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,c,accent,style=1}:{p
           setBookedTime(slot||'✓');
           setShowPostChat(false);
           onBook?.(p.id,slot||'✓');
+          window.dispatchEvent(new CustomEvent('sw-new-booking',{detail:{name:postChatName,phone:text.trim(),slot}}));
           postSpeak(speech);return;
         }
       }

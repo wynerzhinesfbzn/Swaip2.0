@@ -5987,6 +5987,32 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
   }, []);
   /* ── Менеджер записей ── */
   const [showBookingsManager, setShowBookingsManager] = useState(false);
+  const [instantBookAlert, setInstantBookAlert] = useState<{name:string;slot:string}|null>(null);
+  const playBookingPing = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc1 = ctx.createOscillator(); const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.connect(gain); osc2.connect(gain); gain.connect(ctx.destination);
+      osc1.type = 'sine'; osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(880, ctx.currentTime);
+      osc2.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.15);
+      osc2.start(ctx.currentTime + 0.12); osc2.stop(ctx.currentTime + 0.5);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      setInstantBookAlert({ name: d.name || 'Клиент', slot: d.slot || '' });
+      playBookingPing();
+    };
+    window.addEventListener('sw-new-booking', handler);
+    return () => window.removeEventListener('sw-new-booking', handler);
+  }, [playBookingPing]);
   const [bookingMeta, setBookingMeta] = usePersistedState<Record<string,{status:string;note:string}>>('pro_bookingMeta', {}, userHash);
   const [editingBookingNote, setEditingBookingNote] = useState<string|null>(null);
   const [bookingNoteDraft,   setBookingNoteDraft]   = useState('');
@@ -14996,6 +15022,50 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
             </>
           );
         })()}
+      </AnimatePresence>
+
+      {/* ══════ МГНОВЕННОЕ УВЕДОМЛЕНИЕ О ЗАПИСИ ══════ */}
+      <AnimatePresence>
+        {instantBookAlert && (
+          <motion.div
+            initial={{ y: 120, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 120, opacity: 0 }}
+            transition={{ type:'spring', stiffness:340, damping:28 }}
+            style={{ position:'fixed', bottom: 24, left:'50%', transform:'translateX(-50%)',
+              zIndex: 9000, display:'flex', flexDirection:'column', alignItems:'center', gap:0 }}>
+            <motion.button
+              animate={{ boxShadow: ['0 0 0px rgba(34,197,94,0)', '0 0 28px rgba(34,197,94,0.7)', '0 0 0px rgba(34,197,94,0)'] }}
+              transition={{ repeat: Infinity, duration: 1.1, ease:'easeInOut' }}
+              onClick={() => { setInstantBookAlert(null); setShowBookingsManager(true); }}
+              style={{ display:'flex', alignItems:'center', gap:10, padding:'14px 24px',
+                background:'linear-gradient(135deg,#065f46,#10b981)',
+                border:'2px solid rgba(52,211,153,0.6)', borderRadius:28,
+                cursor:'pointer', minWidth:240, justifyContent:'center' }}>
+              <motion.span
+                animate={{ scale:[1,1.25,1] }}
+                transition={{ repeat:Infinity, duration:0.8 }}
+                style={{ fontSize:22 }}>📅</motion.span>
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
+                <span style={{ fontSize:13, fontWeight:900, color:'#fff',
+                  fontFamily:'"Montserrat",sans-serif', letterSpacing:'0.04em' }}>
+                  НОВАЯ ЗАПИСЬ!
+                </span>
+                <span style={{ fontSize:11, color:'rgba(167,243,208,0.9)',
+                  fontFamily:'"Montserrat",sans-serif', fontWeight:600 }}>
+                  {instantBookAlert.name} · нажмите чтобы открыть
+                </span>
+              </div>
+            </motion.button>
+            <motion.button
+              onClick={() => setInstantBookAlert(null)}
+              style={{ marginTop:6, fontSize:11, color:'rgba(255,255,255,0.4)',
+                background:'none', border:'none', cursor:'pointer',
+                fontFamily:'"Montserrat",sans-serif' }}>
+              × закрыть
+            </motion.button>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* ══════ МЕНЕДЖЕР ЗАПИСЕЙ (владелец) ══════ */}

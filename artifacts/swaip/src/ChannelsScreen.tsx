@@ -1186,6 +1186,7 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
               reply=`Всё готово! 🎉\n\n👤 ${chChatName}\n📅 ${fmtChSlot(slot)}\n📱 ${text.trim()}\n\nЖдём вас! — ${chBotName}`;
               speech='Замечательно! Запись подтверждена. Ждём вас!';
               setBookedTime(slot||'✓');setShowChChat(false);onBook(slot||'✓');
+              window.dispatchEvent(new CustomEvent('sw-new-booking',{detail:{name:chChatName,phone:text.trim(),slot}}));
               chSpeak(speech);return;
             }
           }
