@@ -7136,17 +7136,20 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPostHasBooking(false);setPostBookingSlots(5);setPostBookingLabel('Записаться');};
 
   const handlePost=async()=>{
-    if((!text.trim()&&!imgFile&&!vidFile&&!docFiles.length&&!musicFile)||submitting)return;
+    const hasAnyContent=!!(text.trim()||imgFile||vidFile||docFiles.length||musicFile||postHasBooking);
+    if(!hasAnyContent||submitting)return;
     setSubmitting(true);
     try{
       const[imgUrl,vidUrl,docs,musUrl]=await Promise.all([uploadImg(),uploadVid(),uploadDocs(),uploadMusic()]);
-      const defaultContent=vidUrl?'🎬':imgUrl?'📷':musUrl?'🎵':docs.length?'📎':vidFile?'🎬':imgFile?'📷':musicFile?'🎵':docFiles.length?'📎':'';
+      const defaultContent=vidUrl?'🎬':imgUrl?'📷':musUrl?'🎵':docs.length?'📎':vidFile?'🎬':imgFile?'📷':musicFile?'🎵':docFiles.length?'📎'
+        :postHasBooking?`📅 ${postBookingLabel||'Записаться'}`:'';
       const bookingExtra=postHasBooking?{hasBooking:true,bookingBooked:0,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots||undefined}:{};
-      const postData={content:text.trim()||defaultContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||undefined,docUrls:docs.length?docs:undefined,...bookingExtra};
+      const apiContent=text.trim()||defaultContent;
+      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||undefined,docUrls:docs.length?docs:undefined,...bookingExtra};
       try{
         const r=await fetch(`${window.location.origin}/api/broadcasts`,{
           method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},
-          body:JSON.stringify({content:text.trim()||defaultContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...(musUrl?{audioUrl:musUrl}:{})}),
+          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...(musUrl?{audioUrl:musUrl}:{})}),
         });
         if(r.ok){const created=await r.json().catch(()=>null);setOpen(false);reset();onPostCreated({...postData,...created});return;}
       }catch{}

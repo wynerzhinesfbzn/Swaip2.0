@@ -1275,7 +1275,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
   /* ── Публикация ── */
   const handlePublish=async()=>{
     if(publishing)return;
-    if(type==='text'&&!text.trim()&&!imgFile)return;
+    if(type==='text'&&!text.trim()&&!imgFile&&!hasBooking)return;
     if(type==='poll'&&(!pollQ.trim()||pollOpts.filter(o=>o.trim()).length<2))return;
     setPublishing(true);
     try{
@@ -1285,7 +1285,8 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
         (type==='audio'&&musicFile)?uploadMusic():
           (type==='audio'&&voiceBlob)?uploadVoice(voiceBlob):Promise.resolve(''),
       ]);
-      const base:any={type,text:text.trim(),rubric:rubric||undefined,isExclusive};
+      const finalText=text.trim()||(hasBooking?`📅 ${bookingLabel||'Записаться'}`:'');
+      const base:any={type,text:finalText,rubric:rubric||undefined,isExclusive};
       if(iUrl)base.imageUrl=iUrl;
       if(vUrl)base.videoUrl=vUrl;
       if(mUrl)base.audioUrl=mUrl;
@@ -1300,7 +1301,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
 
   const fmtSize=(b:number)=>b>=1048576?`${(b/1048576).toFixed(1)} МБ`:b>=1024?`${(b/1024).toFixed(0)} КБ`:`${b} Б`;
   const canPublish=!publishing&&!imgLoading&&!vidLoading&&!musicLoading&&
-    (type!=='text'||!!text.trim()||!!imgFile)&&
+    (type!=='text'||!!text.trim()||!!imgFile||hasBooking)&&
     (type!=='poll'||(!!pollQ.trim()&&pollOpts.filter(o=>o.trim()).length>=2))&&
     (type!=='video'||!!vidFile||!!vidPrev)&&
     (type!=='audio'||!!musicFile||!!voiceBlob);
