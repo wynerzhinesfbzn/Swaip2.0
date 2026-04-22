@@ -4548,17 +4548,21 @@ function PostComposerFull({
   const clearCmpImage = () => { if (cmpImagePreview) URL.revokeObjectURL(cmpImagePreview); setCmpImageFile(null); setCmpImagePreview(null); };
 
   const uploadCmpVideo = async (): Promise<string|null> => {
-    if (!cmpVideoFile) return null;
+    if (!cmpVideoFile || !cmpVideoPreview) return null;
     setCmpVideoUploading(true); setCmpVideoProgress(20);
     const base = window.location.origin;
     try {
+      /* Читаем из object URL — он жив даже после e.target.value='' на Android */
+      let body: File | Blob = cmpVideoFile;
+      try { const res = await fetch(cmpVideoPreview); const blob = await res.blob(); body = new File([blob], cmpVideoFile.name, {type: blob.type||cmpVideoFile.type||'video/mp4'}); } catch {}
       const r = await fetch(`${base}/api/video-upload`, {
         method: 'POST',
         headers: {
-          'Content-Type': cmpVideoFile.type || 'video/mp4',
+          'Content-Type': (body as File).type || 'video/mp4',
           'x-filename': cmpVideoFile.name.replace(/[^a-zA-Z0-9.\-_ ]/g, '_'),
+          'x-session-token': getST() || '',
         },
-        body: cmpVideoFile,
+        body,
       });
       setCmpVideoProgress(90);
       if (!r.ok) return null;
@@ -4698,7 +4702,7 @@ function PostComposerFull({
       const file = new File([selfieBlob], 'selfie.webm', { type: selfieBlob.type || 'video/webm' });
       const r = await fetch(`${base}/api/video-upload`, {
         method: 'POST',
-        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm' },
+        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm', 'x-session-token': getST() || '' },
         body: file,
       });
       setSelfieProgress(80);
@@ -4957,7 +4961,7 @@ function PostComposerFull({
                   style={{ width:dispW, height:dispH, overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
                   <SelfieFrameWrapper frameId={selfieFrame}>
                     {selfieBlob ? (
-                      <video src={selfiePreviewUrl||''} autoPlay loop muted playsInline
+                      <video src={selfiePreviewUrl||''} autoPlay loop playsInline controls
                         style={{ width:'100%', height:'100%', objectFit:'cover', transform:`scale(${selfieZoom})`, transformOrigin:'center', transition:'transform 0.05s linear' }} />
                     ) : (
                       <video ref={selfieVideoRef} autoPlay muted playsInline
@@ -6312,18 +6316,22 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
 
   /* Загрузить выбранное видео одним запросом, вернуть URL или null */
   const uploadCmpVideo = async (): Promise<string|null> => {
-    if (!cmpVideoFile) return null;
+    if (!cmpVideoFile || !cmpVideoPreview) return null;
     setCmpVideoUploading(true);
     setCmpVideoProgress(20);
     const base = window.location.origin;
     try {
+      /* Читаем из object URL — он жив даже после e.target.value='' на Android */
+      let body: File | Blob = cmpVideoFile;
+      try { const res = await fetch(cmpVideoPreview); const blob = await res.blob(); body = new File([blob], cmpVideoFile.name, {type: blob.type||cmpVideoFile.type||'video/mp4'}); } catch {}
       const r = await fetch(`${base}/api/video-upload`, {
         method: 'POST',
         headers: {
-          'Content-Type': cmpVideoFile.type || 'video/mp4',
+          'Content-Type': (body as File).type || 'video/mp4',
           'x-filename': cmpVideoFile.name.replace(/[^a-zA-Z0-9.\-_ ]/g, '_'),
+          'x-session-token': getST() || '',
         },
-        body: cmpVideoFile,
+        body,
       });
       setCmpVideoProgress(90);
       if (!r.ok) return null;
@@ -6496,7 +6504,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
       const file = new File([selfieBlob], 'selfie.webm', { type: selfieBlob.type || 'video/webm' });
       const r = await fetch(`${base}/api/video-upload`, {
         method: 'POST',
-        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm' },
+        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm', 'x-session-token': getST() || '' },
         body: file,
       });
       setSelfieProgress(80);
@@ -15420,7 +15428,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                   <div style={{ transform: `scale(${sc})`, transformOrigin: 'top center', flexShrink: 0 }}>
                     <SelfieFrameWrapper frameId={selfieFrame}>
                       {selfieBlob
-                        ? <video src={selfiePreviewUrl ?? undefined} autoPlay loop playsInline muted style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        ? <video src={selfiePreviewUrl ?? undefined} autoPlay loop playsInline controls style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                         : <video ref={selfieVideoRef} autoPlay playsInline muted style={{ width:'100%', height:'100%', objectFit:'cover',
                             transform: `scale(${selfieZoom}) ${selfieCamera==='user' ? 'scaleX(-1)' : ''}`,
                             transformOrigin:'center', transition:'transform 0.05s' }} />
@@ -18333,7 +18341,7 @@ function SceneScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigge
       const file = new File([selfieBlob], 'selfie.webm', { type: selfieBlob.type || 'video/webm' });
       const r = await fetch(`${base}/api/video-upload`, {
         method: 'POST',
-        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm' },
+        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm', 'x-session-token': getST() || '' },
         body: file,
       });
       setSelfieProgress(80);
@@ -19798,7 +19806,7 @@ function SceneScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigge
                 <div ref={selfiePinchContainerRef} style={{ width:w, height:h, position:'relative', flexShrink:0 }}>
                   <SelfieFrameWrapper frameId={selfieFrame}>
                     {selfieBlob
-                      ? <video src={selfiePreviewUrl ?? undefined} autoPlay loop playsInline muted style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                      ? <video src={selfiePreviewUrl ?? undefined} autoPlay loop playsInline controls style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                       : <video ref={selfieVideoRef} autoPlay playsInline muted style={{ width:'100%', height:'100%', objectFit:'cover',
                           transform: `scale(${selfieZoom}) ${selfieCamera==='user' ? 'scaleX(-1)' : ''}`,
                           transformOrigin:'center', display:'block' }} />}
@@ -20091,7 +20099,7 @@ function KrugScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger
       const file = new File([selfieBlob], 'selfie.webm', { type: selfieBlob.type || 'video/webm' });
       const r = await fetch(`${base}/api/video-upload`, {
         method: 'POST',
-        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm' },
+        headers: { 'Content-Type': file.type, 'x-filename': 'selfie.webm', 'x-session-token': getST() || '' },
         body: file,
       });
       setSelfieProgress(80);
@@ -21091,7 +21099,7 @@ function KrugScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger
                 <div ref={selfiePinchContainerRef} style={{ width:w, height:h, position:'relative', flexShrink:0 }}>
                   <SelfieFrameWrapper frameId={selfieFrame}>
                     {selfieBlob
-                      ? <video src={selfiePreviewUrl ?? undefined} autoPlay loop playsInline muted style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                      ? <video src={selfiePreviewUrl ?? undefined} autoPlay loop playsInline controls style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                       : <video ref={selfieVideoRef} autoPlay playsInline muted style={{ width:'100%', height:'100%', objectFit:'cover',
                           transform: `scale(${selfieZoom}) ${selfieCamera==='user' ? 'scaleX(-1)' : ''}`,
                           transformOrigin:'center', display:'block' }} />}
