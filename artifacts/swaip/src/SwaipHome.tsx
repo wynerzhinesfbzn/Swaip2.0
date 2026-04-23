@@ -347,7 +347,7 @@ const LANGUAGES=[
 ];
 
 /* ══ Боковое меню (слайд слева) ══ */
-function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onDesign,onExchange,onAssistant,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onMeetings?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
+function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onDesign,onExchange,onAssistant,onBrowser,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onMeetings?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
   type Modal='language'|'privacy'|'about'|'docs'|'ringtone';
   const [modal,setModal]=useState<Modal|null>(null);
@@ -378,12 +378,13 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onDesign,onExchang
   const curRingName = RINGTONE_OPTIONS.find(r=>r.id===ringtoneId)?.name ?? 'Классический';
 
   const SETTINGS=[
+    {icon:'🌐',label:'Браузер SWAIP',sub:'Открыть встроенный браузер',fn:()=>{onBrowser?.();onClose();}},
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
     {icon:'📊',label:'Биржа SWP',sub:'Монета SWAIP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
     {icon:'🎨',label:'Оформление',sub:'Тема, обложка, аватар',fn:()=>{onDesign?.();onClose();}},
     {icon:'🔔',label:'Рингтон звонка',sub:curRingName,fn:()=>setModal('ringtone')},
     {icon:'🔒',label:'Приватность',sub:'Кто видит мой профиль',fn:()=>setModal('privacy')},
-    {icon:'🌐',label:'Язык',sub:curLangInfo.flag+' '+curLangInfo.native,fn:()=>setModal('language')},
+    {icon:'🌏',label:'Язык',sub:curLangInfo.flag+' '+curLangInfo.native,fn:()=>setModal('language')},
     {icon:'💬',label:'Поддержка',sub:'Написать в SWAIP',fn:()=>window.open('mailto:support@swaip.ru','_blank')},
     {icon:'📄',label:'Документы',sub:'Конфиденциальность, условия, 152-ФЗ',fn:()=>setModal('docs')},
     {icon:'📖',label:'О приложении',sub:'SWAIP v2.0',fn:()=>setModal('about')},
@@ -3097,7 +3098,55 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [currentScreen,setCurrentScreen]=useState<'home'|'meetings'|'exchange'|'assistant'>('home');
 
   /* ── Навигация и звонки (до условных возвратов!) ── */
-  const [navTab,setNavTab]=useState<'home'|'messages'|'channels'>('home');
+  const [navTab,setNavTab]=useState<'home'|'messages'|'channels'|'browser'>('home');
+  const [browserUrl,setBrowserUrl]=useState('https://www.google.com/');
+  const [browserInput,setBrowserInput]=useState('');
+  const [browserHistory,setBrowserHistory]=useState<string[]>(['https://www.google.com/']);
+  const [browserHistIdx,setBrowserHistIdx]=useState(0);
+  const [browserLoading,setBrowserLoading]=useState(false);
+  const [browserBlocked,setBrowserBlocked]=useState(false);
+  const browserRef=useRef<HTMLIFrameElement>(null);
+  const browserInputRef=useRef<HTMLInputElement>(null);
+
+  const openBrowser=(url:string)=>{
+    const full=url.startsWith('http')?url:`https://${url}`;
+    setBrowserUrl(full);setBrowserInput(full);setBrowserBlocked(false);setBrowserLoading(true);
+    setBrowserHistory(h=>{const trimmed=h.slice(0,browserHistIdx+1);return [...trimmed,full];});
+    setBrowserHistIdx(i=>i+1);
+    setNavTab('browser');
+  };
+  const browserNav=(url:string)=>{
+    setBrowserUrl(url);setBrowserInput(url);setBrowserBlocked(false);setBrowserLoading(true);
+  };
+  const browserGo=(raw:string)=>{
+    const q=raw.trim();if(!q)return;
+    const url=q.match(/^https?:\/\/|^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/)?q.startsWith('http')?q:`https://${q}`:`https://www.google.com/search?q=${encodeURIComponent(q)}`;
+    setBrowserHistory(h=>{const trimmed=h.slice(0,browserHistIdx+1);return [...trimmed,url];});
+    setBrowserHistIdx(i=>i+1);
+    browserNav(url);
+  };
+
+  const openBrowserRef=useRef(openBrowser);
+  useEffect(()=>{openBrowserRef.current=openBrowser;});
+
+  /* Глобальный перехватчик ссылок → открыть во встроенном браузере */
+  useEffect(()=>{
+    const handler=(e:MouseEvent)=>{
+      let target=e.target as HTMLElement|null;
+      while(target&&target.tagName!=='A')target=target.parentElement;
+      if(!target)return;
+      const href=(target as HTMLAnchorElement).href;
+      if(!href)return;
+      if(href.startsWith('mailto:')||href.startsWith('tel:'))return;
+      if(!href.startsWith('http'))return;
+      if((target as HTMLAnchorElement).closest('iframe'))return;
+      e.preventDefault();
+      e.stopPropagation();
+      openBrowserRef.current(href);
+    };
+    document.addEventListener('click',handler,true);
+    return()=>document.removeEventListener('click',handler,true);
+  },[]);
   const [chatTarget,setChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [secretChatTarget,setSecretChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [ringtoneId, setRingtoneId] = useSaved<RingtoneId>(RINGTONE_PREF_KEY, 'classic');
@@ -4296,6 +4345,150 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       </div>
     )}
 
+    {/* ═══ ЭКРАН: БРАУЗЕР SWAIP ═══ */}
+    {navTab==='browser'&&currentScreen==='home'&&(()=>{
+      const SPEED_DIAL=[
+        {ico:'🔍',label:'Google',url:'https://www.google.com'},
+        {ico:'📹',label:'YouTube',url:'https://www.youtube.com'},
+        {ico:'📰',label:'Яндекс',url:'https://yandex.ru'},
+        {ico:'📡',label:'VK',url:'https://vk.com'},
+        {ico:'🤖',label:'ChatGPT',url:'https://chatgpt.com'},
+        {ico:'🌍',label:'Wikipedia',url:'https://ru.wikipedia.org'},
+        {ico:'🛒',label:'Wildberries',url:'https://wildberries.ru'},
+        {ico:'🗺️',label:'Я.Карты',url:'https://maps.yandex.ru'},
+      ];
+      const canBack=browserHistIdx>0;
+      const canFwd=browserHistIdx<browserHistory.length-1;
+      const displayHost=()=>{try{return new URL(browserUrl).hostname;}catch{return browserUrl;}};
+      return(
+        <div style={{position:'fixed',inset:0,zIndex:800,display:'flex',flexDirection:'column',
+          background:isDark?'#08080f':'#f0f0f8'}}>
+
+          {/* Адресная строка */}
+          <div style={{background:isDark?'rgba(12,12,24,0.97)':'rgba(248,248,255,0.97)',
+            backdropFilter:'blur(20px)',borderBottom:`1px solid ${c.border}`,
+            padding:'max(14px,env(safe-area-inset-top)) 10px 8px',display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+
+            {/* Назад */}
+            <motion.button whileTap={{scale:0.85}} disabled={!canBack}
+              onClick={()=>{if(canBack){const ni=browserHistIdx-1;setBrowserHistIdx(ni);browserNav(browserHistory[ni]);}}}
+              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:canBack?'pointer':'default',
+                color:canBack?c.mid:'transparent',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              ‹
+            </motion.button>
+
+            {/* Вперёд */}
+            <motion.button whileTap={{scale:0.85}} disabled={!canFwd}
+              onClick={()=>{if(canFwd){const ni=browserHistIdx+1;setBrowserHistIdx(ni);browserNav(browserHistory[ni]);}}}
+              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:canFwd?'pointer':'default',
+                color:canFwd?c.mid:'transparent',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              ›
+            </motion.button>
+
+            {/* URL bar */}
+            <div style={{flex:1,background:isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)',
+              borderRadius:12,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',overflow:'hidden'}}>
+              <span style={{fontSize:13,paddingLeft:10,flexShrink:0,opacity:0.5}}>🔒</span>
+              <input ref={browserInputRef}
+                value={browserInput||displayHost()}
+                onChange={e=>setBrowserInput(e.target.value)}
+                onFocus={()=>setBrowserInput(browserUrl)}
+                onBlur={()=>setBrowserInput('')}
+                onKeyDown={e=>{if(e.key==='Enter'){browserInputRef.current?.blur();browserGo(browserInput);}}}
+                style={{flex:1,background:'none',border:'none',outline:'none',color:c.light,
+                  fontSize:13,padding:'8px 6px',fontFamily:'monospace',minWidth:0}}
+                placeholder="Поиск или адрес сайта..."
+                spellCheck={false} autoCapitalize="none"
+              />
+              {browserLoading&&<motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
+                style={{width:16,height:16,borderRadius:'50%',border:`2px solid ${activeAccent}`,borderTopColor:'transparent',
+                  marginRight:8,flexShrink:0}}/>}
+              {!browserLoading&&<motion.button whileTap={{scale:0.85}} onClick={()=>browserNav(browserUrl)}
+                style={{background:'none',border:'none',cursor:'pointer',color:c.sub,fontSize:16,padding:'4px 8px',flexShrink:0}}>↺</motion.button>}
+            </div>
+
+            {/* Поделиться */}
+            <motion.button whileTap={{scale:0.88}} onClick={()=>{try{navigator.share?.({url:browserUrl,title:displayHost()});}catch{}}}
+              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:'pointer',
+                color:c.mid,fontSize:17,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              ↗
+            </motion.button>
+
+            {/* Открыть в реальном браузере */}
+            <motion.button whileTap={{scale:0.88}} onClick={()=>window.open(browserUrl,'_blank')}
+              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:'pointer',
+                color:c.sub,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              ⤤
+            </motion.button>
+          </div>
+
+          {/* Прогресс-бар */}
+          <AnimatePresence>
+            {browserLoading&&(
+              <motion.div initial={{scaleX:0}} animate={{scaleX:1}} exit={{opacity:0}} transition={{duration:2,ease:'linear'}}
+                style={{height:2,background:`linear-gradient(90deg,${activeAccent},${activeAccent}88)`,transformOrigin:'left',flexShrink:0}}
+                onAnimationComplete={()=>setBrowserLoading(false)}/>
+            )}
+          </AnimatePresence>
+
+          {/* Контент */}
+          {browserBlocked?(
+            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:32,textAlign:'center'}}>
+              <div style={{fontSize:56}}>🚫</div>
+              <div style={{fontSize:17,fontWeight:800,color:c.light}}>Сайт заблокировал встраивание</div>
+              <div style={{fontSize:13,color:c.sub,lineHeight:1.5}}>{displayHost()} не разрешает показ во встроенном браузере</div>
+              <motion.button whileTap={{scale:0.95}} onClick={()=>window.open(browserUrl,'_blank')}
+                style={{background:activeAccent,border:'none',borderRadius:14,padding:'12px 28px',color:'#fff',fontWeight:800,fontSize:15,cursor:'pointer',boxShadow:`0 4px 20px ${activeAccent}66`}}>
+                Открыть в системном браузере ↗
+              </motion.button>
+            </div>
+          ):(
+            <iframe
+              ref={browserRef}
+              key={browserUrl}
+              src={browserUrl}
+              style={{flex:1,border:'none',background:isDark?'#111':'#fff'}}
+              onLoad={()=>{setBrowserLoading(false);}}
+              onError={()=>{setBrowserLoading(false);setBrowserBlocked(true);}}
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+              title="SWAIP Browser"
+            />
+          )}
+
+          {/* Стартовая страница поверх iframe если google загружен изначально */}
+          {browserUrl==='https://www.google.com/'&&!browserLoading&&(
+            <div style={{position:'absolute',inset:0,top:72,background:isDark?'#08080f':'#f4f4fc',
+              display:'flex',flexDirection:'column',alignItems:'center',padding:'40px 20px 100px',overflowY:'auto'}}>
+              <div style={{fontSize:40,marginBottom:4}}>🌐</div>
+              <div style={{fontSize:22,fontWeight:900,color:c.light,marginBottom:4,letterSpacing:'-0.02em'}}>SWAIP Browser</div>
+              <div style={{fontSize:12,color:c.sub,marginBottom:28}}>Быстрый · Безопасный · Встроенный</div>
+              {/* Строка поиска на главной */}
+              <div style={{width:'100%',maxWidth:360,background:isDark?'rgba(255,255,255,0.08)':'#fff',
+                borderRadius:24,border:`1.5px solid ${c.border}`,display:'flex',alignItems:'center',
+                padding:'8px 16px',gap:8,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',marginBottom:32}}>
+                <span style={{fontSize:18}}>🔍</span>
+                <input style={{flex:1,background:'none',border:'none',outline:'none',color:c.light,fontSize:15,fontFamily:'inherit'}}
+                  placeholder="Поиск в интернете..."
+                  onKeyDown={e=>{if(e.key==='Enter')browserGo((e.target as HTMLInputElement).value);}}/>
+              </div>
+              {/* Speed dial */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,width:'100%',maxWidth:360}}>
+                {SPEED_DIAL.map(s=>(
+                  <motion.button key={s.url} whileTap={{scale:0.88}} onClick={()=>browserGo(s.url)}
+                    style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:'14px 8px',
+                      borderRadius:16,background:isDark?'rgba(255,255,255,0.06)':'#fff',
+                      border:`1px solid ${c.border}`,cursor:'pointer',boxShadow:'0 2px 12px rgba(0,0,0,0.08)'}}>
+                    <span style={{fontSize:26}}>{s.ico}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:c.mid,letterSpacing:'0.01em'}}>{s.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    })()}
+
 
     <div style={{minHeight:'100dvh',background:c.bg,display:'flex',alignItems:'flex-start',justifyContent:'center',
       fontFamily:"'Inter','Helvetica Neue',Arial,sans-serif",transition:'background 0.3s'}}>
@@ -4306,7 +4499,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onMeetings={()=>setCurrentScreen('meetings')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onMeetings={()=>setCurrentScreen('meetings')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
@@ -7616,6 +7809,14 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           color:showSearch?c.accent:c.sub,padding:'4px 14px',minWidth:52}}>
         <span style={{fontSize:22,lineHeight:1}}>🔍</span>
         <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Поиск</span>
+      </motion.button>
+      {/* Браузер */}
+      <motion.button whileTap={{scale:0.88}} onClick={()=>{setNavTab(v=>v==='browser'?'home':'browser');}}
+        style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
+          color:navTab==='browser'?c.accent:c.sub,padding:'4px 14px',minWidth:52}}>
+        <span style={{fontSize:22,lineHeight:1}}>🌐</span>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Браузер</span>
+        {navTab==='browser'&&<motion.div layoutId="nav_indicator" style={{position:'absolute',bottom:-2,left:'50%',transform:'translateX(-50%)',width:20,height:2,borderRadius:1,background:c.accent}}/>}
       </motion.button>
     </div>
 
