@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, accountsTable, broadcastsTable, broadcastReactionsTable, broadcastCommentsTable, commentReactionsTable, broadcastPollVotesTable } from "@workspace/db";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { db, accountsTable, broadcastsTable, broadcastReactionsTable, broadcastCommentsTable, commentReactionsTable, broadcastPollVotesTable, bookmarksTable } from "@workspace/db";
+import { eq, desc, and, sql, inArray, isNull } from "drizzle-orm";
 import { requireSession, resolveSession, getSessionToken } from "../lib/sessionAuth.js";
 import { contentFilter } from "../middlewares/contentFilter.js";
 
@@ -278,7 +278,7 @@ router.get("/broadcasts/:id", async (req, res) => {
 router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"]), async (req, res) => {
   try {
     const userHash = (req as any).userHash as string;
-    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots, poll, quoteOf, repostOf } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[]; poll?: any; quoteOf?: any; repostOf?: any };
+    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots, poll, quoteOf, repostOf, parentId } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[]; poll?: any; quoteOf?: any; repostOf?: any; parentId?: number };
     const hasDocUrls = docUrls && docUrls.length > 0;
     if (!content?.trim() && !audioUrl && !imageUrl && !videoUrl && !hasDocUrls && !hasBooking && !poll && !repostOf) { res.status(400).json({ error: 'content required' }); return; }
     if (!['pro', 'scene', 'krug', 'ether'].includes(authorMode)) { res.status(400).json({ error: 'invalid mode' }); return; }
@@ -298,12 +298,100 @@ router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"
       videoUrl: videoUrl || null,
       docUrls: hasDocUrls ? JSON.stringify(docUrls) : null,
       meta: Object.keys(metaObj).length ? JSON.stringify(metaObj) : null,
+      parentId: parentId ?? null,
     }).returning();
 
     const b = rows[0];
     const parsedMeta = b.meta ? JSON.parse(b.meta) : null;
     const authorInfo = await getAuthorInfo(userHash, authorMode);
     res.json({ ...b, docUrls: b.docUrls ? JSON.parse(b.docUrls) : null, ...(parsedMeta || {}), reactions: [], commentCount: 0, myReactions: [], author: authorInfo });
+  } catch (err) {
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/* ── GET /api/broadcasts/:id/replies — треды (ответы в тред) ── */
+router.get("/broadcasts/:id/replies", async (req, res) => {
+  try {
+    const id = parseInt(req.params['id'] as string);
+    if (isNaN(id)) { res.status(400).json({ error: 'invalid id' }); return; }
+    const token = getSessionToken(req);
+    const userHash = token ? await resolveSession(token) : null;
+
+    const replies = await db.select().from(broadcastsTable)
+      .where(eq(broadcastsTable.parentId, id))
+      .orderBy(broadcastsTable.createdAt);
+
+    const enriched = await Promise.all(replies.map(async (b) => {
+      const [reactions, authorInfo, myReactions] = await Promise.all([
+        db.select({ emoji: broadcastReactionsTable.emoji, count: sql<number>`count(*)::int` })
+          .from(broadcastReactionsTable).where(eq(broadcastReactionsTable.broadcastId, b.id)).groupBy(broadcastReactionsTable.emoji),
+        getAuthorInfo(b.authorHash, b.authorMode),
+        userHash
+          ? db.select({ emoji: broadcastReactionsTable.emoji }).from(broadcastReactionsTable)
+              .where(and(eq(broadcastReactionsTable.broadcastId, b.id), eq(broadcastReactionsTable.userHash, userHash)))
+          : Promise.resolve([]),
+      ]);
+      const parsedMeta = b.meta ? (() => { try { return JSON.parse(b.meta!); } catch { return null; } })() : null;
+      return { ...b, docUrls: b.docUrls ? JSON.parse(b.docUrls) : null, ...(parsedMeta || {}), reactions, myReactions: myReactions.map(r => r.emoji), author: authorInfo };
+    }));
+
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/* ── POST /api/bookmarks/:id — добавить/убрать закладку ── */
+router.post("/bookmarks/:id", requireSession, async (req, res) => {
+  try {
+    const broadcastId = parseInt(req.params['id'] as string);
+    const userHash = (req as any).userHash as string;
+    if (isNaN(broadcastId)) { res.status(400).json({ error: 'invalid id' }); return; }
+
+    const existing = await db.select().from(bookmarksTable)
+      .where(and(eq(bookmarksTable.userHash, userHash), eq(bookmarksTable.broadcastId, broadcastId))).limit(1);
+
+    if (existing.length) {
+      await db.delete(bookmarksTable).where(and(eq(bookmarksTable.userHash, userHash), eq(bookmarksTable.broadcastId, broadcastId)));
+      res.json({ bookmarked: false });
+    } else {
+      await db.insert(bookmarksTable).values({ userHash, broadcastId });
+      res.json({ bookmarked: true });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/* ── GET /api/bookmarks — список закладок пользователя ── */
+router.get("/bookmarks", requireSession, async (req, res) => {
+  try {
+    const userHash = (req as any).userHash as string;
+    const token = getSessionToken(req);
+
+    const bms = await db.select({ broadcastId: bookmarksTable.broadcastId })
+      .from(bookmarksTable).where(eq(bookmarksTable.userHash, userHash))
+      .orderBy(desc(bookmarksTable.createdAt));
+
+    if (!bms.length) { res.json([]); return; }
+    const ids = bms.map(b => b.broadcastId);
+
+    const posts = await db.select().from(broadcastsTable).where(inArray(broadcastsTable.id, ids));
+    const enriched = await Promise.all(posts.map(async (b) => {
+      const [reactions, authorInfo, myReactions] = await Promise.all([
+        db.select({ emoji: broadcastReactionsTable.emoji, count: sql<number>`count(*)::int` })
+          .from(broadcastReactionsTable).where(eq(broadcastReactionsTable.broadcastId, b.id)).groupBy(broadcastReactionsTable.emoji),
+        getAuthorInfo(b.authorHash, b.authorMode),
+        db.select({ emoji: broadcastReactionsTable.emoji }).from(broadcastReactionsTable)
+          .where(and(eq(broadcastReactionsTable.broadcastId, b.id), eq(broadcastReactionsTable.userHash, userHash))),
+      ]);
+      const parsedMeta = b.meta ? (() => { try { return JSON.parse(b.meta!); } catch { return null; } })() : null;
+      return { ...b, docUrls: b.docUrls ? JSON.parse(b.docUrls) : null, ...(parsedMeta || {}), reactions, myReactions: myReactions.map(r => r.emoji), author: authorInfo };
+    }));
+
+    const ordered = ids.map(id => enriched.find(p => p.id === id)).filter(Boolean);
+    res.json(ordered);
   } catch (err) {
     res.status(500).json({ error: 'internal' });
   }

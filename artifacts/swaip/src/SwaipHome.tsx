@@ -1878,6 +1878,26 @@ function CommentsSheet({postId,session,authorHash,authorName,authorNick,authorAv
   );
 }
 
+function rawToPost(b:any):Post{
+  return {
+    id:String(b.id),
+    text:b.content||'',
+    img:b.imageUrl||undefined,
+    videoUrl:b.videoUrl||undefined,
+    audioUrl:b.audioUrl||undefined,
+    docUrls:b.docUrls||undefined,
+    likes:(b.reactions||[]).reduce((s:number,r:any)=>s+(r.count||0),0),
+    liked:(b.myReactions||[]).length>0,
+    comments:b.commentCount||0,
+    ts:b.createdAt?fmtTsGlobal(b.createdAt):'только что',
+    ...(b.hasBooking?{hasBooking:true,bookingLabel:b.bookingLabel||'Записаться',bookingSlots:Array.isArray(b.bookingSlots)?b.bookingSlots:[]}:{}),
+    ...(b.poll?{poll:b.poll}:{}),
+    ...(b.myVote!==undefined?{myVote:b.myVote}:{}),
+    ...(b.quoteOf?{quoteOf:b.quoteOf}:{}),
+    ...(b.repostOf?{repostOf:b.repostOf}:{}),
+  };
+}
+
 function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,isOwner,c,accent,style=1}:{p:Post;name:string;avatarSrc:string;onLike:(id:string)=>void;onComment?:(id:string)=>void;onBook?:(id:string,time?:string)=>void;onUpdate?:(updated:Post)=>void;onNewPost?:(raw:any)=>void;isOwner?:boolean;c:Pal;accent?:string;style?:number}){
   const ac=accent||'#60a5fa';
   const [lb,setLb]=useState(false);
@@ -1901,6 +1921,11 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
   /* Доп. состояния */
   const [pinned,setPinned]=useState(()=>{ try{const k=`swaip_pinned_${p.id}`;return localStorage.getItem(k)==='1';}catch{return false;}});
   const [bookmarked,setBookmarked]=useState(()=>{ try{const k=`swaip_bm_${p.id}`;return localStorage.getItem(k)==='1';}catch{return false;}});
+  const [showThread,setShowThread]=useState(false);
+  const [threadReplies,setThreadReplies]=useState<Post[]>([]);
+  const [threadText,setThreadText]=useState('');
+  const [threadSending,setThreadSending]=useState(false);
+  const [threadLoaded,setThreadLoaded]=useState(false);
   const [commentsOff,setCommentsOff]=useState(false);
   const [showStats,setShowStats]=useState(false);
   const [showPromote,setShowPromote]=useState(false);
@@ -1910,7 +1935,34 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
   const [deleting,setDeleting]=useState(false);
   const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(null),2200);};
   const handlePin=()=>{const next=!pinned;setPinned(next);try{next?localStorage.setItem(`swaip_pinned_${p.id}`,'1'):localStorage.removeItem(`swaip_pinned_${p.id}`);}catch{}setShowMenu(false);showToast(next?'📌 Пост закреплён':'📌 Пост откреплён');};
-  const handleBookmark=()=>{const next=!bookmarked;setBookmarked(next);try{next?localStorage.setItem(`swaip_bm_${p.id}`,'1'):localStorage.removeItem(`swaip_bm_${p.id}`);}catch{}setShowMenu(false);showToast(next?'🔖 Добавлено в закладки':'🔖 Убрано из закладок');};
+  const handleBookmark=()=>{
+    const next=!bookmarked;setBookmarked(next);
+    try{next?localStorage.setItem(`swaip_bm_${p.id}`,'1'):localStorage.removeItem(`swaip_bm_${p.id}`);}catch{}
+    setShowMenu(false);showToast(next?'🔖 Добавлено в закладки':'🔖 Убрано из закладок');
+    const numId=parseInt(p.id);if(!isNaN(numId)){fetch(`${window.location.origin}/api/bookmarks/${numId}`,{method:'POST',headers:{'x-session-token':getSessionToken()||''}}).catch(()=>null);}
+  };
+  const loadThreadReplies=async()=>{
+    const numId=parseInt(p.id);if(isNaN(numId))return;
+    try{
+      const r=await fetch(`${window.location.origin}/api/broadcasts/${numId}/replies`,{headers:{'x-session-token':getSessionToken()||''}});
+      if(r.ok){const data=await r.json();setThreadReplies(data.map((b:any)=>rawToPost(b)));}
+    }catch{}
+    setThreadLoaded(true);
+  };
+  const handleOpenThread=async()=>{
+    const next=!showThread;setShowThread(next);
+    if(next&&!threadLoaded)await loadThreadReplies();
+  };
+  const handleSendThread=async()=>{
+    if(!threadText.trim())return;
+    const numId=parseInt(p.id);if(isNaN(numId))return;
+    setThreadSending(true);
+    try{
+      const r=await fetch(`${window.location.origin}/api/broadcasts`,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},body:JSON.stringify({content:threadText.trim(),authorMode:'pro',parentId:numId})});
+      if(r.ok){const d=await r.json();setThreadReplies(prev=>[...prev,rawToPost(d)]);setThreadText('');showToast('🧵 Ответ добавлен в тред');}
+    }catch{}
+    setThreadSending(false);
+  };
   const handleCopyLink=()=>{const url=`${window.location.origin}/?post=${p.id}`;try{navigator.clipboard.writeText(url);}catch{}setShowMenu(false);showToast('🔗 Ссылка скопирована');};
   const handleCommentsToggle=()=>{setCommentsOff(v=>!v);setShowMenu(false);showToast(commentsOff?'💬 Комментарии включены':'💬 Комментарии отключены');};
   const handleArchive=()=>{setArchived(true);setShowMenu(false);showToast('📦 Пост архивирован');};
@@ -2170,6 +2222,41 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         ))}
       </motion.div>
     </AnimatePresence>
+  ):null;
+
+  /* ── Тред ── */
+  const threadEl=showThread?(
+    <div style={{borderTop:`1px solid ${c.border}`,padding:'12px 14px 8px',background:'rgba(255,255,255,0.02)'}}>
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+        <span style={{fontSize:14}}>🧵</span>
+        <span style={{fontSize:12,fontWeight:800,color:ac,fontFamily:'"Montserrat",sans-serif'}}>Тред</span>
+        <span style={{fontSize:11,color:c.sub,marginLeft:2}}>{threadReplies.length} {threadReplies.length===1?'ответ':threadReplies.length<5?'ответа':'ответов'}</span>
+      </div>
+      {threadReplies.length===0&&threadLoaded&&(
+        <div style={{fontSize:12,color:c.sub,textAlign:'center',padding:'8px 0 4px',fontFamily:'"Montserrat",sans-serif'}}>Пока нет ответов. Будь первым!</div>
+      )}
+      {threadReplies.map((reply,i)=>(
+        <div key={reply.id} style={{display:'flex',gap:8,marginBottom:8,alignItems:'flex-start'}}>
+          <div style={{width:28,height:28,borderRadius:'50%',background:ac+'22',border:`1.5px solid ${ac}44`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>👤</div>
+          <div style={{flex:1}}>
+            <div style={{background:'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:14,padding:'8px 12px'}}>
+              <div style={{fontSize:13,color:c.mid,lineHeight:1.5,fontFamily:'"Montserrat",sans-serif'}}>{reply.text}</div>
+            </div>
+            <div style={{fontSize:10,color:c.sub,marginTop:3,paddingLeft:4}}>{reply.ts}</div>
+          </div>
+        </div>
+      ))}
+      <div style={{display:'flex',gap:8,alignItems:'center',marginTop:6}}>
+        <input value={threadText} onChange={e=>setThreadText(e.target.value)}
+          onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSendThread();}}}
+          placeholder="Ответить в тред…"
+          style={{flex:1,background:'rgba(255,255,255,0.07)',border:`1px solid ${c.border}`,borderRadius:20,padding:'8px 14px',color:c.light,fontSize:13,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+        <motion.button whileTap={{scale:0.88}} onClick={handleSendThread} disabled={!threadText.trim()||threadSending}
+          style={{background:threadText.trim()?ac:'rgba(255,255,255,0.1)',border:'none',borderRadius:'50%',width:34,height:34,cursor:threadText.trim()?'pointer':'default',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,transition:'background 0.2s',flexShrink:0,color:'#fff',opacity:threadSending?0.5:1}}>
+          {threadSending?'…':'↑'}
+        </motion.button>
+      </div>
+    </div>
   ):null;
 
   /* ── Модал редактирования ── */
@@ -2517,22 +2604,31 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         {docEl&&<div style={{paddingBottom:4}}>{docEl}</div>}
         {localText&&<p style={{fontSize:13,color:c.mid,lineHeight:1.55,margin:'0 0 10px'}}>{localText}</p>}
         {quoteEl}{pollEl}{bookEl}
-        <div style={{display:'flex',gap:6}}>
+        <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
           <motion.button whileTap={{scale:0.85}} onClick={()=>onLike(p.id)}
-            style={{display:'flex',alignItems:'center',gap:4,padding:'6px 14px',borderRadius:50,
+            style={{display:'flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:50,
               background:p.liked?`${ac}22`:c.cardAlt,color:p.liked?ac:c.sub,
               border:`1.5px solid ${p.liked?ac+'66':c.border}`,cursor:'pointer',fontWeight:800,fontSize:12,transition:'all 0.18s'}}>
             {p.liked?'❤️':'🤍'} {p.likes}
           </motion.button>
-          <motion.button whileTap={{scale:0.93}} onClick={()=>onComment?.(p.id)} style={{display:'flex',alignItems:'center',gap:4,padding:'6px 14px',
+          <motion.button whileTap={{scale:0.93}} onClick={()=>onComment?.(p.id)} style={{display:'flex',alignItems:'center',gap:4,padding:'6px 12px',
             borderRadius:50,background:c.cardAlt,color:c.sub,border:`1px solid ${c.border}`,cursor:'pointer',fontWeight:700,fontSize:12}}>
             💬 {p.comments}
           </motion.button>
-          <motion.button whileTap={{scale:0.95}} onClick={handleShare} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:50,
+          <motion.button whileTap={{scale:0.93}} onClick={handleOpenThread} style={{display:'flex',alignItems:'center',gap:4,padding:'6px 12px',
+            borderRadius:50,background:showThread?`${ac}18`:c.cardAlt,color:showThread?ac:c.sub,border:`1px solid ${showThread?ac+'44':c.border}`,cursor:'pointer',fontWeight:700,fontSize:12}}>
+            🧵 Тред
+          </motion.button>
+          <motion.button whileTap={{scale:0.93}} onClick={handleBookmark} style={{display:'flex',alignItems:'center',gap:4,padding:'6px 12px',
+            borderRadius:50,background:bookmarked?`${ac}18`:c.cardAlt,color:bookmarked?ac:c.sub,border:`1.5px solid ${bookmarked?ac+'55':c.border}`,cursor:'pointer',fontWeight:700,fontSize:12,transition:'all 0.18s'}}>
+            {bookmarked?'🔖':'🔖'}
+          </motion.button>
+          <motion.button whileTap={{scale:0.95}} onClick={handleShare} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:50,
             background:`${ac}11`,border:`1px solid ${ac}33`,cursor:'pointer',fontWeight:800,fontSize:12,color:ac}}>
-            <span style={{fontSize:15}}>📤</span> Поделиться
+            <span style={{fontSize:15}}>📤</span>
           </motion.button>
         </div>
+        {threadEl}
       </div>
     </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
@@ -2576,17 +2672,20 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         {([
           {ico:p.liked?'❤️':'🤍',cnt:p.likes,fn:()=>onLike(p.id),hi:p.liked},
           {ico:'💬',cnt:p.comments,fn:()=>onComment?.(p.id),hi:false},
-          {ico:'📤',cnt:'Поделиться',fn:handleShare,hi:false},
+          {ico:'🧵',cnt:'',fn:handleOpenThread,hi:showThread},
+          {ico:bookmarked?'🔖':'🔖',cnt:'',fn:handleBookmark,hi:bookmarked},
+          {ico:'📤',cnt:'',fn:handleShare,hi:false},
           {ico:'⋯',cnt:'',fn:()=>setShowMenu(v=>!v),hi:false},
         ] as {ico:string;cnt:number|string;fn:()=>void;hi:boolean}[]).map((b,i)=>(
           <motion.button key={i} whileTap={{scale:0.88}} onClick={b.fn}
-            style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'13px 0',
-              background:'none',border:'none',borderRight:i<3?`1px solid ${c.border}`:'none',
+            style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'12px 0',
+              background:'none',border:'none',borderRight:i<5?`1px solid ${c.border}`:'none',
               cursor:'pointer',fontSize:13,fontWeight:700,color:b.hi?ac:c.sub}}>
             {b.ico}{b.cnt!==''?<span style={{marginLeft:3}}>{b.cnt}</span>:null}
           </motion.button>
         ))}
       </div>
+      {threadEl}
       <div style={{position:'relative'}}>{menuEl}</div>
     </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
@@ -2610,7 +2709,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
       {docEl&&<div style={{marginBottom:8}}>{docEl}</div>}
       {localText&&<p style={{fontSize:15,fontWeight:600,color:c.light,lineHeight:1.5,margin:'0 0 10px',letterSpacing:'-0.01em'}}>{localText}</p>}
       {quoteEl}{pollEl}{bookEl}
-      <div style={{display:'flex',alignItems:'center',gap:20}}>
+      <div style={{display:'flex',alignItems:'center',gap:16}}>
         <motion.button whileTap={{scale:0.9}} onClick={()=>onLike(p.id)}
           style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',
             fontSize:12,color:p.liked?ac:c.sub,fontWeight:800,padding:0}}>
@@ -2619,10 +2718,17 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         <motion.button whileTap={{scale:0.93}} onClick={()=>onComment?.(p.id)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',fontSize:12,color:c.sub,fontWeight:700,padding:0}}>
           <span style={{fontSize:15}}>💬</span> {p.comments}
         </motion.button>
+        <motion.button whileTap={{scale:0.93}} onClick={handleOpenThread} style={{display:'flex',alignItems:'center',gap:4,background:'none',border:'none',cursor:'pointer',fontSize:12,color:showThread?ac:c.sub,fontWeight:700,padding:0}}>
+          <span style={{fontSize:15}}>🧵</span>
+        </motion.button>
+        <motion.button whileTap={{scale:0.93}} onClick={handleBookmark} style={{display:'flex',alignItems:'center',gap:4,background:'none',border:'none',cursor:'pointer',fontSize:12,color:bookmarked?ac:c.sub,fontWeight:700,padding:0}}>
+          <span style={{fontSize:15}}>🔖</span>
+        </motion.button>
         <motion.button whileTap={{scale:0.93}} onClick={handleShare} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:4,background:'none',border:'none',cursor:'pointer',fontSize:11,fontWeight:900,color:ac,letterSpacing:'0.04em',padding:0}}>
-          <span style={{fontSize:14}}>📤</span> Поделиться
+          <span style={{fontSize:14}}>📤</span>
         </motion.button>
       </div>
+      {threadEl}
       <div style={{height:1,background:c.border,marginTop:12}}/>
     </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
@@ -2649,26 +2755,37 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         {repostEl}
         {localText&&<p style={{fontSize:12,color:'rgba(210,220,255,0.8)',lineHeight:1.6,margin:'0 0 12px',fontFamily:'monospace'}}>{localText}</p>}
         {quoteEl}{pollEl}{bookEl}
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
           <motion.button whileTap={{scale:0.88}} onClick={()=>onLike(p.id)}
-            style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,padding:'8px 16px',
+            style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,padding:'7px 14px',
               background:p.liked?`${ac}28`:'transparent',border:`1px solid ${p.liked?ac:ac+'44'}`,borderRadius:8,cursor:'pointer',
               boxShadow:p.liked?`0 0 14px ${ac}55`:'none',transition:'all 0.2s'}}>
-            <span style={{fontSize:18,lineHeight:1}}>{p.liked?'❤️':'🤍'}</span>
-            <span style={{fontSize:11,fontWeight:900,color:p.liked?ac:'rgba(180,190,230,0.5)'}}>{p.likes}</span>
+            <span style={{fontSize:17,lineHeight:1}}>{p.liked?'❤️':'🤍'}</span>
+            <span style={{fontSize:10,fontWeight:900,color:p.liked?ac:'rgba(180,190,230,0.5)'}}>{p.likes}</span>
           </motion.button>
-          <motion.button whileTap={{scale:0.88}} onClick={()=>onComment?.(p.id)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,padding:'8px 16px',
+          <motion.button whileTap={{scale:0.88}} onClick={()=>onComment?.(p.id)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,padding:'7px 14px',
             background:'transparent',border:`1px solid ${ac}33`,borderRadius:8,cursor:'pointer'}}>
-            <span style={{fontSize:18,lineHeight:1}}>💬</span>
-            <span style={{fontSize:11,fontWeight:900,color:'rgba(180,190,230,0.5)'}}>{p.comments}</span>
+            <span style={{fontSize:17,lineHeight:1}}>💬</span>
+            <span style={{fontSize:10,fontWeight:900,color:'rgba(180,190,230,0.5)'}}>{p.comments}</span>
           </motion.button>
-          <motion.button whileTap={{scale:0.95}} onClick={handleShare} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,padding:'9px 16px',
+          <motion.button whileTap={{scale:0.88}} onClick={handleOpenThread} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,padding:'7px 12px',
+            background:showThread?`${ac}18`:'transparent',border:`1px solid ${showThread?ac:ac+'33'}`,borderRadius:8,cursor:'pointer',
+            boxShadow:showThread?`0 0 10px ${ac}44`:'none',transition:'all 0.2s'}}>
+            <span style={{fontSize:17,lineHeight:1}}>🧵</span>
+          </motion.button>
+          <motion.button whileTap={{scale:0.88}} onClick={handleBookmark} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,padding:'7px 12px',
+            background:bookmarked?`${ac}28`:'transparent',border:`1px solid ${bookmarked?ac:ac+'33'}`,borderRadius:8,cursor:'pointer',
+            boxShadow:bookmarked?`0 0 10px ${ac}44`:'none',transition:'all 0.2s'}}>
+            <span style={{fontSize:17,lineHeight:1}}>🔖</span>
+          </motion.button>
+          <motion.button whileTap={{scale:0.95}} onClick={handleShare} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,padding:'8px 14px',
             border:`1px solid ${ac}66`,borderRadius:8,background:`${ac}18`,cursor:'pointer',
             fontSize:13,color:ac,fontWeight:900,boxShadow:`0 0 12px ${ac}44`}}>
-            <span style={{fontSize:16}}>📤</span> Поделиться
+            <span style={{fontSize:16}}>📤</span>
           </motion.button>
           <div style={{position:'relative'}}>{menuBtn}{menuEl}</div>
         </div>
+        {threadEl}
       </div>
     </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
@@ -2700,11 +2817,13 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         </div>
       </div>
       {bookEl&&<div style={{marginLeft:44,marginTop:6}}>{bookEl}</div>}
-      <div style={{display:'flex',gap:5,marginLeft:50,marginTop:5}}>
+      <div style={{display:'flex',gap:5,marginLeft:50,marginTop:5,flexWrap:'wrap'}}>
         {([
           {ico:p.liked?'❤️':'🤍',cnt:p.likes,fn:()=>onLike(p.id),hi:p.liked},
           {ico:'💬',cnt:p.comments,fn:()=>onComment?.(p.id),hi:false},
-          {ico:'📤',cnt:'Поделиться',fn:handleShare,hi:false},
+          {ico:'🧵',cnt:'',fn:handleOpenThread,hi:showThread},
+          {ico:'🔖',cnt:'',fn:handleBookmark,hi:bookmarked},
+          {ico:'📤',cnt:'',fn:handleShare,hi:false},
           {ico:'⋯',cnt:'',fn:()=>setShowMenu(v=>!v),hi:false},
         ] as {ico:string;cnt:number|string;fn:()=>void;hi:boolean}[]).map((b,i)=>(
           <motion.button key={i} whileTap={{scale:0.85}} onClick={b.fn}
@@ -2716,6 +2835,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         ))}
         <div style={{position:'relative'}}>{menuEl}</div>
       </div>
+      {showThread&&<div style={{marginLeft:50,marginTop:4}}>{threadEl}</div>}
     </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 
@@ -2743,7 +2863,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
           {quoteEl}{pollEl}
         </div>
         {bookEl}
-        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:7}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:7}}>
           <motion.button whileTap={{scale:0.88}} onClick={()=>onLike(p.id)}
             style={{display:'flex',alignItems:'center',gap:3,background:'none',border:'none',
               cursor:'pointer',fontSize:11,fontWeight:800,color:p.liked?ac:c.sub,padding:0}}>
@@ -2753,9 +2873,17 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
             cursor:'pointer',fontSize:11,fontWeight:700,color:c.sub,padding:0}}>
             <span style={{fontSize:13}}>💬</span>{p.comments}
           </motion.button>
+          <motion.button whileTap={{scale:0.93}} onClick={handleOpenThread} style={{display:'flex',alignItems:'center',gap:3,background:'none',border:'none',
+            cursor:'pointer',fontSize:11,fontWeight:700,color:showThread?ac:c.sub,padding:0}}>
+            <span style={{fontSize:13}}>🧵</span>
+          </motion.button>
+          <motion.button whileTap={{scale:0.93}} onClick={handleBookmark} style={{display:'flex',alignItems:'center',gap:3,background:'none',border:'none',
+            cursor:'pointer',fontSize:11,fontWeight:700,color:bookmarked?ac:c.sub,padding:0}}>
+            <span style={{fontSize:13}}>🔖</span>
+          </motion.button>
           <motion.button whileTap={{scale:0.95}} onClick={handleShare} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:4,background:`${ac}18`,
             border:`1px solid ${ac}44`,borderRadius:6,padding:'3px 9px',cursor:'pointer',fontSize:11,fontWeight:800,color:ac}}>
-            <span style={{fontSize:13}}>📤</span> Поделиться
+            <span style={{fontSize:13}}>📤</span>
           </motion.button>
           <div style={{position:'relative'}}>{menuBtn}{menuEl}</div>
         </div>
@@ -2764,6 +2892,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
       {videoEl}
       {audioEl&&<div style={{padding:'0 8px 8px'}}>{audioEl}</div>}
       {docEl&&<div style={{padding:'0 8px 8px'}}>{docEl}</div>}
+      {threadEl}
     </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 }

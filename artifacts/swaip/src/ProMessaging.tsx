@@ -975,8 +975,19 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                             </div>
                           )}
                           {m.messageType==='videoMessage' && m.mediaUrl && (
-                            <video src={m.mediaUrl} controls playsInline
-                              style={{ maxWidth:220, maxHeight:280, borderRadius:14, display:'block' }} />
+                            <div style={{ position:'relative', display:'inline-block' }}>
+                              <video src={m.mediaUrl} controls playsInline
+                                style={{ width:200, height:200, borderRadius:'50%', display:'block',
+                                  objectFit:'cover', border:'3px solid rgba(255,255,255,0.18)',
+                                  boxShadow:'0 4px 20px rgba(0,0,0,0.5)' }} />
+                              {m.duration && (
+                                <div style={{ position:'absolute', bottom:8, right:8, background:'rgba(0,0,0,0.65)',
+                                  borderRadius:10, padding:'2px 7px', fontSize:10, color:'#fff', fontWeight:700,
+                                  fontFamily:'"Montserrat",sans-serif', backdropFilter:'blur(4px)' }}>
+                                  {String(Math.floor(m.duration/60)).padStart(2,'0')}:{String(m.duration%60).padStart(2,'0')}
+                                </div>
+                              )}
+                            </div>
                           )}
                           {m.messageType==='file' && (
                             <a href={m.mediaUrl||'#'} target="_blank" rel="noopener noreferrer"
@@ -1111,14 +1122,19 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                   ))}
                 </div>
               )}
-              <div style={{ borderRadius:16, overflow:'hidden', background:'#000', aspectRatio:'3/4', position:'relative' }}>
-                <video ref={vidPreviewRef} muted playsInline autoPlay
-                  style={{ display:'block', width:'100%', height:'100%', objectFit:'cover',
-                    transform: camFacing==='user' ? 'scaleX(-1)' : 'none' }} />
-                {videoRecording && (
-                  <motion.div animate={{ opacity:[0.5,1,0.5] }} transition={{ repeat:Infinity, duration:0.9 }}
-                    style={{ position:'absolute', inset:0, border:'3px solid #ef4444', borderRadius:'inherit', pointerEvents:'none' }} />
-                )}
+              <div style={{ display:'flex', justifyContent:'center' }}>
+                <div style={{ width:260, height:260, borderRadius:'50%', overflow:'hidden', background:'#000', position:'relative',
+                  border: videoRecording ? '4px solid #ef4444' : '4px solid rgba(255,255,255,0.2)',
+                  boxShadow: videoRecording ? '0 0 0 6px rgba(239,68,68,0.25)' : '0 0 0 4px rgba(255,255,255,0.06)',
+                  transition:'border-color 0.3s,box-shadow 0.3s' }}>
+                  <video ref={vidPreviewRef} muted playsInline autoPlay
+                    style={{ display:'block', width:'100%', height:'100%', objectFit:'cover',
+                      transform: camFacing==='user' ? 'scaleX(-1)' : 'none' }} />
+                  {videoRecording && (
+                    <motion.div animate={{ opacity:[0.4,0.9,0.4] }} transition={{ repeat:Infinity, duration:0.9 }}
+                      style={{ position:'absolute', inset:0, border:'4px solid #ef4444', borderRadius:'50%', pointerEvents:'none' }} />
+                  )}
+                </div>
               </div>
               <div style={{ display:'flex', justifyContent:'center' }}>
                 {videoRecording ? (
