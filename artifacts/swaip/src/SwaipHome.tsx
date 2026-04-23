@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import SwpExchange from './SwpExchange';
 import AccessibilityAssistant from './AccessibilityAssistant';
+import GamesArcade from './GamesArcade';
 import ChannelsScreen from './ChannelsScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import { checkContent, collectPostText } from './contentFilter';
@@ -348,7 +349,7 @@ const LANGUAGES=[
 ];
 
 /* ══ Боковое меню (слайд слева) ══ */
-function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onDesign,onExchange,onAssistant,onBrowser,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onMeetings?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
+function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onDesign,onExchange,onAssistant,onBrowser,onGames,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onMeetings?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;onGames?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
   type Modal='language'|'privacy'|'about'|'docs'|'ringtone';
   const [modal,setModal]=useState<Modal|null>(null);
@@ -379,6 +380,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onDesign,onExchang
   const curRingName = RINGTONE_OPTIONS.find(r=>r.id===ringtoneId)?.name ?? 'Классический';
 
   const SETTINGS=[
+    {icon:'🎮',label:'Игры',sub:'20 игр — одиночные и мультиплеер',fn:()=>{onGames?.();onClose();}},
     {icon:'🌐',label:'Браузер SWAIP',sub:'Открыть встроенный браузер',fn:()=>{onBrowser?.();onClose();}},
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
     {icon:'📊',label:'Биржа SWP',sub:'Монета SWAIP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
@@ -3139,7 +3141,7 @@ function CallOverlayUI({call,peerInfo,apiBase}:{call:ReturnType<typeof useCallSi
 export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLogout,onOldMode}:SwaipHomeProps){
   const [isDark,setIsDark]=useState(true);
   let c:Pal=isDark?DARK:LIGHT;
-  const [currentScreen,setCurrentScreen]=useState<'home'|'meetings'|'exchange'|'assistant'>('home');
+  const [currentScreen,setCurrentScreen]=useState<'home'|'meetings'|'exchange'|'assistant'|'games'>('home');
 
   /* ── Навигация и звонки (до условных возвратов!) ── */
   const [navTab,setNavTab]=useState<'home'|'messages'|'channels'|'browser'>('home');
@@ -4334,6 +4336,11 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   return(
     <CallCtx.Provider value={call}>
 
+    {/* ═══ ЭКРАН: ИГРЫ ═══ */}
+    {currentScreen==='games'&&(
+      <GamesArcade accentColor={activeAccent} onBack={()=>setCurrentScreen('home')}/>
+    )}
+
     {/* ═══ ЭКРАН: МИТИНГИ ═══ */}
     {currentScreen==='meetings'&&(
       <div style={{position:'fixed',inset:0,zIndex:800}}>
@@ -4536,7 +4543,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onMeetings={()=>setCurrentScreen('meetings')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onMeetings={()=>setCurrentScreen('meetings')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} onGames={()=>setCurrentScreen('games')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
