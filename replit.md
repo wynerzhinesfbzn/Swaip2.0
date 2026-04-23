@@ -21,6 +21,10 @@
 - **Прикрепить к посту через плеер** — dispatch `swaip-track-picked-for-post` event → PostComposerFull слушает и показывает карточку трека
 - Виджет 🎵 Музыка в профиле открывает плеер (через `setShowMusicSheet(true)`)
 - Выбор стиля сохраняется в `localStorage` ключ `swaip_music_style`
+- **Исправлено**: music добавлен в WIDGET_LIST (L4044) — первым элементом
+- **Исправлено**: все 6 стилей профиля обрабатывают `key==='music'` → `setShowMusicSheet(true)`
+- **Исправлено**: `custom-ringtone.mp3` перемещён в `artifacts/swaip/public/` (был в `public/public/`)
+- **Исправлено**: дублирующийся ключ `borderRight` в стиле 3 профиля
 
 ## Обзор проекта
 

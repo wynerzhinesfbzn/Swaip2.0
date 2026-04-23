@@ -4042,6 +4042,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const widgetPreviewRef=useRef<HTMLInputElement>(null);
 
   const WIDGET_LIST=[
+    {key:'music',   icon:'🎵',label:'Музыка',    count:playlist.length},
     {key:'works',   icon:'🎨',label:'Работы',    count:classicWorks.length},
     {key:'reviews', icon:'⭐',label:'Отзывы',    count:classicReviews.length},
     {key:'booking', icon:'📅',label:'Записаться',count:priceItems.reduce((s,p)=>s+p.slots.filter(sl=>!bookings.some(b=>b.slot===sl&&b.itemId===p.id)).length,0)+freeSlots.length},
@@ -5430,7 +5431,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
             <div style={{display:'flex',borderRadius:8,overflow:'hidden',border:`1px solid ${c.border}`}}>
               {[{ico:'✏️',lbl:'Написать',fn:()=>setShowInput(v=>!v)},{ico:'📞',lbl:'Звонок',fn:()=>{}},{ico:'↗',lbl:'Поделиться',fn:()=>setShowShare(true)},{ico:'🎨',lbl:'Дизайн',fn:()=>setShowCoverPicker(v=>!v)}].map((b,i,arr)=>(
                 <motion.button key={b.lbl} whileTap={{scale:0.94}} onClick={b.fn}
-                  style={{flex:1,padding:'9px 4px',background:c.card,borderRight:i<arr.length-1?`1px solid ${c.border}`:'none',border:'none',borderRight:i<arr.length-1?`1px solid ${c.border}`:'none' as any,cursor:'pointer',fontSize:10,color:c.sub,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                  style={{flex:1,padding:'9px 4px',background:c.card,border:'none',borderRight:i<arr.length-1?`1px solid ${c.border}`:'none',cursor:'pointer',fontSize:10,color:c.sub,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
                   <span style={{fontSize:14}}>{b.ico}</span><span>{b.lbl}</span>
                 </motion.button>
               ))}
@@ -5636,6 +5637,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               else if(w.key==='cases')setShowCasesModal(true);
               else if(w.key==='faqs')setShowFaqModal(true);
               else if(w.key==='links')setShowLinksModal(true);
+              else if(w.key==='music')setShowMusicSheet(true);
               else setOpenSheet(w.key);
             }}/>)}
             </div>
