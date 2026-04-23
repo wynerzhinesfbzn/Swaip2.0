@@ -909,6 +909,12 @@ interface PollOption{id:string;text:string;votes:number;}
 interface Poll{question:string;options:PollOption[];totalVotes:number;}
 interface QuoteSnap{id:string;authorName:string;authorAvatar:string;text:string;ts:string;}
 interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:BookingSlot[];bookingLabel?:string;poll?:Poll;myVote?:string|null;quoteOf?:QuoteSnap;repostOf?:QuoteSnap;}
+type Track={id:string;title:string;artist:string;url:string;cover?:string;duration?:number};
+const SWAIP_PLAYLIST_KEY='swaip_playlist_v2';
+function loadPlaylist():Track[]{try{return JSON.parse(localStorage.getItem(SWAIP_PLAYLIST_KEY)||'[]');}catch{return[];}}
+function savePlaylist(t:Track[]){try{localStorage.setItem(SWAIP_PLAYLIST_KEY,JSON.stringify(t));}catch{}}
+let _globalAudio:HTMLAudioElement|null=null;
+function getGlobalAudio():HTMLAudioElement{if(!_globalAudio){_globalAudio=new Audio();_globalAudio.preload='metadata';}return _globalAudio;}
 interface ClassicWork{id:string;imageUrl:string;title:string;desc:string;}
 interface ClassicReview{id:string;imageUrl:string;caption?:string;date:string;}
 interface PriceItem{id:string;name:string;price:string;desc:string;photo:string;unit:string;slots:string[];}
@@ -3251,6 +3257,123 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
 
   const [openSheet,setOpenSheet]=useState<string|null>(null);
 
+  /* ── Музыкальный плеер ── */
+  const [playlist,setPlaylist]=useState<Track[]>(loadPlaylist);
+  const [musicIdx,setMusicIdx]=useState(-1);
+  const [musicPlaying,setMusicPlaying]=useState(false);
+  const [musicProgress,setMusicProgress]=useState(0);
+  const [musicDuration,setMusicDuration]=useState(0);
+  const [showMusicSheet,setShowMusicSheet]=useState(false);
+  const [musicPlayerStyle,setMusicPlayerStyle]=useState(()=>Number(localStorage.getItem('swaip_music_style')||1));
+  const [showMusicPicker,setShowMusicPicker]=useState(false);
+  const [musicPickerCb,setMusicPickerCb]=useState<((t:Track)=>void)|null>(null);
+  const musicFileRef=useRef<HTMLInputElement>(null);
+  const musicUploadingRef=useRef(false);
+
+  const playTrack=useCallback((idx:number,list?:Track[])=>{
+    const pl=list||playlist;
+    if(idx<0||idx>=pl.length)return;
+    const audio=getGlobalAudio();
+    const t=pl[idx];
+    if(audio.src!==t.url){audio.src=t.url;audio.load();}
+    audio.play().catch(()=>{});
+    setMusicIdx(idx);
+    setMusicPlaying(true);
+  },[playlist]);
+
+  const pauseTrack=useCallback(()=>{
+    getGlobalAudio().pause();
+    setMusicPlaying(false);
+  },[]);
+
+  const togglePlayTrack=useCallback((idx:number)=>{
+    if(musicIdx===idx&&musicPlaying){pauseTrack();}
+    else{playTrack(idx);}
+  },[musicIdx,musicPlaying,pauseTrack,playTrack]);
+
+  const nextTrack=useCallback(()=>{
+    if(!playlist.length)return;
+    const next=(musicIdx+1)%playlist.length;
+    playTrack(next);
+  },[musicIdx,playlist,playTrack]);
+
+  const prevTrack=useCallback(()=>{
+    if(!playlist.length)return;
+    const prev=(musicIdx-1+playlist.length)%playlist.length;
+    playTrack(prev);
+  },[musicIdx,playlist,playTrack]);
+
+  const removeTrack=useCallback((id:string)=>{
+    setPlaylist(pl=>{
+      const next=pl.filter(t=>t.id!==id);
+      savePlaylist(next);
+      const removed=pl.findIndex(t=>t.id===id);
+      if(removed===musicIdx){getGlobalAudio().pause();setMusicPlaying(false);setMusicIdx(-1);}
+      else if(removed<musicIdx){setMusicIdx(i=>i-1);}
+      return next;
+    });
+  },[musicIdx]);
+
+  const addTracksToPlaylist=useCallback((tracks:Track[])=>{
+    setPlaylist(pl=>{
+      const next=[...pl,...tracks.filter(t=>!pl.some(e=>e.id===t.id))];
+      savePlaylist(next);
+      return next;
+    });
+  },[]);
+
+  useEffect(()=>{
+    const audio=getGlobalAudio();
+    const onTime=()=>setMusicProgress(audio.currentTime);
+    const onDur=()=>setMusicDuration(audio.duration||0);
+    const onEnd=()=>{
+      setMusicPlaying(false);
+      setPlaylist(pl=>{
+        const next=(musicIdx+1)%pl.length;
+        if(pl.length>1){playTrack(next,pl);}
+        return pl;
+      });
+    };
+    audio.addEventListener('timeupdate',onTime);
+    audio.addEventListener('durationchange',onDur);
+    audio.addEventListener('ended',onEnd);
+    return()=>{audio.removeEventListener('timeupdate',onTime);audio.removeEventListener('durationchange',onDur);audio.removeEventListener('ended',onEnd);};
+  },[musicIdx,playTrack]);
+
+  const handleMusicFilePick=useCallback(async(files:FileList|null)=>{
+    if(!files||!files.length||musicUploadingRef.current)return;
+    musicUploadingRef.current=true;
+    const newTracks:Track[]=[];
+    for(let i=0;i<files.length;i++){
+      const f=files[i];
+      const localUrl=URL.createObjectURL(f);
+      const title=f.name.replace(/\.[^.]+$/,'');
+      try{
+        const r=await fetch(`${window.location.origin}/api/audio-upload`,{method:'POST',headers:{'Content-Type':f.type||'audio/mpeg','x-session-token':getSessionToken()||'','x-filename':f.name},body:f});
+        const json=r.ok?await r.json().catch(()=>null):null;
+        newTracks.push({id:`tr_${Date.now()}_${i}`,title,artist:'',url:json?.url||localUrl});
+      }catch{
+        newTracks.push({id:`tr_${Date.now()}_${i}`,title,artist:'',url:localUrl});
+      }
+    }
+    addTracksToPlaylist(newTracks);
+    musicUploadingRef.current=false;
+    if(musicFileRef.current)musicFileRef.current.value='';
+  },[addTracksToPlaylist]);
+
+  const seekTrack=useCallback((t:number)=>{const a=getGlobalAudio();a.currentTime=t;},[]);
+
+  useEffect(()=>{
+    const onAddTracks=(e:Event)=>{const tracks=(e as CustomEvent<Track[]>).detail;addTracksToPlaylist(tracks);};
+    const onEditTrack=(e:Event)=>{
+      const {id,title,artist}=(e as CustomEvent<{id:string;title:string;artist:string}>).detail;
+      setPlaylist(pl=>{const next=pl.map(t=>t.id===id?{...t,title,artist}:t);savePlaylist(next);return next;});
+    };
+    window.addEventListener('swaip-add-tracks',onAddTracks);
+    window.addEventListener('swaip-edit-track',onEditTrack);
+    return()=>{window.removeEventListener('swaip-add-tracks',onAddTracks);window.removeEventListener('swaip-edit-track',onEditTrack);};
+  },[addTracksToPlaylist]);
+
   /* ── Состояния редактирования Работ ── */
   const [worksEditId,setWorksEditId]=useState<string|null>(null);
   const [worksEditTitle,setWorksEditTitle]=useState('');
@@ -5232,7 +5355,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               }
             </div>
             <div style={{display:'flex',gap:8,overflowX:'auto',padding:'2px 0 4px',scrollbarWidth:'none',msOverflowStyle:'none'}}>
-              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else setOpenSheet(w.key);}}/>)}
+              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else if(w.key==='music')setShowMusicSheet(true);else setOpenSheet(w.key);}}/>)}
             </div>
           </div>
         )}
@@ -5276,7 +5399,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               <motion.button whileTap={{scale:0.96}} onClick={()=>setShowCoverPicker(v=>!v)} style={{width:46,padding:'11px 0',borderRadius:12,background:c.cardAlt,border:`1px solid ${c.border}`,color:c.mid,fontWeight:800,fontSize:16,cursor:'pointer'}}>🎨</motion.button>
             </div>
             <div style={{display:'flex',gap:8,overflowX:'auto',padding:'12px 16px 2px',scrollbarWidth:'none'}}>
-              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else setOpenSheet(w.key);}}/>)}
+              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else if(w.key==='music')setShowMusicSheet(true);else setOpenSheet(w.key);}}/>)}
             </div>
           </div>
         )}
@@ -5313,7 +5436,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               ))}
             </div>
             <div style={{display:'flex',gap:8,overflowX:'auto',padding:'10px 0 2px',scrollbarWidth:'none'}}>
-              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else setOpenSheet(w.key);}}/>)}
+              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else if(w.key==='music')setShowMusicSheet(true);else setOpenSheet(w.key);}}/>)}
             </div>
           </div>
         )}
@@ -5358,7 +5481,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               ))}
             </div>
             <div style={{display:'flex',gap:8,overflowX:'auto',scrollbarWidth:'none'}}>
-              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else setOpenSheet(w.key);}}/>)}
+              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else if(w.key==='music')setShowMusicSheet(true);else setOpenSheet(w.key);}}/>)}
             </div>
           </div>
         )}
@@ -5427,7 +5550,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
             </div>
             {profSite&&<a href={profSite.startsWith('http')?profSite:`https://${profSite}`} target="_blank" rel="noreferrer" style={{display:'block',marginTop:6,fontSize:11,color:'#6060cc',textDecoration:'none'}}>🌐 {profSite.replace(/^https?:\/\//,'')}</a>}
             <div style={{display:'flex',gap:8,overflowX:'auto',padding:'8px 0 2px',scrollbarWidth:'none'}}>
-              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else setOpenSheet(w.key);}}/>)}
+              {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>wOnPreview(w.key)} onLabelSave={wOnLabel(w.key)} onClick={()=>{if(w.key==='works')setShowWorksModal(true);else if(w.key==='reviews')setShowReviewsModal(true);else if(w.key==='prices')setShowPriceWidgetModal(true);else if(w.key==='booking')setOpenSheet('booking');else if(w.key==='certs')setShowCertsModal(true);else if(w.key==='cases')setShowCasesModal(true);else if(w.key==='faqs')setShowFaqModal(true);else if(w.key==='links')setShowLinksModal(true);else if(w.key==='music')setShowMusicSheet(true);else setOpenSheet(w.key);}}/>)}
             </div>
           </div>
         )}
@@ -5464,6 +5587,10 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           avatarUrl={avatarSrc}
           c={c}
           accent={activeAccent}
+          onPickFromPlaylist={()=>{
+            setMusicPickerCb(()=>(t:Track)=>{window.dispatchEvent(new CustomEvent('swaip-track-picked-for-post',{detail:t}));});
+            setShowMusicPicker(true);
+          }}
           onPostCreated={(p)=>{
             const raw=p as any;
             const docUrls:DocAtt[]|undefined=raw.docUrls&&raw.docUrls.length?raw.docUrls:undefined;
@@ -7488,8 +7615,295 @@ function SelfieFrameWrapper({frameId,children}:{frameId:string;children:React.Re
   );
 }
 
+/* ════════════════════════ МУЗЫКАЛЬНЫЙ ПЛЕЕР ════════════════════════ */
+function fmtDur(s:number):string{if(!s||!isFinite(s))return'0:00';const m=Math.floor(s/60);const ss=Math.floor(s%60);return`${m}:${ss<10?'0':''}${ss}`;}
+
+function MusicPlayerSheet({
+  playlist,musicIdx,musicPlaying,musicProgress,musicDuration,
+  playerStyle,setPlayerStyle,
+  onPlay,onPause,onNext,onPrev,onSeek,onRemove,
+  onAddFiles,onClose,c,accent,fileRef,
+  onPickForPost,
+}:{
+  playlist:Track[];musicIdx:number;musicPlaying:boolean;musicProgress:number;musicDuration:number;
+  playerStyle:number;setPlayerStyle:(n:number)=>void;
+  onPlay:(i:number)=>void;onPause:()=>void;onNext:()=>void;onPrev:()=>void;
+  onSeek:(t:number)=>void;onRemove:(id:string)=>void;onAddFiles:(f:FileList|null)=>void;
+  onClose:()=>void;c:Pal;accent:string;fileRef:React.RefObject<HTMLInputElement|null>;
+  onPickForPost?:((t:Track)=>void)|null;
+}){
+  const [uploading,setUploading]=useState(false);
+  const [editId,setEditId]=useState<string|null>(null);
+  const [editTitle,setEditTitle]=useState('');
+  const [editArtist,setEditArtist]=useState('');
+  const [urlInput,setUrlInput]=useState('');
+  const [showUrlInput,setShowUrlInput]=useState(false);
+  const cur=playlist[musicIdx]||null;
+  const pct=musicDuration>0?(musicProgress/musicDuration)*100:0;
+
+  const STYLES=[
+    {n:'Classic',ico:'🎵'},
+    {n:'Vinyl',ico:'💿'},
+    {n:'Neon',ico:'🌙'},
+    {n:'Wave',ico:'〰️'},
+    {n:'Minimal',ico:'⬜'},
+  ];
+
+  const handleFileChange=async(e:React.ChangeEvent<HTMLInputElement>)=>{
+    setUploading(true);
+    await onAddFiles(e.target.files);
+    setUploading(false);
+  };
+
+  const addFromUrl=()=>{
+    const u=urlInput.trim();
+    if(!u)return;
+    const title=u.split('/').pop()?.replace(/\?.*$/,'').replace(/\.[^.]+$/,'')||'Трек';
+    onAddFiles(null);
+    const t:Track={id:`tr_url_${Date.now()}`,title,artist:'',url:u};
+    const ev=new CustomEvent('swaip-add-tracks',{detail:[t]});
+    window.dispatchEvent(ev);
+    setUrlInput('');setShowUrlInput(false);
+  };
+
+  const bg1='#0f0f1a';
+  const bg2='#13131f';
+  const glowStyle=(active:boolean)=>active?`0 0 18px ${accent}99`:'none';
+
+  const TrackRow=({t,i}:{t:Track;i:number})=>{
+    const active=i===musicIdx;
+    const playing=active&&musicPlaying;
+    if(editId===t.id)return(
+      <div style={{padding:'8px 12px',background:'rgba(99,102,241,0.1)',border:'1px solid rgba(99,102,241,0.3)',borderRadius:12,marginBottom:6}}>
+        <input value={editTitle} onChange={e=>setEditTitle(e.target.value)} placeholder="Название" style={{width:'100%',boxSizing:'border-box',marginBottom:6,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(99,102,241,0.3)',background:'rgba(255,255,255,0.06)',color:'#fff',fontSize:13,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+        <input value={editArtist} onChange={e=>setEditArtist(e.target.value)} placeholder="Исполнитель" style={{width:'100%',boxSizing:'border-box',marginBottom:8,padding:'6px 10px',borderRadius:8,border:'1px solid rgba(99,102,241,0.3)',background:'rgba(255,255,255,0.06)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>{
+            const ev=new CustomEvent('swaip-edit-track',{detail:{id:t.id,title:editTitle,artist:editArtist}});
+            window.dispatchEvent(ev);setEditId(null);
+          }} style={{flex:1,padding:'7px',borderRadius:8,background:accent,border:'none',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>✅ Сохранить</button>
+          <button onClick={()=>setEditId(null)} style={{padding:'7px 12px',borderRadius:8,background:'rgba(255,255,255,0.08)',border:'none',color:'rgba(255,255,255,0.5)',fontSize:12,cursor:'pointer'}}>Отмена</button>
+        </div>
+      </div>
+    );
+
+    if(playerStyle===1)return(
+      <motion.div key={t.id} whileTap={{scale:0.98}}
+        style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',marginBottom:4,
+          borderRadius:12,background:active?`rgba(${accent.replace('#','').match(/.{2}/g)?.map(x=>parseInt(x,16)).join(',')},0.12)`:'rgba(255,255,255,0.04)',
+          border:`1px solid ${active?accent+'66':'rgba(255,255,255,0.06)'}`,cursor:'pointer',transition:'all 0.2s',
+          boxShadow:glowStyle(active)}}>
+        <div onClick={()=>playing?onPause():onPlay(i)}
+          style={{width:36,height:36,borderRadius:'50%',background:active?accent:'rgba(255,255,255,0.1)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer',fontSize:15}}>
+          {playing?'⏸':'▶️'}
+        </div>
+        <div style={{flex:1,minWidth:0}} onClick={()=>playing?onPause():onPlay(i)}>
+          <div style={{fontSize:13,fontWeight:700,color:active?'#fff':'rgba(255,255,255,0.85)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title||'Без названия'}</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginTop:1}}>{t.artist||'Неизвестный исполнитель'}</div>
+        </div>
+        {onPickForPost&&<button onClick={()=>onPickForPost(t)} style={{padding:'4px 8px',borderRadius:8,background:'rgba(99,102,241,0.15)',border:'1px solid rgba(99,102,241,0.3)',color:'#a5b4fc',fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0}}>📎</button>}
+        <button onClick={()=>{setEditId(t.id);setEditTitle(t.title);setEditArtist(t.artist);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:14,cursor:'pointer',padding:'0 4px',flexShrink:0}}>✏️</button>
+        <button onClick={()=>onRemove(t.id)} style={{background:'none',border:'none',color:'rgba(255,59,59,0.5)',fontSize:16,cursor:'pointer',padding:'0 4px',flexShrink:0}}>✕</button>
+      </motion.div>
+    );
+
+    if(playerStyle===2)return(
+      <motion.div whileTap={{scale:0.97}} onClick={()=>playing?onPause():onPlay(i)}
+        style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',marginBottom:6,
+          borderRadius:16,background:active?'rgba(255,255,255,0.06)':'transparent',
+          border:`1.5px solid ${active?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.05)'}`,cursor:'pointer'}}>
+        <div style={{width:48,height:48,borderRadius:'50%',background:`conic-gradient(${accent} ${pct}%, transparent ${pct}%)`,
+          display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
+          boxShadow:active?`0 0 20px ${accent}55`:'none',
+          animation:playing?'spin 4s linear infinite':'none'}}>
+          <div style={{width:36,height:36,borderRadius:'50%',background:bg1,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>
+            {playing?'⏸':'▶'}
+          </div>
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:800,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title||'Без названия'}</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{t.artist||'Неизвестный'}</div>
+        </div>
+        {onPickForPost&&<button onClick={e=>{e.stopPropagation();onPickForPost(t);}} style={{padding:'4px 8px',borderRadius:8,background:'rgba(99,102,241,0.15)',border:'1px solid rgba(99,102,241,0.3)',color:'#a5b4fc',fontSize:10,fontWeight:700,cursor:'pointer'}}>📎</button>}
+        <button onClick={e=>{e.stopPropagation();onRemove(t.id);}} style={{background:'none',border:'none',color:'rgba(255,60,60,0.4)',fontSize:15,cursor:'pointer'}}>✕</button>
+      </motion.div>
+    );
+
+    if(playerStyle===3)return(
+      <motion.div whileTap={{scale:0.97}} onClick={()=>playing?onPause():onPlay(i)}
+        style={{display:'flex',alignItems:'center',gap:10,padding:'9px 14px',marginBottom:3,
+          borderRadius:0,borderBottom:'1px solid rgba(255,255,255,0.06)',cursor:'pointer',
+          background:active?`linear-gradient(90deg,${accent}22,transparent)`:'transparent'}}>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.25)',width:22,textAlign:'center',fontWeight:700,flexShrink:0}}>{i+1}</div>
+        <div style={{width:3,height:32,borderRadius:2,background:active?accent:'rgba(255,255,255,0.1)',flexShrink:0,transition:'all 0.3s'}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:active?800:600,color:active?'#fff':'rgba(255,255,255,0.7)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title||'Без названия'}</div>
+          <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{t.artist||'—'}</div>
+        </div>
+        <div style={{fontSize:16,color:active?accent:'rgba(255,255,255,0.15)',flexShrink:0}}>{playing?'♬':'♩'}</div>
+        {onPickForPost&&<button onClick={e=>{e.stopPropagation();onPickForPost(t);}} style={{padding:'3px 7px',borderRadius:6,background:'rgba(99,102,241,0.15)',border:'1px solid rgba(99,102,241,0.3)',color:'#a5b4fc',fontSize:10,fontWeight:700,cursor:'pointer'}}>📎</button>}
+        <button onClick={e=>{e.stopPropagation();onRemove(t.id);}} style={{background:'none',border:'none',color:'rgba(255,60,60,0.4)',fontSize:14,cursor:'pointer'}}>✕</button>
+      </motion.div>
+    );
+
+    if(playerStyle===4)return(
+      <motion.div whileTap={{scale:0.98}} onClick={()=>playing?onPause():onPlay(i)}
+        style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',marginBottom:5,
+          borderRadius:14,
+          background:active?'rgba(0,0,0,0.5)':'rgba(255,255,255,0.02)',
+          border:`1px solid ${active?accent:'rgba(255,255,255,0.06)'}`,
+          boxShadow:active?`0 0 24px ${accent}44,inset 0 0 12px ${accent}11`:'none',
+          cursor:'pointer',transition:'all 0.3s'}}>
+        <div style={{width:38,height:38,borderRadius:10,background:active?`linear-gradient(135deg,${accent},#818cf8)`:'rgba(255,255,255,0.08)',
+          display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>
+          {playing?'⏸':'▶'}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:700,color:active?'#fff':'rgba(255,255,255,0.7)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+            textShadow:active?`0 0 10px ${accent}88`:'none'}}>{t.title||'Без названия'}</div>
+          <div style={{fontSize:10,color:active?`${accent}cc`:'rgba(255,255,255,0.35)'}}>{t.artist||'Неизвестный'}</div>
+        </div>
+        {onPickForPost&&<button onClick={e=>{e.stopPropagation();onPickForPost(t);}} style={{padding:'4px 8px',borderRadius:8,background:'rgba(99,102,241,0.15)',border:'1px solid rgba(99,102,241,0.3)',color:'#a5b4fc',fontSize:10,fontWeight:700,cursor:'pointer'}}>📎</button>}
+        <button onClick={e=>{e.stopPropagation();onRemove(t.id);}} style={{background:'none',border:'none',color:'rgba(255,60,60,0.4)',fontSize:15,cursor:'pointer'}}>✕</button>
+      </motion.div>
+    );
+
+    return(
+      <motion.div whileTap={{scale:0.98}} onClick={()=>playing?onPause():onPlay(i)}
+        style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer'}}>
+        <span style={{fontSize:10,color:'rgba(255,255,255,0.2)',minWidth:18,textAlign:'center'}}>{i+1}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:active?700:500,color:active?'#fff':'rgba(255,255,255,0.6)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title||'Без названия'}</div>
+          {t.artist&&<div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{t.artist}</div>}
+        </div>
+        {active&&<span style={{fontSize:11,color:accent}}>{playing?'▶':'⏸'}</span>}
+        {onPickForPost&&<button onClick={e=>{e.stopPropagation();onPickForPost(t);}} style={{padding:'3px 7px',borderRadius:6,background:'rgba(99,102,241,0.12)',border:'1px solid rgba(99,102,241,0.25)',color:'#a5b4fc',fontSize:10,cursor:'pointer'}}>📎</button>}
+        <button onClick={e=>{e.stopPropagation();onRemove(t.id);}} style={{background:'none',border:'none',color:'rgba(255,60,60,0.35)',fontSize:14,cursor:'pointer'}}>✕</button>
+      </motion.div>
+    );
+  };
+
+  return(
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+      style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.9)',zIndex:3500,backdropFilter:'blur(12px)'}}>
+      <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:28,stiffness:280}}
+        style={{position:'absolute',bottom:0,left:0,right:0,maxHeight:'92vh',display:'flex',flexDirection:'column',
+          background:bg1,borderRadius:'24px 24px 0 0',overflow:'hidden',boxShadow:'0 -8px 60px rgba(0,0,0,0.6)'}}>
+
+        {/* Шапка */}
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:'16px 16px 12px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:17,fontWeight:900,color:'#fff',fontFamily:'"Montserrat",sans-serif'}}>🎵 Музыкальный плеер</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:1}}>{playlist.length} треков в плейлисте</div>
+          </div>
+          <button onClick={onClose} style={{width:34,height:34,borderRadius:'50%',background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.6)',fontSize:17,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+        </div>
+
+        {/* Выбор стиля */}
+        <div style={{display:'flex',gap:6,padding:'10px 16px 8px',overflowX:'auto',scrollbarWidth:'none',flexShrink:0}}>
+          {STYLES.map((s,i)=>(
+            <button key={i} onClick={()=>{setPlayerStyle(i+1);localStorage.setItem('swaip_music_style',String(i+1));}}
+              style={{padding:'5px 12px',borderRadius:20,border:`1.5px solid ${playerStyle===i+1?accent:'rgba(255,255,255,0.1)'}`,
+                background:playerStyle===i+1?`${accent}22`:'rgba(255,255,255,0.04)',
+                color:playerStyle===i+1?accent:'rgba(255,255,255,0.5)',
+                fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',fontFamily:'"Montserrat",sans-serif',flexShrink:0}}>
+              {s.ico} {s.n}
+            </button>
+          ))}
+        </div>
+
+        {/* Большой плеер (текущий трек) */}
+        {cur&&(
+          <div style={{padding:'12px 16px',background:playerStyle===3?`linear-gradient(135deg,${bg2},#0a0a14)`:playerStyle===4?`radial-gradient(ellipse at 50% 0%,${accent}22,${bg2})`:'rgba(255,255,255,0.02)',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+            {playerStyle===2?(
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                <div style={{width:90,height:90,borderRadius:'50%',
+                  background:`conic-gradient(${accent} ${pct}%, rgba(255,255,255,0.08) ${pct}%)`,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  boxShadow:`0 0 30px ${accent}66`,animation:musicPlaying?'spin 6s linear infinite':'none'}}>
+                  <div style={{width:70,height:70,borderRadius:'50%',background:bg1,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>🎵</div>
+                </div>
+                <div style={{textAlign:'center'}}>
+                  <div style={{fontSize:16,fontWeight:900,color:'#fff'}}>{cur.title}</div>
+                  <div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>{cur.artist||'Неизвестный'}</div>
+                </div>
+              </div>
+            ):(
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{width:52,height:52,borderRadius:playerStyle===1?'50%':14,
+                  background:`linear-gradient(135deg,${accent}66,#818cf8aa)`,
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0,
+                  boxShadow:musicPlaying?`0 0 20px ${accent}88`:'none'}}>🎵</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:15,fontWeight:800,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cur.title}</div>
+                  <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>{cur.artist||'Неизвестный исполнитель'}</div>
+                </div>
+              </div>
+            )}
+            {/* Прогресс */}
+            <div style={{marginTop:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{fmtDur(musicProgress)}</span>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{fmtDur(musicDuration)}</span>
+              </div>
+              <div style={{height:4,borderRadius:2,background:'rgba(255,255,255,0.12)',cursor:'pointer',position:'relative'}}
+                onClick={e=>{const r=(e.currentTarget as HTMLDivElement).getBoundingClientRect();const x=e.clientX-r.left;onSeek((x/r.width)*musicDuration);}}>
+                <div style={{position:'absolute',left:0,top:0,height:'100%',borderRadius:2,background:accent,width:`${pct}%`,transition:'width 0.1s linear'}}/>
+                <div style={{position:'absolute',top:'50%',transform:'translate(-50%,-50%)',width:12,height:12,borderRadius:'50%',background:'#fff',boxShadow:`0 0 6px ${accent}`,left:`${pct}%`,transition:'left 0.1s linear'}}/>
+              </div>
+            </div>
+            {/* Управление */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginTop:12}}>
+              <button onClick={onPrev} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:22,cursor:'pointer'}}>⏮</button>
+              <button onClick={()=>musicPlaying?onPause():onPlay(musicIdx>=0?musicIdx:0)}
+                style={{width:52,height:52,borderRadius:'50%',background:accent,border:'none',color:'#fff',fontSize:22,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 20px ${accent}88`}}>
+                {musicPlaying?'⏸':'▶'}
+              </button>
+              <button onClick={onNext} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:22,cursor:'pointer'}}>⏭</button>
+            </div>
+          </div>
+        )}
+
+        {/* Список треков */}
+        <div style={{flex:1,overflowY:'auto',padding:playerStyle===5?'8px 16px':'8px 12px',paddingBottom:16}}>
+          {playlist.length===0?(
+            <div style={{textAlign:'center',paddingTop:40}}>
+              <div style={{fontSize:52,marginBottom:12}}>🎧</div>
+              <div style={{fontSize:15,fontWeight:800,color:'rgba(255,255,255,0.6)',marginBottom:6}}>Плейлист пуст</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>Добавь треки — и они всегда будут под рукой</div>
+            </div>
+          ):(
+            playlist.map((t,i)=><TrackRow key={t.id} t={t} i={i}/>)
+          )}
+        </div>
+
+        {/* Футер: добавить треки */}
+        <div style={{padding:'10px 12px',borderTop:'1px solid rgba(255,255,255,0.07)',flexShrink:0,display:'flex',gap:8,flexWrap:'wrap'}}>
+          <motion.button whileTap={{scale:0.95}} onClick={()=>fileRef.current?.click()}
+            style={{flex:1,padding:'11px',borderRadius:12,background:`linear-gradient(135deg,${accent},#818cf8)`,border:'none',color:'#fff',fontWeight:800,fontSize:13,cursor:'pointer',fontFamily:'"Montserrat",sans-serif'}}>
+            {uploading?'⏳ Загружаю...':'+ Добавить треки'}
+          </motion.button>
+          <motion.button whileTap={{scale:0.95}} onClick={()=>setShowUrlInput(s=>!s)}
+            style={{padding:'11px 16px',borderRadius:12,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+            🔗 URL
+          </motion.button>
+        </div>
+        {showUrlInput&&(
+          <div style={{padding:'0 12px 12px',flexShrink:0,display:'flex',gap:8}}>
+            <input value={urlInput} onChange={e=>setUrlInput(e.target.value)} placeholder="https://... ссылка на аудио"
+              style={{flex:1,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(99,102,241,0.3)',background:'rgba(255,255,255,0.06)',color:'#fff',fontSize:13,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+            <button onClick={addFromUrl} style={{padding:'9px 14px',borderRadius:10,background:accent,border:'none',color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer'}}>ОК</button>
+          </div>
+        )}
+      </motion.div>
+      <input ref={fileRef} type="file" accept="audio/*" multiple style={{display:'none'}} onChange={handleFileChange}/>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    </motion.div>
+  );
+}
+
 /* ════════════════════════ ПОЛНЫЙ COMPOSER ПОСТА ════════════════════════ */
-function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855f7'}:{authorMode:string;onPostCreated:(p:any)=>void;avatarUrl?:string;c:Pal;accent?:string;}){
+function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855f7',onPickFromPlaylist}:{authorMode:string;onPostCreated:(p:any)=>void;avatarUrl?:string;c:Pal;accent?:string;onPickFromPlaylist?:()=>void;}){
   type DocAtt={url:string;name:string;size:number;mime:string};
   const [open,setOpen]=useState(false);
   const [text,setText]=useState('');
@@ -7521,6 +7935,13 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const [musicLoading,setMusicLoading]=useState(false);
   const [musicError,setMusicError]=useState<string|null>(null);
   const musicRef=useRef<HTMLInputElement|null>(null);
+  /* Трек из плейлиста */
+  const [playlistTrack,setPlaylistTrack]=useState<Track|null>(null);
+  useEffect(()=>{
+    const onPick=(e:Event)=>{setPlaylistTrack((e as CustomEvent<Track>).detail);};
+    window.addEventListener('swaip-track-picked-for-post',onPick);
+    return()=>window.removeEventListener('swaip-track-picked-for-post',onPick);
+  },[]);
   /* Селфи */
   const [selfieOpen,setSelfieOpen]=useState(false);
   const [selfieFrame,setSelfieFrame]=useState('phone');
@@ -7661,7 +8082,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const stopSelfieRec=()=>{selfieRecRef.current?.stop();setSelfieRec(false);};
   const discardSelfie=()=>{selfieStreamRef.current?.getTracks().forEach(t=>t.stop());selfieStreamRef.current=null;if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);};
 
-  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);};
+  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPlaylistTrack(null);setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);};
 
   const handlePost=async()=>{
     const validPoll=postHasPoll&&pollQuestion.trim()&&pollOptions.filter(o=>o.trim()).length>=2;
@@ -7675,11 +8096,11 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
       const bookingExtra=postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots.length?postBookingSlots:[]}:{};
       const pollExtra=validPoll?{poll:{question:pollQuestion.trim(),options:pollOptions.filter(o=>o.trim()).map((o,i)=>({id:`opt${i}`,text:o.trim(),votes:0})),totalVotes:0}}:{};
       const apiContent=text.trim()||defaultContent;
-      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra};
+      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||(playlistTrack?.url)||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra};
       try{
         const r=await fetch(`${window.location.origin}/api/broadcasts`,{
           method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},
-          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...(musUrl?{audioUrl:musUrl}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra}),
+          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...((musUrl||playlistTrack?.url)?{audioUrl:musUrl||playlistTrack!.url}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra}),
         });
         if(r.ok){const created=await r.json().catch(()=>null);setOpen(false);reset();onPostCreated({...postData,...created});return;}
       }catch{}
@@ -7724,7 +8145,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
     }finally{setSelfieLoading(false);}
   };
 
-  const canPost=(text.trim()||!!imgFile||!!vidFile||docFiles.length>0||!!musicFile)&&!submitting&&!imgLoading&&!vidLoading&&!docLoading&&!musicLoading;
+  const canPost=(text.trim()||!!imgFile||!!vidFile||docFiles.length>0||!!musicFile||!!playlistTrack)&&!submitting&&!imgLoading&&!vidLoading&&!docLoading&&!musicLoading;
 
   const isDarkComp=c.card==='#0a0a14'||c.card.startsWith('#0')||c.card.startsWith('#1');
   return(
@@ -7813,6 +8234,20 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
               {musicError&&<div style={{fontSize:12,color:'#f87171',padding:'2px 4px'}}>⚠️ {musicError}</div>}
             </div>
           )}
+          {/* Карточка трека из плейлиста */}
+          {playlistTrack&&(
+            <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(99,102,241,0.1)',borderRadius:12,padding:'10px 14px',border:'1px solid rgba(99,102,241,0.3)'}}>
+              <span style={{fontSize:20,flexShrink:0}}>🎵</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{playlistTrack.title}</div>
+                <div style={{fontSize:11,color:'#a5b4fc'}}>{playlistTrack.artist||'Неизвестный'} · Из плейлиста</div>
+              </div>
+              <motion.button whileTap={{scale:0.85}} onClick={()=>setPlaylistTrack(null)} style={{background:c.card,border:'none',borderRadius:'50%',width:28,height:28,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <span style={{fontSize:12,color:c.sub}}>✕</span>
+              </motion.button>
+            </div>
+          )}
+
           {/* ── Кнопка «Записаться» ── */}
           <div style={{borderRadius:12,border:`1px solid ${postHasBooking?'rgba(16,185,129,0.4)':'rgba(255,255,255,0.08)'}`,
             background:postHasBooking?'rgba(16,185,129,0.06)':'rgba(255,255,255,0.03)',overflow:'hidden',transition:'all 0.25s'}}>
@@ -7940,6 +8375,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
               {!voiceRec&&<motion.button whileTap={{scale:0.88}} onClick={()=>docRef.current?.click()} style={{width:38,height:38,borderRadius:'50%',border:`1px solid ${c.border}`,background:docFiles.length?'rgba(234,179,8,0.2)':c.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:17}}>📎</span></motion.button>}
               {!voiceRec&&!musicFile&&<motion.button whileTap={{scale:0.88}} onClick={openSelfie} style={{width:38,height:38,borderRadius:'50%',border:`1px solid ${c.border}`,background:c.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:17}}>🎥</span></motion.button>}
               {!voiceRec&&!musicFile&&<motion.button whileTap={{scale:0.88}} onClick={()=>musicRef.current?.click()} style={{width:38,height:38,borderRadius:'50%',border:`1px solid ${c.border}`,background:c.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:17}}>🎵</span></motion.button>}
+              {!voiceRec&&onPickFromPlaylist&&!playlistTrack&&<motion.button whileTap={{scale:0.88}} onClick={onPickFromPlaylist} style={{width:38,height:38,borderRadius:'50%',border:`1px solid rgba(99,102,241,0.4)`,background:'rgba(99,102,241,0.1)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}} title="Трек из плейлиста"><span style={{fontSize:15}}>📀</span></motion.button>}
               {!voiceUrl&&!voiceRec&&!musicFile&&<motion.button whileTap={{scale:0.88}} onClick={startVoice} style={{width:38,height:38,borderRadius:'50%',border:`1px solid ${c.border}`,background:c.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:17}}>🎙️</span></motion.button>}
             </div>
             <div style={{display:'flex',gap:8,alignItems:'center',justifyContent:'flex-end'}}>
@@ -8391,6 +8827,101 @@ function MeetingsScreen({apiBase,userHash,onBack}:{apiBase:string;userHash:strin
                   </motion.button>
                 </div>
                 <div style={{height:20}}/>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Музыкальный плеер (полный шит) ── */}
+      <AnimatePresence>
+        {showMusicSheet&&(
+          <MusicPlayerSheet
+            playlist={playlist}
+            musicIdx={musicIdx}
+            musicPlaying={musicPlaying}
+            musicProgress={musicProgress}
+            musicDuration={musicDuration}
+            playerStyle={musicPlayerStyle}
+            setPlayerStyle={setMusicPlayerStyle}
+            onPlay={playTrack}
+            onPause={pauseTrack}
+            onNext={nextTrack}
+            onPrev={prevTrack}
+            onSeek={seekTrack}
+            onRemove={removeTrack}
+            onAddFiles={handleMusicFilePick}
+            onClose={()=>setShowMusicSheet(false)}
+            c={c}
+            accent={activeAccent}
+            fileRef={musicFileRef}
+            onPickForPost={(t:Track)=>{window.dispatchEvent(new CustomEvent('swaip-track-picked-for-post',{detail:t}));setShowMusicSheet(false);}}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Floating mini-player ── */}
+      <AnimatePresence>
+        {musicPlaying&&!showMusicSheet&&playlist[musicIdx]&&(
+          <motion.div
+            initial={{y:80,opacity:0}} animate={{y:0,opacity:1}} exit={{y:80,opacity:0}}
+            transition={{type:'spring',damping:24,stiffness:260}}
+            style={{position:'fixed',bottom:72,left:12,right:12,zIndex:2900,
+              background:'rgba(10,10,20,0.95)',backdropFilter:'blur(20px)',
+              border:`1px solid ${activeAccent}44`,borderRadius:18,
+              padding:'10px 14px',boxShadow:`0 4px 32px rgba(0,0,0,0.6),0 0 20px ${activeAccent}33`,
+              display:'flex',alignItems:'center',gap:10}}>
+            <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🎵</div>
+            <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setShowMusicSheet(true)}>
+              <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{playlist[musicIdx].title}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{playlist[musicIdx].artist||'Неизвестный'}</div>
+              <div style={{marginTop:4,height:2,borderRadius:1,background:'rgba(255,255,255,0.12)',position:'relative',overflow:'hidden'}}>
+                <div style={{position:'absolute',left:0,top:0,height:'100%',background:activeAccent,
+                  width:`${musicDuration>0?(musicProgress/musicDuration)*100:0}%`,transition:'width 0.1s linear'}}/>
+              </div>
+            </div>
+            <button onClick={prevTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏮</button>
+            <button onClick={()=>musicPlaying?pauseTrack():playTrack(musicIdx)}
+              style={{width:38,height:38,borderRadius:'50%',background:activeAccent,border:'none',color:'#fff',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              {musicPlaying?'⏸':'▶'}
+            </button>
+            <button onClick={nextTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏭</button>
+            <button onClick={pauseTrack} style={{background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.4)',fontSize:13,cursor:'pointer',borderRadius:8,padding:'4px 8px'}}>✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Пикер трека для поста ── */}
+      <AnimatePresence>
+        {showMusicPicker&&(
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+            style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:4500,backdropFilter:'blur(10px)'}}
+            onClick={()=>setShowMusicPicker(false)}>
+            <motion.div initial={{y:60,opacity:0}} animate={{y:0,opacity:1}} exit={{y:60,opacity:0}}
+              style={{position:'absolute',bottom:0,left:0,right:0,maxHeight:'70vh',background:'#0f0f1a',
+                borderRadius:'20px 20px 0 0',border:'1px solid rgba(255,255,255,0.1)',overflow:'hidden',display:'flex',flexDirection:'column'}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{padding:'14px 16px 10px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:10}}>
+                <div style={{flex:1,fontSize:15,fontWeight:800,color:'#fff'}}>🎵 Выбери трек для поста</div>
+                <button onClick={()=>setShowMusicPicker(false)} style={{background:'rgba(255,255,255,0.08)',border:'none',borderRadius:'50%',width:30,height:30,color:'rgba(255,255,255,0.6)',fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+              </div>
+              <div style={{flex:1,overflowY:'auto',padding:'8px 12px 16px'}}>
+                {playlist.length===0?<div style={{textAlign:'center',padding:'40px 0',color:'rgba(255,255,255,0.4)',fontSize:13}}>Плейлист пуст — добавь треки в плеере</div>:
+                  playlist.map((t,i)=>(
+                    <motion.div key={t.id} whileTap={{scale:0.97}}
+                      onClick={()=>{if(musicPickerCb)musicPickerCb(t);setShowMusicPicker(false);setMusicPickerCb(null);}}
+                      style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',marginBottom:4,borderRadius:12,
+                        background:i===musicIdx?`${activeAccent}22`:'rgba(255,255,255,0.04)',
+                        border:`1px solid ${i===musicIdx?activeAccent+'66':'rgba(255,255,255,0.07)'}`,cursor:'pointer'}}>
+                      <div style={{width:34,height:34,borderRadius:8,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>🎵</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</div>
+                        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{t.artist||'Неизвестный'}</div>
+                      </div>
+                    </motion.div>
+                  ))
+                }
               </div>
             </motion.div>
           </motion.div>
