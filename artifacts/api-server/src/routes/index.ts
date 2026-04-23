@@ -21,6 +21,7 @@ import pushRouter from "./push";
 import exchangeRouter from "./exchange.js";
 import gitPushRouter from "./gitPush.js";
 import ttsRouter from "./tts.js";
+import browserProxyRouter from "./browserProxy.js";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(pushRouter);
 router.use(exchangeRouter);
 router.use(gitPushRouter);
 router.use(ttsRouter);
+router.use(browserProxyRouter);
 
 export default router;

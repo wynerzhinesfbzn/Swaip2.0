@@ -3142,24 +3142,25 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
 
   /* ── Навигация и звонки (до условных возвратов!) ── */
   const [navTab,setNavTab]=useState<'home'|'messages'|'channels'|'browser'>('home');
-  const [browserUrl,setBrowserUrl]=useState('https://www.google.com/');
+  const [browserUrl,setBrowserUrl]=useState('');
   const [browserInput,setBrowserInput]=useState('');
-  const [browserHistory,setBrowserHistory]=useState<string[]>(['https://www.google.com/']);
-  const [browserHistIdx,setBrowserHistIdx]=useState(0);
+  const [browserHistory,setBrowserHistory]=useState<string[]>([]);
+  const [browserHistIdx,setBrowserHistIdx]=useState(-1);
   const [browserLoading,setBrowserLoading]=useState(false);
-  const [browserBlocked,setBrowserBlocked]=useState(false);
   const browserRef=useRef<HTMLIFrameElement>(null);
   const browserInputRef=useRef<HTMLInputElement>(null);
 
+  const mkProxyUrl=(url:string)=>`${window.location.origin}/api/browser-proxy?url=${encodeURIComponent(url)}`;
+
   const openBrowser=(url:string)=>{
     const full=url.startsWith('http')?url:`https://${url}`;
-    setBrowserUrl(full);setBrowserInput(full);setBrowserBlocked(false);setBrowserLoading(true);
+    setBrowserUrl(full);setBrowserInput('');setBrowserLoading(true);
     setBrowserHistory(h=>{const trimmed=h.slice(0,browserHistIdx+1);return [...trimmed,full];});
     setBrowserHistIdx(i=>i+1);
     setNavTab('browser');
   };
   const browserNav=(url:string)=>{
-    setBrowserUrl(url);setBrowserInput(url);setBrowserBlocked(false);setBrowserLoading(true);
+    setBrowserUrl(url);setBrowserInput('');setBrowserLoading(true);
   };
   const browserGo=(raw:string)=>{
     const q=raw.trim();if(!q)return;
@@ -4402,7 +4403,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       ];
       const canBack=browserHistIdx>0;
       const canFwd=browserHistIdx<browserHistory.length-1;
-      const displayHost=()=>{try{return new URL(browserUrl).hostname;}catch{return browserUrl;}};
+      const displayHost=()=>{if(!browserUrl)return '';try{return new URL(browserUrl).hostname;}catch{return browserUrl;}};
       return(
         <div style={{position:'fixed',inset:0,zIndex:800,display:'flex',flexDirection:'column',
           background:isDark?'#08080f':'#f0f0f8'}}>
@@ -4433,9 +4434,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               borderRadius:12,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',overflow:'hidden'}}>
               <span style={{fontSize:13,paddingLeft:10,flexShrink:0,opacity:0.5}}>🔒</span>
               <input ref={browserInputRef}
-                value={browserInput||displayHost()}
+                value={browserInput!==''?browserInput:displayHost()}
                 onChange={e=>setBrowserInput(e.target.value)}
-                onFocus={()=>setBrowserInput(browserUrl)}
+                onFocus={()=>setBrowserInput(browserUrl||'')}
                 onBlur={()=>setBrowserInput('')}
                 onKeyDown={e=>{if(e.key==='Enter'){browserInputRef.current?.blur();browserGo(browserInput);}}}
                 style={{flex:1,background:'none',border:'none',outline:'none',color:c.light,
@@ -4475,31 +4476,23 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           </AnimatePresence>
 
           {/* Контент */}
-          {browserBlocked?(
-            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:32,textAlign:'center'}}>
-              <div style={{fontSize:56}}>🚫</div>
-              <div style={{fontSize:17,fontWeight:800,color:c.light}}>Сайт заблокировал встраивание</div>
-              <div style={{fontSize:13,color:c.sub,lineHeight:1.5}}>{displayHost()} не разрешает показ во встроенном браузере</div>
-              <motion.button whileTap={{scale:0.95}} onClick={()=>window.open(browserUrl,'_blank')}
-                style={{background:activeAccent,border:'none',borderRadius:14,padding:'12px 28px',color:'#fff',fontWeight:800,fontSize:15,cursor:'pointer',boxShadow:`0 4px 20px ${activeAccent}66`}}>
-                Открыть в системном браузере ↗
-              </motion.button>
-            </div>
-          ):(
+          {browserUrl?(
             <iframe
               ref={browserRef}
               key={browserUrl}
-              src={browserUrl}
+              src={mkProxyUrl(browserUrl)}
               style={{flex:1,border:'none',background:isDark?'#111':'#fff'}}
-              onLoad={()=>{setBrowserLoading(false);}}
-              onError={()=>{setBrowserLoading(false);setBrowserBlocked(true);}}
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+              onLoad={()=>setBrowserLoading(false)}
+              onError={()=>setBrowserLoading(false)}
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
               title="SWAIP Browser"
             />
+          ):(
+            <div style={{flex:1}}/>
           )}
 
-          {/* Стартовая страница поверх iframe если google загружен изначально */}
-          {browserUrl==='https://www.google.com/'&&!browserLoading&&(
+          {/* Стартовая страница — показывается когда url пустой */}
+          {!browserUrl&&!browserLoading&&(
             <div style={{position:'absolute',inset:0,top:72,background:isDark?'#08080f':'#f4f4fc',
               display:'flex',flexDirection:'column',alignItems:'center',padding:'40px 20px 100px',overflowY:'auto'}}>
               <div style={{fontSize:40,marginBottom:4}}>🌐</div>
