@@ -3234,6 +3234,28 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [proContacts,]=useSaved<{phone:string;whatsapp:string;telegram:string;vk:string}>('pro_contacts',{phone:'',whatsapp:'',telegram:'',vk:''});
 
 
+  const [profMood,setProfMood]=useSaved<{emoji:string;text:string}>('pro_mood',{emoji:'',text:''});
+  const [showMoodPicker,setShowMoodPicker]=useState(false);
+
+  const MOOD_OPTIONS=[
+    {emoji:'😊',text:'Отлично'},
+    {emoji:'🔥',text:'В потоке'},
+    {emoji:'💡',text:'Вдохновлён'},
+    {emoji:'😴',text:'Устал'},
+    {emoji:'🎮',text:'Играю'},
+    {emoji:'🎵',text:'Слушаю'},
+    {emoji:'💪',text:'Работаю'},
+    {emoji:'✈️',text:'В дороге'},
+    {emoji:'🏖️',text:'Отдыхаю'},
+    {emoji:'📚',text:'Учусь'},
+    {emoji:'🤔',text:'Думаю'},
+    {emoji:'❤️',text:'Влюблён'},
+    {emoji:'😎',text:'Спокойно'},
+    {emoji:'🌙',text:'Ночной'},
+    {emoji:'☕',text:'Кофе'},
+    {emoji:'🎯',text:'Фокус'},
+  ];
+
   const [editField,setEditField]=useState<'name'|'nick'|'bio'|'site'|null>(null);
   const avatarRef=useRef<HTMLInputElement>(null);
   const [showCoverPicker,setShowCoverPicker]=useState(false);
@@ -3266,7 +3288,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [codeInput,setCodeInput]=useState('');
   const [codeResult,setCodeResult]=useState<{found:boolean;hash?:string;name?:string;handle?:string;avatar?:string;mode?:string}|null>(null);
   const [codeLoading,setCodeLoading]=useState(false);
-  const [searchResults,setSearchResults]=useState<{hash:string;name:string;handle:string;avatar:string;bio:string}[]>([]);
+  const [searchResults,setSearchResults]=useState<{hash:string;name:string;handle:string;avatar:string;bio:string;mood?:{emoji:string;text:string}}[]>([]);
   const [searchLoading,setSearchLoading]=useState(false);
 
   /* ── Обложка: загрузка своего фото ── */
@@ -3290,7 +3312,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       fetch(`${window.location.origin}/api/account`,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json','x-session-token':tok},body:JSON.stringify({data:profileData})}).catch(()=>{});
     },800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[profName,profBio,profNick,avatarUrl,coverGrad,coverImageUrl,coverPosition,postCardStyle,userHash]);
+  },[profName,profBio,profNick,avatarUrl,coverGrad,coverImageUrl,coverPosition,postCardStyle,userHash,profMood]);
 
   const [showCoverCrop,setShowCoverCrop]=useState(false);
   const [coverCropSrc,setCoverCropSrc]=useState('');
@@ -3544,6 +3566,21 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [showReviewsModal,setShowReviewsModal]=useState(false);
   const [showPriceWidgetModal,setShowPriceWidgetModal]=useState(false);
   const [showCertsModal,setShowCertsModal]=useState(false);
+  const [showBookmarksModal,setShowBookmarksModal]=useState(false);
+  const [bookmarkedPosts,setBookmarkedPosts]=useState<Post[]>([]);
+  const [bookmarksLoading,setBookmarksLoading]=useState(false);
+
+  const loadBookmarks=async()=>{
+    setBookmarksLoading(true);
+    try{
+      const res=await fetch(`${window.location.origin}/api/bookmarks`,{headers:{'x-session-token':getSessionToken()||''}});
+      if(res.ok){
+        const data=await res.json();
+        setBookmarkedPosts((data.posts||[]).map(rawToPost));
+      }
+    }catch(e){console.error(e);}
+    setBookmarksLoading(false);
+  };
   const [showFaqModal,setShowFaqModal]=useState(false);
   const [showCasesModal,setShowCasesModal]=useState(false);
   const [showLinksModal,setShowLinksModal]=useState(false);
@@ -5138,7 +5175,14 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                                   :<div style={{width:'100%',height:'100%',background:c.card,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>👤</div>}
                               </div>
                               <div style={{flex:1,minWidth:0}}>
-                                <div style={{fontSize:14,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
+                                <div style={{display:'flex',alignItems:'center',gap:5}}>
+                                  <div style={{fontSize:14,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
+                                  {r.mood?.emoji&&(
+                                    <span style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:2,background:`${activeAccent}18`,border:`1px solid ${activeAccent}33`,borderRadius:12,padding:'1px 6px',fontSize:10,color:activeAccent,fontWeight:700}}>
+                                      {r.mood.emoji} {r.mood.text}
+                                    </span>
+                                  )}
+                                </div>
                                 {r.handle&&<div style={{fontSize:11,color:c.sub,marginTop:1}}>@{r.handle}</div>}
                                 {r.bio&&<div style={{fontSize:11,color:c.sub,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:0.7}}>{r.bio}</div>}
                               </div>
@@ -5467,6 +5511,17 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                   :<div style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}} onClick={()=>setEditField('nick')}><span style={{fontSize:12,color:c.sub,fontFamily:'monospace'}}>{profNick?`@${profNick}`:'@никнейм'}</span></div>
                 }
                 {(profPosition||profCompany)&&(<div style={{fontSize:11,color:c.sub}}>{profPosition}{profPosition&&profCompany?' · ':''}{profCompany}</div>)}
+                {profMood.emoji&&(
+                  <motion.div initial={{scale:0.7,opacity:0}} animate={{scale:1,opacity:1}} transition={{type:'spring',stiffness:400,damping:18}}
+                    style={{display:'inline-flex',alignItems:'center',gap:4,background:`${ac}18`,border:`1px solid ${ac}44`,borderRadius:20,padding:'2px 8px',marginTop:2,cursor:'pointer',width:'fit-content'}}
+                    onClick={()=>setShowMoodPicker(v=>!v)}>
+                    <motion.span animate={{rotate:[0,10,-10,0]}} transition={{repeat:Infinity,duration:3,ease:'easeInOut'}} style={{fontSize:14}}>{profMood.emoji}</motion.span>
+                    <span style={{fontSize:11,color:ac,fontWeight:700}}>{profMood.text}</span>
+                  </motion.div>
+                )}
+                {!profMood.emoji&&(
+                  <div onClick={()=>setShowMoodPicker(v=>!v)} style={{cursor:'pointer',fontSize:11,color:c.sub,opacity:0.6,marginTop:2}}>+ Статус настроения</div>
+                )}
                 <div style={{display:'flex',gap:5,marginTop:4}}>
                   {[{ico:'✏️',lbl:'Написать',fn:()=>setShowInput(v=>!v)},{ico:'📞',lbl:'Звонок',fn:()=>{}},{ico:'📹',lbl:'Видео',fn:()=>{}}].map(btn=>(
                     <motion.button key={btn.lbl} whileTap={{scale:0.93}} onClick={btn.fn} style={{width:54,height:48,borderRadius:10,background:'rgba(160,160,200,0.1)',border:`1px solid ${c.borderB}`,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,flexShrink:0}}>
@@ -5480,6 +5535,31 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               ?<div style={{marginBottom:8}}><textarea autoFocus value={profBio} onChange={e=>setProfBio(e.target.value)} rows={3} placeholder="Расскажи о себе..." style={{width:'100%',boxSizing:'border-box',borderRadius:8,border:`1.5px solid ${c.borderB}`,padding:'8px 10px',fontSize:13,color:c.light,resize:'none',outline:'none',fontFamily:'inherit',background:c.cardAlt,lineHeight:1.5}} onBlur={()=>setEditField(null)}/></div>
               :<div onClick={()=>setEditField('bio')} style={{cursor:'pointer',marginBottom:8,fontSize:13,color:profBio?c.mid:c.sub,lineHeight:1.5,fontStyle:profBio?'normal':'italic'}}>{profBio||'Расскажи о себе...'}</div>
             }
+            {showMoodPicker&&(
+              <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}}
+                style={{background:c.card,borderRadius:14,border:`1px solid ${c.borderB}`,padding:10,marginBottom:10,boxShadow:'0 8px 32px rgba(0,0,0,0.25)'}}>
+                <div style={{fontSize:11,fontWeight:800,color:c.sub,marginBottom:6,letterSpacing:'0.06em',textTransform:'uppercase'}}>Статус настроения</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                  {MOOD_OPTIONS.map(m=>(
+                    <motion.button key={m.emoji} whileTap={{scale:0.87}} onClick={()=>{setProfMood({emoji:m.emoji,text:m.text});setShowMoodPicker(false);}}
+                      style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:20,cursor:'pointer',
+                        background:profMood.emoji===m.emoji?`${ac}25`:c.cardAlt,
+                        border:`1px solid ${profMood.emoji===m.emoji?ac+'77':c.borderB}`,
+                        fontSize:12,fontWeight:700,color:profMood.emoji===m.emoji?ac:c.mid}}>
+                      <span style={{fontSize:15}}>{m.emoji}</span> {m.text}
+                    </motion.button>
+                  ))}
+                  {profMood.emoji&&(
+                    <motion.button whileTap={{scale:0.87}} onClick={()=>{setProfMood({emoji:'',text:''});setShowMoodPicker(false);}}
+                      style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:20,cursor:'pointer',
+                        background:'rgba(180,60,60,0.12)',border:'1px solid rgba(180,60,60,0.35)',
+                        fontSize:12,fontWeight:700,color:'#cc6060'}}>
+                      ✕ Убрать
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            )}
             <div style={{display:'flex',gap:6,marginBottom:8}}>
               {editField==='site'
                 ?<input autoFocus value={profSite} onChange={e=>setProfSite(e.target.value)} onBlur={()=>setEditField(null)} placeholder="https://ваш-сайт.ru" style={{flex:1,borderRadius:7,border:`1.5px solid ${c.borderB}`,padding:'5px 8px',fontSize:12,color:c.light,outline:'none',fontFamily:'inherit',background:c.cardAlt}}/>
@@ -5527,6 +5607,18 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 :<div onClick={()=>setEditField('bio')} style={{cursor:'pointer',marginTop:8,fontSize:13,color:profBio?c.mid:c.sub,lineHeight:1.5,fontStyle:profBio?'normal':'italic',padding:'0 12px'}}>{profBio||'Расскажи о себе...'}</div>
               }
               {profSite&&<a href={profSite.startsWith('http')?profSite:`https://${profSite}`} target="_blank" rel="noreferrer" style={{display:'block',marginTop:6,fontSize:12,color:'#6060cc',textDecoration:'none'}}>🌐 {profSite.replace(/^https?:\/\//,'')}</a>}
+              <div style={{display:'flex',justifyContent:'center',marginTop:8}}>
+                {profMood.emoji?(
+                  <motion.div initial={{scale:0.7,opacity:0}} animate={{scale:1,opacity:1}} transition={{type:'spring',stiffness:400,damping:18}}
+                    onClick={()=>setShowMoodPicker(v=>!v)}
+                    style={{display:'inline-flex',alignItems:'center',gap:4,background:`${activeAccent}18`,border:`1px solid ${activeAccent}44`,borderRadius:20,padding:'3px 10px',cursor:'pointer'}}>
+                    <motion.span animate={{rotate:[0,10,-10,0]}} transition={{repeat:Infinity,duration:3,ease:'easeInOut'}} style={{fontSize:15}}>{profMood.emoji}</motion.span>
+                    <span style={{fontSize:12,color:activeAccent,fontWeight:700}}>{profMood.text}</span>
+                  </motion.div>
+                ):(
+                  <div onClick={()=>setShowMoodPicker(v=>!v)} style={{cursor:'pointer',fontSize:11,color:c.sub,opacity:0.5}}>+ Статус настроения</div>
+                )}
+              </div>
             </div>
             <div style={{display:'flex',margin:'14px 16px 0',borderRadius:12,background:c.cardAlt,border:`1px solid ${c.border}`,overflow:'hidden'}}>
               {[{n:'Посты',v:posts.length},{n:'Друзья',v:0},{n:'Подписки',v:0}].map((s,i)=>(
@@ -5792,7 +5884,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       <div style={{position:'fixed',bottom:0,left:0,right:0,
         background:c.surface,borderTop:`1px solid ${c.border}`,display:'flex',justifyContent:'space-around',
         padding:`8px 0 max(8px,env(safe-area-inset-bottom))`,zIndex:100}}>
-        {[{e:'👤',l:'Профиль',on:true,fn:()=>{}},{e:'💬',l:'Чаты',on:false,fn:()=>{}},{e:'🔎',l:'Поиск',on:false,fn:()=>{setShowSearch(v=>!v);setCodeResult(null);setCodeInput('');setSearchQ('');}},{e:'📡',l:'Поток',on:false,fn:()=>{}}]
+        {[{e:'👤',l:'Профиль',on:true,fn:()=>{}},{e:'💬',l:'Чаты',on:false,fn:()=>{}},{e:'🔎',l:'Поиск',on:false,fn:()=>{setShowSearch(v=>!v);setCodeResult(null);setCodeInput('');setSearchQ('');}},{e:'🔖',l:'Закладки',on:false,fn:()=>{loadBookmarks();setShowBookmarksModal(true);}},{e:'📡',l:'Поток',on:false,fn:()=>{}}]
           .map(item=>(
           <motion.button key={item.l} whileTap={{scale:0.82}} onClick={item.fn}
             style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,background:'none',border:'none',cursor:'pointer',padding:'0 8px',flex:1}}>
@@ -7135,6 +7227,45 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           </motion.div>
         )}
       </AnimatePresence>
+
+    {/* ═══ МОДАЛ: ЗАКЛАДКИ ═══ */}
+    <AnimatePresence>
+      {showBookmarksModal&&(
+        <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+          style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.88)',zIndex:3000,display:'flex',flexDirection:'column',backdropFilter:'blur(10px)'}}>
+          <motion.div initial={{y:60,opacity:0}} animate={{y:0,opacity:1}}
+            style={{position:'absolute',inset:0,background:'#0c0c18',display:'flex',flexDirection:'column'}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,padding:'18px 16px 12px',borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+              <motion.button whileTap={{scale:0.93}} onClick={()=>setShowBookmarksModal(false)}
+                style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:22,cursor:'pointer',padding:0}}>←</motion.button>
+              <div style={{fontSize:22,fontWeight:900,color:'#fff',flex:1}}>🔖 Закладки</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.35)'}}>{bookmarkedPosts.length} сохранено</div>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'12px 12px 80px'}}>
+              {bookmarksLoading?(
+                <div style={{display:'flex',justifyContent:'center',padding:60}}>
+                  <motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:1,ease:'linear'}} style={{width:32,height:32,borderRadius:'50%',border:'3px solid rgba(255,255,255,0.15)',borderTopColor:activeAccent}}/>
+                </div>
+              ):bookmarkedPosts.length===0?(
+                <div style={{textAlign:'center',padding:'60px 20px'}}>
+                  <div style={{fontSize:56,marginBottom:16}}>🔖</div>
+                  <div style={{fontSize:17,fontWeight:700,color:'#fff',marginBottom:8}}>Закладок пока нет</div>
+                  <div style={{fontSize:13,color:'rgba(255,255,255,0.4)'}}>Нажми 🔖 на любом посте, чтобы сохранить</div>
+                </div>
+              ):bookmarkedPosts.map(p=>(
+                <PostCard key={p.id} p={p} c={c} accent={activeAccent}
+                  onLike={id=>{
+                    fetch(`${window.location.origin}/api/broadcasts/${id}/like`,{method:'POST',headers:{'x-session-token':getSessionToken()||''}}).catch(()=>null);
+                    setBookmarkedPosts(prev=>prev.map(x=>x.id===id?{...x,liked:!x.liked,likes:x.liked?x.likes-1:x.likes+1}:x));
+                  }}
+                  style={postCardStyle} avatarSrc={avatarSrc} name={profName}
+                />
+              ))}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
     {/* ═══ МОДАЛ: ОФОРМЛЕНИЕ (Дизайн) ═══ */}
     <AnimatePresence>

@@ -82,6 +82,7 @@ router.get("/search", async (req, res) => {
       pro_nick:     sql<string>`${accountsTable.data}->>'sw_nick'`,
       pro_bio:      sql<string>`${accountsTable.data}->>'pro_bio'`,
       pro_avatar:   sql<string>`${accountsTable.data}->>'pro_avatarUrl'`,
+      pro_mood:     sql<string>`${accountsTable.data}->'pro_mood'`,
       scene_name:   sql<string>`${accountsTable.data}->>'scene_artistName'`,
       scene_handle: sql<string>`${accountsTable.data}->>'scene_handle'`,
       scene_bio:    sql<string>`${accountsTable.data}->>'scene_bio'`,
@@ -94,11 +95,14 @@ router.get("/search", async (req, res) => {
     const results: SearchResult[] = [];
     for (const row of rows) {
       if (wantPro && (row.pro_name || row.pro_full || row.pro_nick)) {
+        let moodObj:{emoji:string;text:string}|undefined;
+        try{if(row.pro_mood)moodObj=typeof row.pro_mood==='string'?JSON.parse(row.pro_mood):row.pro_mood;}catch{}
         results.push({
           hash: row.hash, name: row.pro_name || row.pro_full || row.pro_nick || '',
           handle: row.pro_nick || (row.pro_full && row.pro_full !== row.pro_name ? row.pro_full : ''),
           bio: row.pro_bio || '', avatar: row.pro_avatar || '', mode: 'pro',
-        });
+          mood: moodObj?.emoji?moodObj:undefined,
+        } as any);
       } else if (wantScene && (row.scene_name || row.scene_handle)) {
         results.push({
           hash: row.hash, name: row.scene_name || row.scene_handle || '',
