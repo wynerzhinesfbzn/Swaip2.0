@@ -24,6 +24,7 @@ export interface GameView {
   myBoard?: number[][];
   opponentShots?: [number, number][];
   myShots?: [number, number][];
+  myHitCoords?: [number, number][];
   turn?: string;
   /* durak */
   myHand?: string[];
@@ -231,7 +232,7 @@ export function GamePanel({ game, myHash, otherName, onAccept, onDecline, onLeav
               <div style={{ fontSize: 48 }}>{game.type === 'durak' ? '🃏' : '🏆'}</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
                 {game.type === 'durak'
-                  ? `Дурак: ${(game as any).state?.durak === myHash ? 'Ты проиграл! 😢' : 'Ты не дурак! 🎉'}`
+                  ? `Дурак: ${game.durak === myHash ? 'Ты проиграл! 😢' : 'Ты не дурак! 🎉'}`
                   : game.winner === myHash ? '🎉 Ты победил!' : game.winner ? `Победил ${otherName}` : 'Ничья!'}
               </div>
             </>
@@ -277,8 +278,11 @@ function BattleshipGame({ game, myHash, accent, onMove, onLeave: _ }: { game: Ga
   const myBoard = game.myBoard ?? [];
   const opponentShots = game.opponentShots ?? [];
   const myShots = game.myShots ?? [];
+  const myHitCoords = game.myHitCoords ?? [];
   const shotSet = new Set(myShots.map(([r, c]) => `${r},${c}`));
-  const hitSet = new Set(myBoard.flatMap((row, r) => row.map((v, c) => v === 1 && opponentShots.some(([sr, sc]) => sr === r && sc === c) ? `${r},${c}` : null).filter(Boolean) as string[]));
+  const hitSet = new Set(myHitCoords.map(([r, c]) => `${r},${c}`));
+  /* hits on MY board by opponent */
+  const opHitSet = new Set(myBoard.flatMap((row, r) => row.map((v, c) => v === 1 && opponentShots.some(([sr, sc]) => sr === r && sc === c) ? `${r},${c}` : null).filter(Boolean) as string[]));
 
   const fire = (r: number, c: number) => {
     if (!myTurn || shotSet.has(`${r},${c}`)) return;
@@ -287,45 +291,81 @@ function BattleshipGame({ game, myHash, accent, onMove, onLeave: _ }: { game: Ga
 
   const cellSize = 28;
 
-  const renderBoard = (board: number[][], shots: [number, number][], clickable: boolean, label: string) => {
-    const shotS = new Set(shots.map(([r, c]) => `${r},${c}`));
-    return (
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>{label}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(10, ${cellSize}px)`, gap: 2 }}>
-          {Array.from({ length: 100 }, (_, i) => {
-            const r = Math.floor(i / 10), c = i % 10;
-            const key = `${r},${c}`;
-            const isShip = board[r]?.[c] === 1;
-            const isHit = isShip && shotS.has(key);
-            const isMiss = !isShip && shotS.has(key);
-            const alreadyMine = clickable && shotSet.has(key);
-            return (
-              <motion.div key={key}
-                whileTap={clickable && !alreadyMine ? { scale: 0.85 } : undefined}
-                onClick={() => clickable && fire(r, c)}
-                style={{
-                  width: cellSize, height: cellSize, borderRadius: 4, cursor: clickable && !alreadyMine ? 'crosshair' : 'default',
-                  background: isHit ? '#ef4444' : isMiss ? 'rgba(255,255,255,0.1)' : isShip ? `${accent}99` : 'rgba(255,255,255,0.04)',
-                  border: isHit ? '1.5px solid #ef4444' : isMiss ? '1.5px solid rgba(255,255,255,0.2)' : isShip ? `1.5px solid ${accent}66` : '1px solid rgba(255,255,255,0.07)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, transition: 'background 0.15s',
-                }}>
-                {isHit ? '💥' : isMiss ? '◦' : ''}
-              </motion.div>
-            );
-          })}
-        </div>
+  /* Renders a 10×10 grid. For the attack board, ships are hidden but hits are shown. */
+  const renderAttackBoard = () => (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
+        Поле противника — стреляй сюда
       </div>
-    );
-  };
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(10, ${cellSize}px)`, gap: 2 }}>
+        {Array.from({ length: 100 }, (_, i) => {
+          const r = Math.floor(i / 10), c = i % 10;
+          const key = `${r},${c}`;
+          const isShot = shotSet.has(key);
+          const isHit = hitSet.has(key);
+          const isMiss = isShot && !isHit;
+          return (
+            <motion.div key={key}
+              whileTap={myTurn && !isShot ? { scale: 0.85 } : undefined}
+              onClick={() => !isShot && fire(r, c)}
+              style={{
+                width: cellSize, height: cellSize, borderRadius: 4,
+                cursor: myTurn && !isShot ? 'crosshair' : 'default',
+                background: isHit ? '#ef4444' : isMiss ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                border: isHit ? '1.5px solid #ef4444' : isMiss ? '1.5px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.07)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, transition: 'background 0.15s',
+              }}>
+              {isHit ? '💥' : isMiss ? '◦' : ''}
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  /* Renders MY board showing ships and where the opponent has shot */
+  const renderMyBoard = () => (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
+        Твоё поле
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(10, ${cellSize}px)`, gap: 2 }}>
+        {Array.from({ length: 100 }, (_, i) => {
+          const r = Math.floor(i / 10), c = i % 10;
+          const key = `${r},${c}`;
+          const isShip = myBoard[r]?.[c] === 1;
+          const isHit = opHitSet.has(key);
+          const isMiss = !isShip && opponentShots.some(([sr, sc]) => sr === r && sc === c);
+          return (
+            <div key={key} style={{
+              width: cellSize, height: cellSize, borderRadius: 4,
+              background: isHit ? '#ef4444' : isMiss ? 'rgba(255,255,255,0.12)' : isShip ? `${accent}88` : 'rgba(255,255,255,0.04)',
+              border: isHit ? '1.5px solid #ef4444' : isMiss ? '1.5px solid rgba(255,255,255,0.2)' : isShip ? `1.5px solid ${accent}55` : '1px solid rgba(255,255,255,0.07)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
+            }}>
+              {isHit ? '💥' : isMiss ? '◦' : ''}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  /* Stats */
+  const myHits = myHitCoords.length;
+  const opHits = opHitSet.size;
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: myTurn ? '#22c55e' : 'rgba(255,255,255,0.4)', marginBottom: 8, textAlign: 'center' }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: myTurn ? '#22c55e' : 'rgba(255,255,255,0.4)', marginBottom: 4, textAlign: 'center' }}>
         {myTurn ? '🎯 Твой ход — нажми на клетку' : '⏳ Ход противника…'}
       </div>
-      {renderBoard([] as number[][], myShots, myTurn, 'Поле противника (стреляй сюда)')}
-      {renderBoard(myBoard, opponentShots, false, 'Твоё поле')}
+      <div style={{ display: 'flex', gap: 16, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>
+        <span>Твои попадания: <b style={{ color: '#22c55e' }}>{myHits}</b></span>
+        <span>По тебе: <b style={{ color: '#ef4444' }}>{opHits}</b></span>
+      </div>
+      {renderAttackBoard()}
+      {renderMyBoard()}
     </div>
   );
 }
@@ -601,13 +641,15 @@ function DurakGame({ game, myHash, accent, onMove, onLeave: _ }: { game: GameVie
   const defenderIdx = game.defenderIdx ?? 1;
   const attackerHash = playerOrder[attackerIdx];
   const defenderHash = playerOrder[defenderIdx];
-  const isAttacker = myHash === attackerHash || (game.passed !== undefined && !game.passed?.includes(myHash) && myHash !== defenderHash && playerOrder.includes(myHash));
-  const isDefender = myHash === defenderHash;
 
   const myHand = game.myHand ?? [];
   const table = game.table ?? [];
   const trumpSuit = game.trumpSuit ?? '';
   const trumpCard = game.trumpCard ?? '';
+
+  const isAttacker = myHash === attackerHash ||
+    (table.length > 0 && !game.passed?.includes(myHash) && myHash !== defenderHash && playerOrder.includes(myHash));
+  const isDefender = myHash === defenderHash;
 
   const attack = () => {
     if (!selectedCard || !isAttacker) return;

@@ -162,7 +162,7 @@ router.post("/game/invite", requireSession, (req, res) => {
       guestReady: false,
     };
   } else if (type === "chess") {
-    state = { board: initialChessBoard(), turn: "white", moveHistory: [], castling: { wK: true, wQ: true, bK: true, bQ: true }, enPassant: null };
+    state = { board: initialChessBoard(), turn: "w", moveHistory: [], castling: { wK: true, wQ: true, bK: true, bQ: true }, enPassant: null };
   } else if (type === "checkers") {
     state = { board: initialCheckersBoard(), turn: "w", mustCapture: null };
   } else if (type === "durak") {
@@ -451,13 +451,18 @@ function sanitizeGame(g: GameSession, viewerHash: string) {
   const st = g.state as any;
   const isHost = g.players[0] === viewerHash;
 
-  if (g.type === "battleship" && g.status === "active") {
+  if (g.type === "battleship" && (g.status === "active" || g.status === "finished")) {
+    const myShots: [number, number][] = isHost ? st.hostShots : st.guestShots;
+    const opponentBoard: number[][] = isHost ? st.guestBoard : st.hostBoard;
+    /* Calculate which of MY shots actually hit opponent's ships */
+    const myHitCoords = myShots.filter(([r, c]) => opponentBoard[r]?.[c] === 1);
     return {
       id: g.id, type: g.type, status: g.status, winner: g.winner,
       players: g.players, hostHash: g.hostHash,
       myBoard: isHost ? st.hostBoard : st.guestBoard,
       opponentShots: isHost ? st.guestShots : st.hostShots,
-      myShots: isHost ? st.hostShots : st.guestShots,
+      myShots,
+      myHitCoords,
       turn: st.turn,
     };
   }
