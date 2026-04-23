@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, accountsTable, broadcastsTable, broadcastReactionsTable, broadcastCommentsTable, commentReactionsTable } from "@workspace/db";
+import { db, accountsTable, broadcastsTable, broadcastReactionsTable, broadcastCommentsTable, commentReactionsTable, broadcastPollVotesTable } from "@workspace/db";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { requireSession, resolveSession, getSessionToken } from "../lib/sessionAuth.js";
 import { contentFilter } from "../middlewares/contentFilter.js";
@@ -81,7 +81,7 @@ router.get("/broadcasts", async (req, res) => {
     const ids = rows.map(r => r.id);
 
     /* ── Батчевые запросы для всех постов (вместо N+1) ── */
-    const [allReactions, allCmtCounts, allMyReactions] = await Promise.all([
+    const [allReactions, allCmtCounts, allMyReactions, allMyPollVotes] = await Promise.all([
       ids.length > 0
         ? db.select({ broadcastId: broadcastReactionsTable.broadcastId, emoji: broadcastReactionsTable.emoji, count: sql<number>`count(*)::int` })
             .from(broadcastReactionsTable).where(inArray(broadcastReactionsTable.broadcastId, ids))
@@ -96,6 +96,11 @@ router.get("/broadcasts", async (req, res) => {
         ? db.select({ broadcastId: broadcastReactionsTable.broadcastId, emoji: broadcastReactionsTable.emoji })
             .from(broadcastReactionsTable)
             .where(and(inArray(broadcastReactionsTable.broadcastId, ids), eq(broadcastReactionsTable.userHash, userHash)))
+        : Promise.resolve([]),
+      userHash && ids.length > 0
+        ? db.select({ broadcastId: broadcastPollVotesTable.broadcastId, optionId: broadcastPollVotesTable.optionId })
+            .from(broadcastPollVotesTable)
+            .where(and(inArray(broadcastPollVotesTable.broadcastId, ids), eq(broadcastPollVotesTable.userHash, userHash)))
         : Promise.resolve([]),
     ]);
 
@@ -127,6 +132,7 @@ router.get("/broadcasts", async (req, res) => {
       if (!myReactByPost.has(r.broadcastId)) myReactByPost.set(r.broadcastId, []);
       myReactByPost.get(r.broadcastId)!.push(r.emoji);
     }
+    const myVoteByPost = new Map(allMyPollVotes.map((v: any) => [v.broadcastId, v.optionId]));
 
     /* ── Батч комментариев (только если ?include=comments) ── */
     let cmtsByPost = new Map<number, any[]>();
@@ -182,6 +188,7 @@ router.get("/broadcasts", async (req, res) => {
 
     const result = rows.map(b => {
       const parsedMeta = b.meta ? (() => { try { return JSON.parse(b.meta!); } catch { return null; } })() : null;
+      const myVote = myVoteByPost.get(b.id) ?? null;
       return {
         ...b,
         docUrls: parseDocUrls(b.docUrls),
@@ -190,6 +197,7 @@ router.get("/broadcasts", async (req, res) => {
         commentCount: cntByPost.get(b.id)     ?? 0,
         author:       resolveAuthor(b.authorHash, b.authorMode),
         ...(parsedMeta || {}),
+        ...(myVote && parsedMeta?.poll ? { myVote } : {}),
         ...(includeComments ? { comments: cmtsByPost.get(b.id) || [] } : {}),
       };
     });
@@ -270,12 +278,16 @@ router.get("/broadcasts/:id", async (req, res) => {
 router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"]), async (req, res) => {
   try {
     const userHash = (req as any).userHash as string;
-    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[] };
+    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots, poll, quoteOf, repostOf } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[]; poll?: any; quoteOf?: any; repostOf?: any };
     const hasDocUrls = docUrls && docUrls.length > 0;
-    if (!content?.trim() && !audioUrl && !imageUrl && !videoUrl && !hasDocUrls && !hasBooking) { res.status(400).json({ error: 'content required' }); return; }
+    if (!content?.trim() && !audioUrl && !imageUrl && !videoUrl && !hasDocUrls && !hasBooking && !poll && !repostOf) { res.status(400).json({ error: 'content required' }); return; }
     if (!['pro', 'scene', 'krug', 'ether'].includes(authorMode)) { res.status(400).json({ error: 'invalid mode' }); return; }
 
-    const metaObj = hasBooking ? { hasBooking: true, bookingLabel: bookingLabel || 'Записаться', bookingSlots: Array.isArray(bookingSlots) ? bookingSlots : [] } : null;
+    const metaObj: Record<string, any> = {};
+    if (hasBooking) { metaObj.hasBooking = true; metaObj.bookingLabel = bookingLabel || 'Записаться'; metaObj.bookingSlots = Array.isArray(bookingSlots) ? bookingSlots : []; }
+    if (poll) { metaObj.poll = poll; }
+    if (quoteOf) { metaObj.quoteOf = quoteOf; }
+    if (repostOf) { metaObj.repostOf = repostOf; }
 
     const rows = await db.insert(broadcastsTable).values({
       authorHash: userHash,
@@ -285,7 +297,7 @@ router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"
       imageUrl: imageUrl || null,
       videoUrl: videoUrl || null,
       docUrls: hasDocUrls ? JSON.stringify(docUrls) : null,
-      meta: metaObj ? JSON.stringify(metaObj) : null,
+      meta: Object.keys(metaObj).length ? JSON.stringify(metaObj) : null,
     }).returning();
 
     const b = rows[0];
@@ -309,6 +321,90 @@ router.delete("/broadcasts/:id", requireSession, async (req, res) => {
 
     await db.delete(broadcastsTable).where(eq(broadcastsTable.id, id));
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/* ── PUT /api/broadcasts/:id ── (edit, requires session + owner) */
+router.put("/broadcasts/:id", requireSession, contentFilter("broadcast", ["content"]), async (req, res) => {
+  try {
+    const id = parseInt(req.params['id'] as string);
+    const userHash = (req as any).userHash as string;
+    const { content, hasBooking, bookingLabel, bookingSlots, poll } = req.body as any;
+
+    const rows = await db.select().from(broadcastsTable).where(eq(broadcastsTable.id, id)).limit(1);
+    if (!rows.length) { res.status(404).json({ error: 'not found' }); return; }
+    if (rows[0].authorHash !== userHash) { res.status(403).json({ error: 'forbidden' }); return; }
+
+    const existing = rows[0];
+    const existingMeta = existing.meta ? (() => { try { return JSON.parse(existing.meta!); } catch { return {}; } })() : {};
+    const newMeta = {
+      ...existingMeta,
+      ...(hasBooking !== undefined ? { hasBooking, bookingLabel: bookingLabel || 'Записаться', bookingSlots: Array.isArray(bookingSlots) ? bookingSlots : [] } : {}),
+      ...(poll !== undefined ? { poll } : {}),
+    };
+    const metaStr = Object.keys(newMeta).length ? JSON.stringify(newMeta) : null;
+
+    const updated = await db.update(broadcastsTable)
+      .set({ content: content?.trim() ?? existing.content, meta: metaStr })
+      .where(eq(broadcastsTable.id, id))
+      .returning();
+
+    const parsedMeta = updated[0].meta ? (() => { try { return JSON.parse(updated[0].meta!); } catch { return null; } })() : null;
+    res.json({ ...updated[0], docUrls: updated[0].docUrls ? JSON.parse(updated[0].docUrls) : null, ...(parsedMeta || {}) });
+  } catch (err) {
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/* ── POST /api/broadcasts/:id/poll-vote ── (requires session) */
+router.post("/broadcasts/:id/poll-vote", requireSession, async (req, res) => {
+  try {
+    const id = parseInt(req.params['id'] as string);
+    const userHash = (req as any).userHash as string;
+    const { optionId } = req.body as { optionId: string };
+    if (!optionId) { res.status(400).json({ error: 'optionId required' }); return; }
+
+    const rows = await db.select().from(broadcastsTable).where(eq(broadcastsTable.id, id)).limit(1);
+    if (!rows.length) { res.status(404).json({ error: 'not found' }); return; }
+
+    const b = rows[0];
+    const meta = b.meta ? (() => { try { return JSON.parse(b.meta!); } catch { return {}; } })() : {};
+    if (!meta.poll) { res.status(400).json({ error: 'no poll' }); return; }
+
+    /* Upsert vote */
+    const existing = await db.select().from(broadcastPollVotesTable)
+      .where(and(eq(broadcastPollVotesTable.broadcastId, id), eq(broadcastPollVotesTable.userHash, userHash))).limit(1);
+
+    const prevOptionId = existing[0]?.optionId ?? null;
+    if (prevOptionId === optionId) {
+      /* Toggle off (deselect) */
+      await db.delete(broadcastPollVotesTable)
+        .where(and(eq(broadcastPollVotesTable.broadcastId, id), eq(broadcastPollVotesTable.userHash, userHash)));
+    } else {
+      if (existing.length) {
+        await db.update(broadcastPollVotesTable).set({ optionId }).where(eq(broadcastPollVotesTable.id, existing[0].id));
+      } else {
+        await db.insert(broadcastPollVotesTable).values({ broadcastId: id, userHash, optionId });
+      }
+    }
+
+    /* Recalculate votes from DB */
+    const allVotes = await db.select({ optionId: broadcastPollVotesTable.optionId, count: sql<number>`count(*)::int` })
+      .from(broadcastPollVotesTable).where(eq(broadcastPollVotesTable.broadcastId, id))
+      .groupBy(broadcastPollVotesTable.optionId);
+
+    const votesMap = new Map(allVotes.map(v => [v.optionId, v.count]));
+    const totalVotes = allVotes.reduce((s, v) => s + v.count, 0);
+
+    const updatedOptions = meta.poll.options.map((o: any) => ({ ...o, votes: votesMap.get(o.id) ?? 0 }));
+    meta.poll = { ...meta.poll, options: updatedOptions, totalVotes };
+
+    await db.update(broadcastsTable).set({ meta: JSON.stringify(meta) }).where(eq(broadcastsTable.id, id));
+
+    const myVote = prevOptionId === optionId ? null : optionId;
+    res.json({ poll: meta.poll, myVote });
   } catch (err) {
     res.status(500).json({ error: 'internal' });
   }

@@ -40,6 +40,14 @@ export const commentReactionsTable = pgTable("comment_reactions", {
   emoji:     text("emoji").notNull(),
 }, (t) => [unique().on(t.commentId, t.userHash, t.emoji)]);
 
+export const broadcastPollVotesTable = pgTable("broadcast_poll_votes", {
+  id:          serial("id").primaryKey(),
+  broadcastId: integer("broadcast_id").notNull(),
+  userHash:    text("user_hash").notNull(),
+  optionId:    text("option_id").notNull(),
+  createdAt:   timestamp("created_at").defaultNow(),
+}, (t) => [unique().on(t.broadcastId, t.userHash)]);
+
 export const insertBroadcastSchema = createInsertSchema(broadcastsTable).omit({ id: true, createdAt: true, viewCount: true });
 export type InsertBroadcast = z.infer<typeof insertBroadcastSchema>;
 export type Broadcast = typeof broadcastsTable.$inferSelect;
