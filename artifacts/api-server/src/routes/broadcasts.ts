@@ -186,7 +186,33 @@ router.get("/broadcasts", async (req, res) => {
       }
     }
 
-    const result = rows.map(b => {
+    /* ── Фильтр по publishAt / expiresAt ── */
+    const nowTs = new Date();
+    const filteredRows = rows.filter(b => {
+      const m = b.meta ? (() => { try { return JSON.parse(b.meta!); } catch { return {}; } })() : {};
+      if (m.publishAt && new Date(m.publishAt) > nowTs && b.authorHash !== userHash) return false;
+      if (m.expiresAt && new Date(m.expiresAt) < nowTs) return false;
+      return true;
+    });
+
+    /* ── Соавторские посты — ищем, где текущий user упомянут как coAuthorHash ── */
+    let coAuthorRows: typeof rows = [];
+    if (userHash && !authorFilter) {
+      try {
+        coAuthorRows = await db.select().from(broadcastsTable)
+          .where(sql`${broadcastsTable.meta} LIKE ${'%"coAuthorHash":"' + userHash + '"%'}`)
+          .orderBy(desc(broadcastsTable.createdAt)).limit(20);
+        /* Убираем дубли (если автор == coAuthorHash) */
+        const existingIds = new Set(filteredRows.map(r => r.id));
+        coAuthorRows = coAuthorRows.filter(r => !existingIds.has(r.id));
+      } catch { coAuthorRows = []; }
+    }
+
+    const mergedRows = [...filteredRows, ...coAuthorRows].sort((a,b) =>
+      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+    );
+
+    const result = mergedRows.map(b => {
       const parsedMeta = b.meta ? (() => { try { return JSON.parse(b.meta!); } catch { return null; } })() : null;
       const myVote = myVoteByPost.get(b.id) ?? null;
       return {
@@ -278,7 +304,7 @@ router.get("/broadcasts/:id", async (req, res) => {
 router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"]), async (req, res) => {
   try {
     const userHash = (req as any).userHash as string;
-    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots, poll, quoteOf, repostOf, parentId } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[]; poll?: any; quoteOf?: any; repostOf?: any; parentId?: number };
+    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots, poll, quoteOf, repostOf, parentId, coAuthorHash, coAuthorData, isAnonVoting, publishAt, expiresAt, location } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[]; poll?: any; quoteOf?: any; repostOf?: any; parentId?: number; coAuthorHash?: string; coAuthorData?: any; isAnonVoting?: boolean; publishAt?: string; expiresAt?: string; location?: {city:string;lat:number;lng:number} };
     const hasDocUrls = docUrls && docUrls.length > 0;
     if (!content?.trim() && !audioUrl && !imageUrl && !videoUrl && !hasDocUrls && !hasBooking && !poll && !repostOf) { res.status(400).json({ error: 'content required' }); return; }
     if (!['pro', 'scene', 'krug', 'ether'].includes(authorMode)) { res.status(400).json({ error: 'invalid mode' }); return; }
@@ -288,6 +314,11 @@ router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"
     if (poll) { metaObj.poll = poll; }
     if (quoteOf) { metaObj.quoteOf = quoteOf; }
     if (repostOf) { metaObj.repostOf = repostOf; }
+    if (coAuthorHash) { metaObj.coAuthorHash = coAuthorHash; metaObj.coAuthorData = coAuthorData || null; }
+    if (isAnonVoting) { metaObj.isAnonVoting = true; }
+    if (publishAt) { metaObj.publishAt = publishAt; }
+    if (expiresAt) { metaObj.expiresAt = expiresAt; }
+    if (location?.city) { metaObj.location = location; }
 
     const rows = await db.insert(broadcastsTable).values({
       authorHash: userHash,
