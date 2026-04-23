@@ -7402,32 +7402,47 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
 
     {/* ══ FLOATING MINI-PLAYER ══ */}
     <AnimatePresence>
-      {musicPlaying&&!showMusicSheet&&playlist[musicIdx]&&(
+      {playlist[musicIdx]&&!showMusicSheet&&(
         <motion.div
           initial={{y:80,opacity:0}} animate={{y:0,opacity:1}} exit={{y:80,opacity:0}}
           transition={{type:'spring',damping:24,stiffness:260}}
           style={{position:'fixed',bottom:72,left:12,right:12,zIndex:2900,
-            background:'rgba(10,10,20,0.95)',backdropFilter:'blur(20px)',
+            background:'rgba(10,10,20,0.97)',backdropFilter:'blur(20px)',
             border:`1px solid ${activeAccent}44`,borderRadius:18,
-            padding:'10px 14px',boxShadow:`0 4px 32px rgba(0,0,0,0.6),0 0 20px ${activeAccent}33`,
-            display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,
-            display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🎵</div>
-          <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setShowMusicSheet(true)}>
-            <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{playlist[musicIdx].title}</div>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{playlist[musicIdx].artist||'Неизвестный'}</div>
-            <div style={{marginTop:4,height:2,borderRadius:1,background:'rgba(255,255,255,0.12)',position:'relative',overflow:'hidden'}}>
-              <div style={{position:'absolute',left:0,top:0,height:'100%',background:activeAccent,
-                width:`${musicDuration>0?(musicProgress/musicDuration)*100:0}%`,transition:'width 0.1s linear'}}/>
+            padding:'10px 14px',boxShadow:`0 4px 32px rgba(0,0,0,0.6),0 0 20px ${activeAccent}33`}}>
+          {/* Строка: обложка + инфо + кнопки */}
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0,cursor:'pointer'}}
+              onClick={()=>setShowMusicSheet(true)}>🎵</div>
+            <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setShowMusicSheet(true)}>
+              <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{playlist[musicIdx].title}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{playlist[musicIdx].artist||'Неизвестный'}</div>
             </div>
+            <button onClick={prevTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:20,cursor:'pointer',padding:'4px 5px',lineHeight:1}}>⏮</button>
+            <button onClick={()=>musicPlaying?pauseTrack():playTrack(musicIdx)}
+              style={{width:40,height:40,borderRadius:'50%',background:activeAccent,border:'none',color:'#fff',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:`0 0 12px ${activeAccent}66`}}>
+              {musicPlaying?'⏸':'▶'}
+            </button>
+            <button onClick={nextTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:20,cursor:'pointer',padding:'4px 5px',lineHeight:1}}>⏭</button>
+            <button onClick={()=>{pauseTrack();}} style={{background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.4)',fontSize:12,cursor:'pointer',borderRadius:8,padding:'5px 9px',lineHeight:1}}>✕</button>
           </div>
-          <button onClick={prevTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏮</button>
-          <button onClick={()=>musicPlaying?pauseTrack():playTrack(musicIdx)}
-            style={{width:38,height:38,borderRadius:'50%',background:activeAccent,border:'none',color:'#fff',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            {musicPlaying?'⏸':'▶'}
-          </button>
-          <button onClick={nextTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏭</button>
-          <button onClick={pauseTrack} style={{background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.4)',fontSize:13,cursor:'pointer',borderRadius:8,padding:'4px 8px'}}>✕</button>
+          {/* Прогресс-бар с перемоткой */}
+          <div style={{marginTop:8,height:28,display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontSize:9,color:'rgba(255,255,255,0.35)',minWidth:28,textAlign:'right'}}>{Math.floor(musicProgress/60)}:{String(Math.floor(musicProgress%60)).padStart(2,'0')}</span>
+            <div
+              style={{flex:1,height:4,borderRadius:2,background:'rgba(255,255,255,0.12)',position:'relative',cursor:'pointer',touchAction:'none'}}
+              onClick={e=>{const r=(e.currentTarget as HTMLDivElement).getBoundingClientRect();const x=e.clientX-r.left;seekTrack((x/r.width)*musicDuration);}}
+              onTouchStart={e=>{e.preventDefault();const r=(e.currentTarget as HTMLDivElement).getBoundingClientRect();const x=e.touches[0].clientX-r.left;seekTrack(Math.max(0,Math.min(1,x/r.width))*musicDuration);}}
+              onTouchMove={e=>{e.preventDefault();const r=(e.currentTarget as HTMLDivElement).getBoundingClientRect();const x=e.touches[0].clientX-r.left;seekTrack(Math.max(0,Math.min(1,x/r.width))*musicDuration);}}>
+              <div style={{position:'absolute',left:0,top:0,height:'100%',borderRadius:2,background:activeAccent,
+                width:`${musicDuration>0?(musicProgress/musicDuration)*100:0}%`,transition:'width 0.1s linear'}}/>
+              <div style={{position:'absolute',top:'50%',transform:'translate(-50%,-50%)',width:14,height:14,borderRadius:'50%',
+                background:'#fff',boxShadow:`0 0 6px ${activeAccent}`,
+                left:`${musicDuration>0?(musicProgress/musicDuration)*100:0}%`,transition:'left 0.1s linear'}}/>
+            </div>
+            <span style={{fontSize:9,color:'rgba(255,255,255,0.35)',minWidth:28}}>{Math.floor(musicDuration/60)}:{String(Math.floor(musicDuration%60)).padStart(2,'0')}</span>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -7983,7 +7998,7 @@ function MusicPlayerSheet({
               <div style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>Добавь треки — и они всегда будут под рукой</div>
             </div>
           ):(
-            playlist.map((t,i)=><TrackRow key={t.id} t={t} i={i}/>)
+            playlist.map((t,i)=><React.Fragment key={t.id}>{TrackRow({t,i})}</React.Fragment>)
           )}
         </div>
 
