@@ -219,6 +219,18 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
   const [contextMenu,   setContextMenu]   = useState<{msg:MsgItem;x:number;y:number}|null>(null);
   const [onlineStatus,  setOnlineStatus]  = useState<{online:boolean;lastSeenAt:string|null}|null>(null);
   const [showReactPicker,setShowReactPicker] = useState<number|null>(null); /* msgId */
+  /* ── Secret Swipe (двухпальцевый свайп по аватару) ── */
+  const [secretSwipeOpen, setSecretSwipeOpen] = useState(false);
+  const [secretSwipeText, setSecretSwipeText] = useState('');
+  const [secretSwipeSending, setSecretSwipeSending] = useState(false);
+  const [msgTimers, setMsgTimers] = useState<Record<number,string>>({});
+  /* ── Swipe Battle ── */
+  const [battleId, setBattleId] = useState<string|null>(null);
+  const [battleData, setBattleData] = useState<any|null>(null);
+  const [battleSwiped, setBattleSwiped] = useState(false);
+  const [battleCountdown, setBattleCountdown] = useState(30);
+  const battlePollRef = useRef<ReturnType<typeof setInterval>|null>(null);
+  const battleCdRef   = useRef<ReturnType<typeof setInterval>|null>(null);
 
   const bottomRef     = useRef<HTMLDivElement>(null);
   const mediaRef      = useRef<MediaRecorder | null>(null);
@@ -230,6 +242,137 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
   const vidMediaRef   = useRef<MediaRecorder | null>(null);
   const vidChunksRef  = useRef<Blob[]>([]);
   const vidTimerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* ── Poll for incoming Battle challenges ── */
+  useEffect(() => {
+    if (isGroup || isSecret || !otherHash) return;
+    const t = setInterval(async () => {
+      if (battleId) return; /* already in a battle */
+      try {
+        const r = await fetch(`${API_BASE}/api/battle/incoming`, { headers: { 'x-session-token': getST() } });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.battle && d.battle.challengerHash === otherHash) {
+          setBattleId(d.battle.id);
+          setBattleData({ ...d.battle, myRole: 'opponent' });
+          pollBattle(d.battle.id);
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(t);
+  }, [isGroup, isSecret, otherHash, battleId]);
+
+  /* ── Timer countdown for burnAt messages ── */
+  useEffect(() => {
+    /* Seed timers for any secret_swipe messages with burnAt */
+    const seed: Record<number,string> = {};
+    messages.forEach(m => { if (m.messageType === 'secret_swipe' && m.burnAt) seed[m.id] = '...'; });
+    if (Object.keys(seed).length) setMsgTimers(prev => ({ ...prev, ...seed }));
+  }, [messages.length]);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setMsgTimers(prev => {
+        const burnMsgs = messages.filter(m => m.messageType === 'secret_swipe' && m.burnAt);
+        if (!burnMsgs.length) return prev;
+        const next: Record<number,string> = {};
+        let changed = false;
+        for (const msg of burnMsgs) {
+          const diff = new Date(msg.burnAt!).getTime() - Date.now();
+          if (diff <= 0) { changed = true; continue; }
+          const h = Math.floor(diff / 3600000);
+          const m2 = Math.floor((diff % 3600000) / 60000);
+          const s = Math.floor((diff % 60000) / 1000);
+          const label = h > 0 ? `${h}ч ${m2}м` : m2 > 0 ? `${m2}м ${s}с` : `${s}с`;
+          next[msg.id] = label;
+          if (next[msg.id] !== prev[msg.id]) changed = true;
+        }
+        return changed ? { ...prev, ...next } : prev;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [messages]);
+
+  /* ── Secret Swipe send ── */
+  const sendSecretSwipe = async () => {
+    if (!secretSwipeText.trim() || secretSwipeSending) return;
+    setSecretSwipeSending(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/conversations/${convId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-session-token': getST() },
+        body: JSON.stringify({ content: secretSwipeText.trim(), messageType: 'secret_swipe', burnInMs: 24 * 60 * 60 * 1000 }),
+      });
+      if (r.ok) {
+        const newMsg = await r.json();
+        setMessages(prev => [...prev, { ...newMsg, author: { name: otherInfo.name, avatar: otherInfo.avatar, handle: otherInfo.handle } }]);
+        setSecretSwipeText('');
+        setSecretSwipeOpen(false);
+      }
+    } finally { setSecretSwipeSending(false); }
+  };
+
+  /* ── Battle functions ── */
+  const startBattle = async () => {
+    if (!otherHash) return;
+    try {
+      const r = await fetch(`${API_BASE}/api/battle/challenge`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': getST() },
+        body: JSON.stringify({ opponentHash: otherHash }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setBattleId(d.battleId);
+        setBattleSwiped(false);
+        pollBattle(d.battleId);
+      }
+    } catch {}
+  };
+
+  const pollBattle = (id: string) => {
+    if (battlePollRef.current) clearInterval(battlePollRef.current);
+    battlePollRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`${API_BASE}/api/battle/${id}`, { headers: { 'x-session-token': getST() } });
+        if (r.ok) {
+          const d = await r.json();
+          setBattleData(d);
+          if (d.status === 'active' && !battleCdRef.current) {
+            setBattleCountdown(30);
+            battleCdRef.current = setInterval(() => setBattleCountdown(c => { if (c <= 1) { clearInterval(battleCdRef.current!); battleCdRef.current = null; return 0; } return c - 1; }), 1000);
+          }
+          if (d.status === 'completed' || d.status === 'declined' || d.status === 'expired') {
+            clearInterval(battlePollRef.current!); battlePollRef.current = null;
+            if (battleCdRef.current) { clearInterval(battleCdRef.current); battleCdRef.current = null; }
+          }
+        }
+      } catch {}
+    }, 1500);
+  };
+
+  const acceptBattle = async (id: string) => {
+    await fetch(`${API_BASE}/api/battle/${id}/accept`, { method: 'POST', headers: { 'x-session-token': getST() } });
+    setBattleId(id);
+    setBattleSwiped(false);
+    pollBattle(id);
+  };
+
+  const doSwipe = async (direction: 'up' | 'down') => {
+    if (!battleId || battleSwiped) return;
+    setBattleSwiped(true);
+    try {
+      await fetch(`${API_BASE}/api/battle/${battleId}/swipe`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': getST() },
+        body: JSON.stringify({ direction }),
+      });
+    } catch {}
+  };
+
+  const closeBattle = () => {
+    if (battlePollRef.current) { clearInterval(battlePollRef.current); battlePollRef.current = null; }
+    if (battleCdRef.current) { clearInterval(battleCdRef.current); battleCdRef.current = null; }
+    setBattleId(null); setBattleData(null); setBattleSwiped(false); setBattleCountdown(30);
+  };
 
   /* ── E2E: инициализация при открытии секретного чата ── */
   useEffect(() => {
@@ -709,6 +852,12 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
             </>
           )}
         </div>
+        {!isGroup && !isSecret && (
+          <motion.button whileTap={{ scale:0.88 }} onClick={startBattle}
+            style={{ background:'rgba(251,146,60,0.15)', border:'1px solid rgba(251,146,60,0.4)', borderRadius:'50%',
+              width:36, height:36, cursor:'pointer', fontSize:17, display:'flex', alignItems:'center',
+              justifyContent:'center', flexShrink:0 }} title="Swipe Battle ⚔️">⚔️</motion.button>
+        )}
         {!isGroup && !isSecret && call && (
           <>
             <motion.button whileTap={{ scale:0.88 }} onClick={() => call.startCall(otherHash,'audio')}
@@ -911,7 +1060,14 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                     transform: swipeMsg===m.id&&swipeDx>0 ? `translateX(${isMe?-swipeDx:swipeDx}px)` : 'none',
                     transition: swipeDx===0 ? 'transform 0.2s ease' : 'none' }}>
                   {!isMe && (
-                    <div onClick={() => m.senderHash && onViewProfile && onViewProfile(m.senderHash)}
+                    <div
+                      onClick={() => m.senderHash && onViewProfile && onViewProfile(m.senderHash)}
+                      onTouchStart={e => {
+                        if (e.touches.length >= 2 && !isGroup && !isSecret) {
+                          e.preventDefault(); e.stopPropagation();
+                          setSecretSwipeOpen(true);
+                        }
+                      }}
                       style={{ width:28, height:28, borderRadius:'50%', overflow:'hidden', flexShrink:0, marginBottom:2,
                         visibility: !isSameAuthorAsPrev ? 'visible' : 'hidden',
                         cursor: (m.senderHash && onViewProfile) ? 'pointer' : 'default' }}>
@@ -941,16 +1097,24 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                         </div>
                       </div>
                     )}
+                    {/* secret_swipe timer badge */}
+                    {m.messageType === 'secret_swipe' && m.burnAt && (
+                      <div style={{ fontSize:9, fontWeight:800, color:'#a855f7', marginBottom:2, fontFamily:'"Montserrat",sans-serif',
+                        display:'flex', alignItems:'center', gap:3 }}>
+                        <span>🕵️</span>
+                        <span>исчезнет через {msgTimers[m.id] ?? '...'}</span>
+                      </div>
+                    )}
                     <div
                       onMouseDown={onPressStart} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
                       onTouchStart={onPressStart} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
                       style={{
-                        background: isDeleted ? 'rgba(255,255,255,0.04)' : isMe ? eff : 'rgba(255,255,255,0.09)',
-                        color: isDeleted ? 'rgba(255,255,255,0.3)' : isMe ? '#000' : '#fff',
+                        background: isDeleted ? 'rgba(255,255,255,0.04)' : m.messageType==='secret_swipe' ? (isMe ? 'rgba(168,85,247,0.25)' : 'rgba(168,85,247,0.12)') : isMe ? eff : 'rgba(255,255,255,0.09)',
+                        color: isDeleted ? 'rgba(255,255,255,0.3)' : m.messageType==='secret_swipe' ? '#e9d5ff' : isMe ? '#000' : '#fff',
                         borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                         padding: (!isDeleted && (m.messageType==='image'||m.messageType==='videoMessage')) ? '4px' : '10px 14px',
                         maxWidth:'100%', wordBreak:'break-word',
-                        border: isDeleted ? '1px solid rgba(255,255,255,0.06)' : isMe ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                        border: isDeleted ? '1px solid rgba(255,255,255,0.06)' : m.messageType==='secret_swipe' ? '1px solid rgba(168,85,247,0.4)' : isMe ? 'none' : '1px solid rgba(255,255,255,0.08)',
                         cursor:'default', userSelect:'none',
                         fontStyle: isDeleted ? 'italic' : 'normal',
                       }}>
@@ -1360,6 +1524,194 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
             }}>➤</motion.button>
         </div>
       )}
+
+      {/* ══ Secret Swipe Sheet ══ */}
+      <AnimatePresence>
+        {secretSwipeOpen && (
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.7)', zIndex:50, display:'flex', alignItems:'flex-end' }}
+            onClick={e=>{ if(e.target===e.currentTarget) setSecretSwipeOpen(false); }}>
+            <motion.div initial={{ y: 200 }} animate={{ y:0 }} exit={{ y:200 }} transition={{ type:'spring', stiffness:280, damping:28 }}
+              style={{ width:'100%', background:'#0f0a1a', borderRadius:'24px 24px 0 0', padding:'20px 20px 36px',
+                border:'1px solid rgba(168,85,247,0.3)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+                <div style={{ width:38, height:38, borderRadius:'50%', background:'rgba(168,85,247,0.15)',
+                  border:'1.5px solid rgba(168,85,247,0.4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>🕵️</div>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:900, color:'#e9d5ff', fontFamily:'"Montserrat",sans-serif' }}>Секретный свайп</div>
+                  <div style={{ fontSize:10, color:'rgba(168,85,247,0.7)', fontWeight:600 }}>Только для {otherInfo.name} · Удалится через 24ч</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+                <textarea value={secretSwipeText} onChange={e=>setSecretSwipeText(e.target.value)}
+                  placeholder={`Секретное сообщение для ${otherInfo.name}…`}
+                  maxLength={500}
+                  rows={3}
+                  style={{ flex:1, background:'rgba(168,85,247,0.07)', border:'1.5px solid rgba(168,85,247,0.3)',
+                    borderRadius:12, padding:'10px 12px', color:'#e9d5ff', fontSize:14, resize:'none',
+                    outline:'none', fontFamily:'"Montserrat",sans-serif', lineHeight:1.5 }} autoFocus />
+                <motion.button whileTap={{ scale:0.88 }} onClick={sendSecretSwipe} disabled={!secretSwipeText.trim()||secretSwipeSending}
+                  style={{ width:44, height:44, borderRadius:'50%', background: secretSwipeText.trim() ? '#7c3aed' : 'rgba(255,255,255,0.1)',
+                    border:'none', cursor: secretSwipeText.trim() ? 'pointer' : 'default', fontSize:18,
+                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
+                    opacity: secretSwipeSending ? 0.5 : 1, transition:'background 0.2s' }}>
+                  {secretSwipeSending ? '⌛' : '✈️'}
+                </motion.button>
+              </div>
+              <div style={{ fontSize:10, color:'rgba(255,255,255,0.25)', marginTop:8, fontFamily:'"Montserrat",sans-serif' }}>
+                🕵️ Сообщение не сохраняется в истории и автоматически удалится через 24 часа
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ══ Battle Overlay ══ */}
+      <AnimatePresence>
+        {battleData && (
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.92)', zIndex:60, display:'flex', flexDirection:'column',
+              alignItems:'center', justifyContent:'center', padding:24 }}>
+
+            {/* Ожидание принятия */}
+            {battleData.status === 'pending' && battleData.myRole === 'challenger' && (
+              <div style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+                <div style={{ fontSize:48 }}>⚔️</div>
+                <div style={{ fontSize:18, fontWeight:900, color:'#fff', fontFamily:'"Montserrat",sans-serif' }}>Вызов отправлен!</div>
+                <div style={{ fontSize:13, color:'rgba(255,255,255,0.5)' }}>Ждём, пока {otherInfo.name} примет вызов…</div>
+                <motion.div animate={{ rotate:[0,10,-10,0] }} transition={{ repeat:Infinity, duration:1.2 }} style={{ fontSize:40 }}>⏳</motion.div>
+                <motion.button whileTap={{ scale:0.95 }} onClick={closeBattle}
+                  style={{ marginTop:8, padding:'10px 28px', borderRadius:12, border:'1px solid rgba(255,255,255,0.2)',
+                    background:'rgba(255,255,255,0.07)', color:'rgba(255,255,255,0.6)', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
+                  Отменить
+                </motion.button>
+              </div>
+            )}
+
+            {/* Входящий вызов */}
+            {battleData.status === 'pending' && battleData.myRole === 'opponent' && (
+              <div style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+                <div style={{ fontSize:48 }}>⚔️</div>
+                <div style={{ fontSize:18, fontWeight:900, color:'#fff', fontFamily:'"Montserrat",sans-serif' }}>{otherInfo.name} вызывает тебя!</div>
+                <div style={{ fontSize:13, color:'rgba(255,255,255,0.5)' }}>Swipe Battle — кто быстрее свайпнет пост?</div>
+                <div style={{ display:'flex', gap:12, marginTop:8 }}>
+                  <motion.button whileTap={{ scale:0.92 }} onClick={() => battleId && acceptBattle(battleId)}
+                    style={{ padding:'12px 32px', borderRadius:14, background:'linear-gradient(135deg,#f97316,#ef4444)',
+                      border:'none', color:'#fff', fontWeight:900, fontSize:15, cursor:'pointer', fontFamily:'"Montserrat",sans-serif',
+                      boxShadow:'0 4px 20px rgba(249,115,22,0.5)' }}>⚔️ Принять!</motion.button>
+                  <motion.button whileTap={{ scale:0.92 }} onClick={async()=>{ battleId&&await fetch(`${API_BASE}/api/battle/${battleId}/decline`,{method:'POST',headers:{'x-session-token':getST()}}); closeBattle(); }}
+                    style={{ padding:'12px 28px', borderRadius:14, border:'1px solid rgba(255,255,255,0.2)',
+                      background:'rgba(255,255,255,0.07)', color:'rgba(255,255,255,0.6)', fontWeight:700, fontSize:15, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
+                    Отклонить
+                  </motion.button>
+                </div>
+              </div>
+            )}
+
+            {/* Игра! */}
+            {battleData.status === 'active' && (
+              <div style={{ width:'100%', display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ fontSize:28 }}>⚔️</div>
+                  <div style={{ fontSize:16, fontWeight:900, color:'#f97316', fontFamily:'"Montserrat",sans-serif' }}>SWIPE BATTLE</div>
+                  <div style={{ fontSize:28 }}>⚔️</div>
+                </div>
+                <div style={{ fontSize:13, color:'rgba(255,255,255,0.5)', fontFamily:'"Montserrat",sans-serif' }}>
+                  Свайп вверх 👍 или вниз 👎 — кто быстрее?
+                </div>
+                {/* Таймер */}
+                <div style={{ fontSize:36, fontWeight:900, color: battleCountdown <= 5 ? '#ef4444' : '#f97316',
+                  fontFamily:'"Montserrat",sans-serif', transition:'color 0.3s' }}>{battleCountdown}</div>
+                {/* Пост */}
+                <div style={{ width:'100%', background:'rgba(255,255,255,0.06)', borderRadius:16,
+                  border:'1px solid rgba(255,255,255,0.1)', padding:16, maxHeight:180, overflow:'hidden' }}>
+                  {battleData.postImage && (
+                    <img src={battleData.postImage} alt="" style={{ width:'100%', maxHeight:100, objectFit:'cover', borderRadius:10, marginBottom:8 }} />
+                  )}
+                  <div style={{ fontSize:14, color:'rgba(255,255,255,0.9)', fontFamily:'"Montserrat",sans-serif', lineHeight:1.5,
+                    display:'-webkit-box', WebkitLineClamp:4, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+                    {battleData.postContent}
+                  </div>
+                </div>
+                {/* Кнопки свайпа */}
+                {!battleSwiped ? (
+                  <div style={{ display:'flex', gap:20, width:'100%' }}>
+                    <motion.button whileTap={{ scale:0.85, y:-8 }} onClick={()=>doSwipe('up')}
+                      style={{ flex:1, height:64, borderRadius:18, background:'linear-gradient(135deg,#22c55e,#16a34a)',
+                        border:'none', fontSize:28, cursor:'pointer', fontWeight:900,
+                        boxShadow:'0 6px 24px rgba(34,197,94,0.4)' }}>👍</motion.button>
+                    <motion.button whileTap={{ scale:0.85, y:8 }} onClick={()=>doSwipe('down')}
+                      style={{ flex:1, height:64, borderRadius:18, background:'linear-gradient(135deg,#ef4444,#dc2626)',
+                        border:'none', fontSize:28, cursor:'pointer', fontWeight:900,
+                        boxShadow:'0 6px 24px rgba(239,68,68,0.4)' }}>👎</motion.button>
+                  </div>
+                ) : (
+                  <div style={{ textAlign:'center', color:'rgba(255,255,255,0.5)', fontSize:14, fontFamily:'"Montserrat",sans-serif' }}>
+                    ✅ Ты свайпнул! Ждём {otherInfo.name}…
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Declined */}
+            {battleData.status === 'declined' && (
+              <div style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+                <div style={{ fontSize:48 }}>😔</div>
+                <div style={{ fontSize:17, fontWeight:900, color:'#fff', fontFamily:'"Montserrat",sans-serif' }}>{otherInfo.name} отклонил вызов</div>
+                <motion.button whileTap={{ scale:0.95 }} onClick={closeBattle}
+                  style={{ padding:'10px 28px', borderRadius:12, background:accent, border:'none', color:'#000', fontWeight:800, fontSize:14, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
+                  Закрыть
+                </motion.button>
+              </div>
+            )}
+
+            {/* Expired */}
+            {battleData.status === 'expired' && (
+              <div style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+                <div style={{ fontSize:48 }}>⏰</div>
+                <div style={{ fontSize:17, fontWeight:900, color:'#fff', fontFamily:'"Montserrat",sans-serif' }}>Вызов истёк</div>
+                <motion.button whileTap={{ scale:0.95 }} onClick={closeBattle}
+                  style={{ padding:'10px 28px', borderRadius:12, background:accent, border:'none', color:'#000', fontWeight:800, fontSize:14, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
+                  Закрыть
+                </motion.button>
+              </div>
+            )}
+
+            {/* Результат */}
+            {battleData.status === 'completed' && (
+              <div style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
+                <motion.div animate={{ scale:[1,1.15,1] }} transition={{ repeat:2, duration:0.4 }} style={{ fontSize:64 }}>
+                  {battleData.winner === myHash ? '🏆' : '💀'}
+                </motion.div>
+                <div style={{ fontSize:22, fontWeight:900, fontFamily:'"Montserrat",sans-serif',
+                  color: battleData.winner === myHash ? '#f97316' : '#ef4444' }}>
+                  {battleData.winner === myHash ? 'ТЫ ПОБЕДИЛ!' : 'ТЫ ПРОИГРАЛ!'}
+                </div>
+                <div style={{ fontSize:14, color:'rgba(255,255,255,0.5)', fontFamily:'"Montserrat",sans-serif' }}>
+                  {battleData.winner === myHash
+                    ? `Ты свайпнул быстрее ${otherInfo.name} 🎉`
+                    : `${otherInfo.name} оказался(ась) быстрее 😤`}
+                </div>
+                {battleData.winner === myHash && (
+                  <div style={{ background:'rgba(249,115,22,0.15)', border:'1px solid rgba(249,115,22,0.4)',
+                    borderRadius:12, padding:'10px 20px', display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:16 }}>⚔️</span>
+                    <span style={{ fontSize:12, color:'#f97316', fontWeight:800, fontFamily:'"Montserrat",sans-serif' }}>
+                      Ты получаешь значок чемпиона на 24 часа!
+                    </span>
+                  </div>
+                )}
+                <motion.button whileTap={{ scale:0.95 }} onClick={closeBattle}
+                  style={{ marginTop:8, padding:'12px 36px', borderRadius:14, background:'linear-gradient(135deg,#f97316,#ef4444)',
+                    border:'none', color:'#fff', fontWeight:900, fontSize:15, cursor:'pointer', fontFamily:'"Montserrat",sans-serif',
+                    boxShadow:'0 4px 20px rgba(249,115,22,0.4)' }}>
+                  Закрыть
+                </motion.button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

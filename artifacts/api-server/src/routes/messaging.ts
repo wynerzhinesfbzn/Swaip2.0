@@ -583,7 +583,7 @@ router.get("/conversations/:id/messages", requireSession, async (req, res) => {
 router.post("/conversations/:id/messages", requireSession, contentFilter("message", ["content"]), async (req, res) => {
   const me = (req as any).userHash as string;
   const convId = parseInt(req.params['id'] as string);
-  const { content = '', messageType = 'text', mediaUrl, mediaName, duration, replyToId } = req.body;
+  const { content = '', messageType = 'text', mediaUrl, mediaName, duration, replyToId, burnInMs } = req.body;
 
   if (!msgRateLimit(me)) return res.status(429).json({ error: "Слишком много сообщений. Подождите минуту." });
   if (typeof content === 'string' && content.length > MAX_MSG_LENGTH) return res.status(400).json({ error: "Сообщение слишком длинное" });
@@ -604,7 +604,8 @@ router.post("/conversations/:id/messages", requireSession, contentFilter("messag
         : encryptMessage(content, convId);
 
     /* Вычисляем время сгорания */
-    const burnAt = burnTimer > 0 ? new Date(Date.now() + burnTimer * 1000) : null;
+    const burnMs = typeof burnInMs === 'number' && burnInMs > 0 ? burnInMs : burnTimer > 0 ? burnTimer * 1000 : 0;
+    const burnAt = burnMs > 0 ? new Date(Date.now() + burnMs) : null;
 
     const [msg] = await db.insert(messagesTable).values({
       conversationId: convId,
