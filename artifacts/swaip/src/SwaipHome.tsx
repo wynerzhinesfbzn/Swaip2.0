@@ -3,6 +3,7 @@ import SwpExchange from './SwpExchange';
 import AccessibilityAssistant from './AccessibilityAssistant';
 import ChannelsScreen from './ChannelsScreen';
 import { motion, AnimatePresence } from 'framer-motion';
+import { checkContent, collectPostText } from './contentFilter';
 import { MessagesScreen, CallCtx, useUnreadCount } from './ProMessaging';
 import { useCallSignaling, RINGTONE_OPTIONS, RINGTONE_PREF_KEY } from './useCallSignaling';
 import type { RingtoneId } from './useCallSignaling';
@@ -8530,6 +8531,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const [open,setOpen]=useState(false);
   const [text,setText]=useState('');
   const [submitting,setSubmitting]=useState(false);
+  const [contentError,setContentError]=useState('');
   /* Голос */
   const [voiceRec,setVoiceRec]=useState(false);
   const [voiceBlob,setVoiceBlob]=useState<Blob|null>(null);
@@ -8738,6 +8740,9 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
     const validPoll=postHasPoll&&pollQuestion.trim()&&pollOptions.filter(o=>o.trim()).length>=2;
     const hasAnyContent=!!(text.trim()||imgFile||vidFile||docFiles.length||musicFile||postHasBooking||validPoll);
     if(!hasAnyContent||submitting)return;
+    const filterResult=checkContent(collectPostText(text,pollQuestion,...(pollOptions||[])));
+    if(!filterResult.ok){setContentError(filterResult.reason||'Публикация заблокирована.');return;}
+    setContentError('');
     setSubmitting(true);
     try{
       const[imgUrl,vidUrl,docs,musUrl]=await Promise.all([uploadImg(),uploadVid(),uploadDocs(),uploadMusic()]);
@@ -9154,6 +9159,12 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
               {!voiceRec&&onPickFromPlaylist&&!playlistTrack&&<motion.button whileTap={{scale:0.88}} onClick={onPickFromPlaylist} style={{width:38,height:38,borderRadius:'50%',border:`1px solid rgba(99,102,241,0.4)`,background:'rgba(99,102,241,0.1)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}} title="Трек из плейлиста"><span style={{fontSize:15}}>📀</span></motion.button>}
               {!voiceUrl&&!voiceRec&&!musicFile&&<motion.button whileTap={{scale:0.88}} onClick={startVoice} style={{width:38,height:38,borderRadius:'50%',border:`1px solid ${c.border}`,background:c.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:17}}>🎙️</span></motion.button>}
             </div>
+            {contentError&&(
+              <div style={{margin:'6px 0',padding:'8px 12px',background:'rgba(239,68,68,0.12)',border:'1px solid rgba(239,68,68,0.4)',borderRadius:10,display:'flex',alignItems:'flex-start',gap:8}}>
+                <span style={{fontSize:15,flexShrink:0}}>🚫</span>
+                <span style={{fontSize:12,color:'#fca5a5',lineHeight:1.4}}>{contentError}</span>
+              </div>
+            )}
             <div style={{display:'flex',gap:8,alignItems:'center',justifyContent:'flex-end'}}>
               <button onClick={()=>{setOpen(false);reset();}} style={{padding:'9px 18px',borderRadius:22,border:`1px solid ${c.border}`,background:'transparent',color:c.sub,fontSize:13,fontFamily:'"Montserrat",sans-serif',cursor:'pointer',flexShrink:0}}>Отмена</button>
               {voiceUrl?(

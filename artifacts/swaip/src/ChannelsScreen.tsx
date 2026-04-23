@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { checkContent, collectPostText } from './contentFilter';
 
 /* ══════════════════════════════════════════════════════
    ТИПЫ
@@ -1484,6 +1485,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
   const [seriesName,setSeriesName]=useState('');
   const [episodeNum,setEpisodeNum]=useState(1);
   const [publishing,setPublishing]=useState(false);
+  const [contentError,setContentError]=useState('');
 
   /* ── Запись ── */
   const [hasBooking,setHasBooking]=useState(false);
@@ -1591,6 +1593,9 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
     if(publishing)return;
     if(type==='text'&&!text.trim()&&!imgFile&&!hasBooking)return;
     if(type==='poll'&&(!pollQ.trim()||pollOpts.filter(o=>o.trim()).length<2))return;
+    const fr=checkContent(collectPostText(text,pollQ,...pollOpts));
+    if(!fr.ok){setContentError(fr.reason||'Публикация заблокирована.');return;}
+    setContentError('');
     setPublishing(true);
     try{
       const [iUrl,vUrl,mUrl]= await Promise.all([
@@ -1633,6 +1638,12 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
           <p style={{margin:0,fontSize:15,fontWeight:800,color:c.light}}>Новый пост</p>
           <p style={{margin:0,fontSize:11,color:c.sub}}>{ch.name} · {ch.vibe}</p>
         </div>
+        {contentError&&(
+          <div style={{padding:'7px 12px',background:'rgba(239,68,68,0.12)',border:'1px solid rgba(239,68,68,0.4)',borderRadius:10,display:'flex',alignItems:'center',gap:6,maxWidth:260}}>
+            <span style={{fontSize:14,flexShrink:0}}>🚫</span>
+            <span style={{fontSize:11,color:'#fca5a5',lineHeight:1.4}}>{contentError}</span>
+          </div>
+        )}
         <motion.button whileTap={{scale:0.95}} onClick={handlePublish} disabled={!canPublish}
           style={{padding:'9px 20px',borderRadius:20,border:'none',cursor:canPublish?'pointer':'default',
             background:canPublish?`linear-gradient(135deg,${ch.vibeColor}cc,${accent})`:'rgba(255,255,255,0.1)',
@@ -3159,6 +3170,7 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
   const [postType,setPostType]=useState<GroupPost['type']>('text');
   const [text,setText]=useState('');
   const [isAnon,setIsAnon]=useState(false);
+  const [groupContentError,setGroupContentError]=useState('');
   /* poll */
   const [pollQ,setPollQ]=useState('');
   const [pollOpts,setPollOpts]=useState(['','']);
@@ -3177,6 +3189,10 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
   const meta=GROUP_POST_META[postType];
 
   const handleSubmit=()=>{
+    const allText=collectPostText(text,pollQ,collabText,eventTitle,...pollOpts);
+    const fr=checkContent(allText);
+    if(!fr.ok){setGroupContentError(fr.reason||'Публикация заблокирована.');return;}
+    setGroupContentError('');
     let base: Omit<GroupPost,'id'|'createdAt'|'likes'|'myLiked'|'comments'>={
       type:postType,text,authorName:userName,authorAvatar:userAvatar,isAnon:isAnon||postType==='confession',
     };
@@ -3340,6 +3356,12 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
           )}
 
           {/* Submit */}
+          {groupContentError&&(
+            <div style={{marginTop:10,padding:'10px 12px',background:'rgba(239,68,68,0.12)',border:'1px solid rgba(239,68,68,0.4)',borderRadius:12,display:'flex',alignItems:'flex-start',gap:8}}>
+              <span style={{fontSize:16,flexShrink:0}}>🚫</span>
+              <span style={{fontSize:13,color:'#fca5a5',lineHeight:1.4}}>{groupContentError}</span>
+            </div>
+          )}
           <motion.button whileTap={{scale:0.97}} onClick={handleSubmit} disabled={!canSubmit}
             style={{width:'100%',padding:'15px',borderRadius:16,border:'none',cursor:canSubmit?'pointer':'not-allowed',marginTop:16,
               background:canSubmit?`linear-gradient(135deg,${meta.color},${accent})`:'rgba(255,255,255,0.08)',
