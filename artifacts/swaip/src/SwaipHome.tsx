@@ -911,7 +911,7 @@ interface QuoteSnap{id:string;authorName:string;authorAvatar:string;text:string;
 interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:BookingSlot[];bookingLabel?:string;poll?:Poll;myVote?:string|null;quoteOf?:QuoteSnap;repostOf?:QuoteSnap;}
 type Track={id:string;title:string;artist:string;url:string;cover?:string;duration?:number};
 const SWAIP_PLAYLIST_KEY='swaip_playlist_v2';
-function loadPlaylist():Track[]{try{return JSON.parse(localStorage.getItem(SWAIP_PLAYLIST_KEY)||'[]');}catch{return[];}}
+function loadPlaylist():Track[]{try{const all:Track[]=JSON.parse(localStorage.getItem(SWAIP_PLAYLIST_KEY)||'[]');/* blob: URL действительны только в текущей сессии браузера — фильтруем их при загрузке */return all.filter(t=>t.url&&!t.url.startsWith('blob:'));}catch{return[];}}
 function savePlaylist(t:Track[]){try{localStorage.setItem(SWAIP_PLAYLIST_KEY,JSON.stringify(t));}catch{}}
 let _globalAudio:HTMLAudioElement|null=null;
 function getGlobalAudio():HTMLAudioElement{if(!_globalAudio){_globalAudio=new Audio();_globalAudio.preload='metadata';}return _globalAudio;}
