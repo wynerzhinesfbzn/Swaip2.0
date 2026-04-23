@@ -160,6 +160,86 @@ function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.
 }
 
 /* ══════════════════════════════════════════════════════
+   ТИПЫ ГРУПП
+══════════════════════════════════════════════════════ */
+interface GroupComment { id:string; text:string; author:string; avatar:string; isAnon:boolean; createdAt:number; }
+interface BrainstormIdea { id:string; text:string; author:string; votes:number; }
+interface GroupPost {
+  id: string;
+  type: 'text'|'poll'|'brainstorm'|'challenge'|'confession'|'roulette'|'event'|'capsule'|'mood'|'collab';
+  text: string;
+  authorName: string;
+  authorAvatar: string;
+  isAnon: boolean;
+  createdAt: number;
+  likes: number;
+  myLiked: boolean;
+  comments: GroupComment[];
+  imageUrl?: string;
+  /* poll */
+  pollQuestion?: string;
+  pollOptions?: {text:string;votes:number}[];
+  pollVotedIdx?: number;
+  /* brainstorm */
+  brainstormIdeas?: BrainstormIdea[];
+  /* challenge */
+  challengeDeadline?: number;
+  challengeCompleted?: number;
+  /* event */
+  eventTitle?: string;
+  eventAt?: number;
+  eventJoined?: number;
+  /* capsule */
+  capsuleOpensAt?: number;
+  capsuleOpened?: boolean;
+  /* collab */
+  collabParts?: {author:string;text:string}[];
+  /* roulette answer */
+  rouletteQuestion?: string;
+  rouletteAnswer?: string;
+}
+
+type GroupRole = 'founder'|'moderator'|'vip'|'activist'|'member';
+interface GroupMember { hash:string; name:string; avatar:string; role:GroupRole; score:number; joinedAt:number; }
+
+interface SwaipGroup {
+  id: string;
+  name: string;
+  handle: string;
+  description: string;
+  emoji: string;
+  color: string;
+  gradient: string;
+  category: string;
+  createdAt: number;
+  posts: GroupPost[];
+  members: GroupMember[];
+  wordOfDay: string;
+  wordSetAt: number;
+  todayMood: string;
+  streak: number;
+  isPrivate: boolean;
+}
+
+/* ══════════════════════════════════════════════════════
+   ХРАНИЛИЩЕ ГРУПП
+══════════════════════════════════════════════════════ */
+function useGroupsStore(userHash:string):[SwaipGroup[],React.Dispatch<React.SetStateAction<SwaipGroup[]>>] {
+  const KEY=`swaip_account_${userHash}_groups_v1`;
+  const [groups,setGroupsRaw]=useState<SwaipGroup[]>(()=>{
+    try{ const s=localStorage.getItem(KEY); return s?JSON.parse(s):[]; }catch{ return []; }
+  });
+  const setGroups:React.Dispatch<React.SetStateAction<SwaipGroup[]>>=(action)=>{
+    setGroupsRaw(prev=>{
+      const next=typeof action==='function'?(action as (p:SwaipGroup[])=>SwaipGroup[])(prev):action;
+      try{ localStorage.setItem(KEY,JSON.stringify(next)); }catch{}
+      return next;
+    });
+  };
+  return [groups,setGroups];
+}
+
+/* ══════════════════════════════════════════════════════
    ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
 ══════════════════════════════════════════════════════ */
 
@@ -227,29 +307,29 @@ interface Props {
 
 export default function ChannelsScreen({ userHash, isDark, c, accent, userName, userAvatar, isActive }: Props) {
   const [channels, setChannels] = useChannelsStore(userHash);
+  const [groups, setGroups] = useGroupsStore(userHash);
+  const [activeTab, setActiveTab] = useState<'channels'|'groups'>('channels');
   const [openId, setOpenId] = useState<string|null>(null);
+  const [openGroupId, setOpenGroupId] = useState<string|null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateType, setShowCreateType] = useState<'channel'|'group'|null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [activeRubric, setActiveRubric] = useState<string|null>(null);
-  const [tick, setTick] = useState(0); // для обновления таймеров
+  const [tick, setTick] = useState(0);
 
-  /* обновляем таймеры */
-  useEffect(()=>{
-    const t=setInterval(()=>setTick(n=>n+1),1000);
-    return()=>clearInterval(t);
-  },[]);
+  useEffect(()=>{ const t=setInterval(()=>setTick(n=>n+1),1000); return()=>clearInterval(t); },[]);
 
-  const openCh = channels.find(c=>c.id===openId)||null;
+  const openCh = channels.find(ch=>ch.id===openId)||null;
+  const openGr = groups.find(g=>g.id===openGroupId)||null;
 
-  /* Обработчик кнопки назад */
   useEffect(()=>{
     if(!isActive)return;
-    const handler=(e:PopStateEvent)=>{ e.preventDefault(); if(openId)setOpenId(null); };
+    const handler=(e:PopStateEvent)=>{ e.preventDefault(); if(openId)setOpenId(null); if(openGroupId)setOpenGroupId(null); };
     window.addEventListener('popstate',handler);
     return()=>window.removeEventListener('popstate',handler);
-  },[isActive,openId]);
+  },[isActive,openId,openGroupId]);
 
-  /* ── Мутации ── */
+  /* ── Channel mutations ── */
   const reactToPost=(chId:string,postId:string,key:ReactionKey)=>{
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>{
       if(p.id!==postId)return p;
@@ -260,7 +340,6 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
       return{...p,reactions:r,myReaction:already?undefined:key};
     })}));
   };
-
   const voteInPoll=(chId:string,postId:string,idx:number)=>{
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>{
       if(p.id!==postId||p.pollVotedIdx!==undefined)return p;
@@ -268,88 +347,158 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
       return{...p,pollOptions:opts,pollVotedIdx:idx};
     })}));
   };
-
   const openCapsule=(chId:string,postId:string)=>{
-    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>
-      p.id===postId?{...p,capsuleOpened:true}:p
-    )}));
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>p.id===postId?{...p,capsuleOpened:true}:p)}));
   };
-
   const pinPost=(chId:string,postId:string)=>{
-    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,
-      pinnedPostId:ch.pinnedPostId===postId?null:postId}));
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,pinnedPostId:ch.pinnedPostId===postId?null:postId}));
   };
-
   const deletePost=(chId:string,postId:string)=>{
-    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,
-      posts:ch.posts.filter(p=>p.id!==postId),
-      pinnedPostId:ch.pinnedPostId===postId?null:ch.pinnedPostId}));
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.filter(p=>p.id!==postId),pinnedPostId:ch.pinnedPostId===postId?null:ch.pinnedPostId}));
   };
-
   const updateChannel=(chId:string,patch:Partial<SwaipChannel>)=>{
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,...patch}));
   };
-
   const bookPost=(chId:string,postId:string,time?:string)=>{
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>{
-      if(p.id!==postId||!p.hasBooking)return p;
-      if(!time||!p.bookingSlots?.length)return p;
+      if(p.id!==postId||!p.hasBooking||!time||!p.bookingSlots?.length)return p;
       return{...p,bookingSlots:p.bookingSlots.map(s=>s.time===time?{...s,booked:true}:s)};
     })}));
   };
-
   const editPostBooking=(chId:string,postId:string,patch:{bookingSlots?:{time:string;booked:boolean}[];bookingLabel?:string;hasBooking?:boolean})=>{
-    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>
-      p.id!==postId?p:{...p,...patch}
-    )}));
+    setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:ch.posts.map(p=>p.id!==postId?p:{...p,...patch})}));
   };
-
-  /* ── Создание поста ── */
   const addPost=(chId:string,post:Omit<ChannelPost,'id'|'reactions'|'views'|'createdAt'|'isPinned'>)=>{
-    const newPost:ChannelPost={
-      ...post,id:uid(),reactions:{fire:0,rocket:0,gem:0,heart:0,think:0},
-      views:0,createdAt:Date.now(),isPinned:false,
-      ...(post.hasBooking?{hasBooking:true,bookingLabel:post.bookingLabel||'Записаться',bookingSlots:post.bookingSlots||[]}:{}),
-    };
+    const newPost:ChannelPost={...post,id:uid(),reactions:{fire:0,rocket:0,gem:0,heart:0,think:0},views:0,createdAt:Date.now(),isPinned:false,...(post.hasBooking?{hasBooking:true,bookingLabel:post.bookingLabel||'Записаться',bookingSlots:post.bookingSlots||[]}:{})};
     setChannels(cs=>cs.map(ch=>ch.id!==chId?ch:{...ch,posts:[newPost,...ch.posts]}));
   };
 
+  /* ── Group mutations ── */
+  const addGroupPost=(gId:string,post:Omit<GroupPost,'id'|'createdAt'|'likes'|'myLiked'|'comments'>)=>{
+    const np:GroupPost={...post,id:uid(),createdAt:Date.now(),likes:0,myLiked:false,comments:[]};
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:[np,...g.posts],streak:g.streak}));
+  };
+  const likeGroupPost=(gId:string,postId:string)=>{
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>p.id!==postId?p:{...p,likes:p.myLiked?p.likes-1:p.likes+1,myLiked:!p.myLiked})}));
+  };
+  const addComment=(gId:string,postId:string,text:string,isAnon:boolean)=>{
+    const c2:GroupComment={id:uid(),text,author:isAnon?'Аноним':userName,avatar:isAnon?'':userAvatar||'',isAnon,createdAt:Date.now()};
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>p.id!==postId?p:{...p,comments:[...p.comments,c2]})}));
+  };
+  const voteGroupPoll=(gId:string,postId:string,idx:number)=>{
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>{
+      if(p.id!==postId||p.pollVotedIdx!==undefined)return p;
+      return{...p,pollOptions:(p.pollOptions||[]).map((o,i)=>i===idx?{...o,votes:o.votes+1}:o),pollVotedIdx:idx};
+    })}));
+  };
+  const setWordOfDay=(gId:string,word:string)=>{
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,wordOfDay:word,wordSetAt:Date.now()}));
+  };
+  const setGroupMood=(gId:string,mood:string)=>{
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,todayMood:mood}));
+  };
+  const joinEvent=(gId:string,postId:string)=>{
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>p.id!==postId?p:{...p,eventJoined:(p.eventJoined||0)+1})}));
+  };
+  const addBrainstormIdea=(gId:string,postId:string,idea:string)=>{
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>p.id!==postId?p:{...p,brainstormIdeas:[...(p.brainstormIdeas||[]),{id:uid(),text:idea,author:userName,votes:0}]})}));
+  };
+  const voteIdeaUp=(gId:string,postId:string,ideaId:string)=>{
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>p.id!==postId?p:{...p,brainstormIdeas:(p.brainstormIdeas||[]).map(i=>i.id===ideaId?{...i,votes:i.votes+1}:i)})}));
+  };
+
+  const handleCreate=(type:'channel'|'group')=>{ setShowCreateType(type); };
+
   return (
-    <div style={{display:'flex',flexDirection:'column',height:'100%',background:c.bg,overflowY:'auto',
-      paddingBottom:80}}>
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:c.bg,overflow:'hidden'}}>
 
-      {/* ── Горизонтальная лента каналов ── */}
-      <HorizontalStrip channels={channels} openId={openId} onOpen={setOpenId}
-        onCreateNew={()=>setShowCreate(true)} c={c} accent={accent}/>
+      {/* ── Сегментный переключатель Каналы | Группы ── */}
+      <div style={{display:'flex',background:c.bg,borderBottom:`1px solid ${c.border}`,flexShrink:0,padding:'10px 16px 0'}}>
+        <div style={{display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:12,padding:3,gap:2,width:'100%'}}>
+          {([['channels','📡 Каналы'],['groups','👥 Группы']] as const).map(([tab,label])=>(
+            <motion.button key={tab} whileTap={{scale:0.97}} onClick={()=>{setActiveTab(tab);setOpenId(null);setOpenGroupId(null);}}
+              style={{flex:1,padding:'8px 0',borderRadius:10,border:'none',cursor:'pointer',fontWeight:800,fontSize:13,
+                fontFamily:'"Montserrat",sans-serif',transition:'all 0.2s',
+                background:activeTab===tab?accent:'transparent',
+                color:activeTab===tab?'#000':'rgba(255,255,255,0.5)'}}>
+              {label}
+            </motion.button>
+          ))}
+        </div>
+      </div>
 
-      {/* ── Контент ── */}
-      {!openId?(
-        <ChannelsFeed channels={channels} c={c} accent={accent} onOpen={setOpenId}/>
-      ):(
-        openCh&&(
-          <ChannelPage ch={openCh} c={c} accent={accent} isDark={isDark}
-            onBack={()=>setOpenId(null)}
-            onReact={reactToPost} onVote={voteInPoll}
-            onOpenCapsule={openCapsule} onPin={pinPost} onDelete={deletePost}
-            onUpdate={(patch)=>updateChannel(openCh.id,patch)}
-            onBook={(postId,time)=>bookPost(openCh.id,postId,time)}
-            onEditBooking={(postId,patch)=>editPostBooking(openCh.id,postId,patch)}
-            activeRubric={activeRubric} onRubric={setActiveRubric}
-            onCompose={()=>setShowCompose(true)}
-            onAddPost={addPost} tick={tick}/>
-        )
+      {/* ── Горизонтальная лента ── */}
+      {activeTab==='channels'&&(
+        <div style={{flexShrink:0}}>
+          <HorizontalStrip channels={channels} openId={openId} onOpen={setOpenId}
+            onCreateNew={()=>handleCreate('channel')} c={c} accent={accent}/>
+        </div>
+      )}
+      {activeTab==='groups'&&(
+        <div style={{flexShrink:0}}>
+          <GroupsStrip groups={groups} openId={openGroupId} onOpen={setOpenGroupId}
+            onCreateNew={()=>handleCreate('group')} c={c} accent={accent}/>
+        </div>
       )}
 
-      {/* ── Создание канала ── */}
+      {/* ── Контент ── */}
+      <div style={{flex:1,overflowY:'auto',paddingBottom:80}}>
+        {activeTab==='channels'&&(
+          !openId?(
+            <ChannelsFeed channels={channels} c={c} accent={accent} onOpen={setOpenId}/>
+          ):(
+            openCh&&(
+              <ChannelPage ch={openCh} c={c} accent={accent} isDark={isDark}
+                onBack={()=>setOpenId(null)}
+                onReact={reactToPost} onVote={voteInPoll}
+                onOpenCapsule={openCapsule} onPin={pinPost} onDelete={deletePost}
+                onUpdate={(patch)=>updateChannel(openCh.id,patch)}
+                onBook={(postId,time)=>bookPost(openCh.id,postId,time)}
+                onEditBooking={(postId,patch)=>editPostBooking(openCh.id,postId,patch)}
+                activeRubric={activeRubric} onRubric={setActiveRubric}
+                onCompose={()=>setShowCompose(true)}
+                onAddPost={addPost} tick={tick}/>
+            )
+          )
+        )}
+        {activeTab==='groups'&&(
+          !openGroupId?(
+            <GroupsFeed groups={groups} c={c} accent={accent} onOpen={setOpenGroupId}/>
+          ):(
+            openGr&&(
+              <GroupPage group={openGr} c={c} accent={accent} isDark={isDark}
+                userName={userName} userAvatar={userAvatar||''}
+                onBack={()=>setOpenGroupId(null)}
+                onAddPost={(post)=>addGroupPost(openGr.id,post)}
+                onLike={(pid)=>likeGroupPost(openGr.id,pid)}
+                onComment={(pid,text,anon)=>addComment(openGr.id,pid,text,anon)}
+                onVotePoll={(pid,idx)=>voteGroupPoll(openGr.id,pid,idx)}
+                onSetWordOfDay={(w)=>setWordOfDay(openGr.id,w)}
+                onSetMood={(m)=>setGroupMood(openGr.id,m)}
+                onJoinEvent={(pid)=>joinEvent(openGr.id,pid)}
+                onAddIdea={(pid,idea)=>addBrainstormIdea(openGr.id,pid,idea)}
+                onVoteIdea={(pid,iid)=>voteIdeaUp(openGr.id,pid,iid)}
+                tick={tick}/>
+            )
+          )
+        )}
+      </div>
+
+      {/* ── Модалка создать канал ── */}
       <AnimatePresence>
-        {showCreate&&(
+        {showCreateType==='channel'&&(
           <CreateChannelModal c={c} accent={accent} isDark={isDark}
             userName={userName} userAvatar={userAvatar}
-            onClose={()=>setShowCreate(false)}
-            onCreate={(ch)=>{ setChannels(cs=>[ch,...cs]); setShowCreate(false); setOpenId(ch.id); }}/>
+            onClose={()=>setShowCreateType(null)}
+            onCreate={(ch)=>{ setChannels(cs=>[ch,...cs]); setShowCreateType(null); setActiveTab('channels'); setOpenId(ch.id); }}/>
+        )}
+        {showCreateType==='group'&&(
+          <CreateGroupModal c={c} accent={accent} isDark={isDark}
+            userName={userName} userAvatar={userAvatar}
+            onClose={()=>setShowCreateType(null)}
+            onCreate={(g)=>{ setGroups(gs=>[g,...gs]); setShowCreateType(null); setActiveTab('groups'); setOpenGroupId(g.id); }}/>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
@@ -2409,6 +2558,971 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
           </motion.button>
         )}
       </div>
+    </motion.div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   ГОРИЗОНТАЛЬНАЯ ЛЕНТА ГРУПП
+══════════════════════════════════════════════════════ */
+const ROLE_META:Record<GroupRole,{icon:string;color:string;label:string}> = {
+  founder:   {icon:'👑',color:'#f59e0b',label:'Основатель'},
+  moderator: {icon:'⚡',color:'#a855f7',label:'Модератор'},
+  vip:       {icon:'💎',color:'#60a5fa',label:'VIP'},
+  activist:  {icon:'🌟',color:'#22c55e',label:'Активист'},
+  member:    {icon:'👤',color:'#6b7280',label:'Участник'},
+};
+const MOOD_OPTIONS=['🔥 Горим','😴 Ленимся','🎉 Тусуемся','🧠 Думаем','😡 Ворчим','💚 В балансе','⚡ Энергия','🌧️ Меланхолия'];
+const GROUP_EMOJIS=['🦁','🐉','🌊','⚡','🚀','🎭','🔮','🎯','🌙','🦋','🎪','🏔️','🌺','💥','🎸'];
+const GROUP_COLORS=['#f97316','#a855f7','#06b6d4','#f59e0b','#22c55e','#ec4899','#8b5cf6','#ef4444','#3b82f6','#84cc16'];
+const GROUP_GRADIENTS=[
+  'linear-gradient(135deg,#1a0a3a,#6b21a8)','linear-gradient(135deg,#0a2a1a,#166534)',
+  'linear-gradient(135deg,#1a0a0a,#991b1b)','linear-gradient(135deg,#0a1a3a,#1e40af)',
+  'linear-gradient(135deg,#1a1a0a,#854d0e)','linear-gradient(135deg,#0a1a1a,#155e75)',
+];
+const ROULETTE_QUESTIONS=['Что тебя реально бесит?','Признайся: твоя тайная суперсила?','Что бы ты сделал с миллионом прямо сейчас?','Твой самый стыдный поступок за последний год?','Опиши идеальный день в 5 словах.','Какая черта характера тебе стыдиться?','Что ты никогда не скажешь вслух, но думаешь каждый день?'];
+
+function GroupsStrip({groups,openId,onOpen,onCreateNew,c,accent}:{
+  groups:SwaipGroup[];openId:string|null;
+  onOpen:(id:string)=>void;onCreateNew:()=>void;
+  c:Props['c'];accent:string;
+}) {
+  return (
+    <div style={{padding:'14px 0 10px',borderBottom:`1px solid ${c.border}`}}>
+      <div style={{display:'flex',gap:14,overflowX:'auto',padding:'2px 16px 6px',scrollbarWidth:'none'}}>
+        <motion.button whileTap={{scale:0.9}} onClick={onCreateNew}
+          style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer'}}>
+          <div style={{width:52,height:52,borderRadius:'50%',border:`2px dashed ${accent}`,
+            display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,background:`${accent}18`}}>+</div>
+          <span style={{fontSize:10,color:accent,fontWeight:700,whiteSpace:'nowrap'}}>Создать</span>
+        </motion.button>
+        {groups.map(g=>(
+          <motion.button key={g.id} whileTap={{scale:0.9}} onClick={()=>onOpen(g.id)}
+            style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer'}}>
+            <div style={{position:'relative'}}>
+              <div style={{width:52,height:52,borderRadius:'50%',overflow:'hidden',background:g.gradient,
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,
+                border:openId===g.id?`2.5px solid ${g.color}`:'2px solid rgba(255,255,255,0.15)',
+                boxShadow:openId===g.id?`0 0 12px ${g.color}66`:'none'}}>
+                <span>{g.emoji}</span>
+              </div>
+              {g.streak>0&&<div style={{position:'absolute',top:-4,right:-4,background:'#f97316',
+                borderRadius:'50%',width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:9,fontWeight:900,color:'#fff',border:'1px solid #000'}}>🔥</div>}
+            </div>
+            <span style={{fontSize:10,color:openId===g.id?g.color:c.mid,fontWeight:openId===g.id?800:600,
+              whiteSpace:'nowrap',maxWidth:60,overflow:'hidden',textOverflow:'ellipsis'}}>{g.name}</span>
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   ЛЕНТА ГРУПП
+══════════════════════════════════════════════════════ */
+function GroupsFeed({groups,c,accent,onOpen}:{groups:SwaipGroup[];c:Props['c'];accent:string;onOpen:(id:string)=>void}) {
+  if(groups.length===0) return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'60px 32px',gap:16,textAlign:'center'}}>
+      <div style={{fontSize:56}}>👥</div>
+      <p style={{margin:0,fontSize:18,fontWeight:900,color:c.light}}>Твои группы</p>
+      <p style={{margin:0,fontSize:14,color:c.sub,lineHeight:1.6}}>Создавай группы, общайся, соревнуйся и твори вместе.</p>
+      <div style={{display:'flex',flexDirection:'column',gap:8,width:'100%',maxWidth:300,marginTop:8}}>
+        {['🧠 Мозговой штурм — собираем идеи вместе','📋 Задание дня — ежедневные вызовы',
+          '🤫 Анонимные признания — без страха','🎲 Рулетка вопросов — неожиданные ответы',
+          '🏆 Рейтинг участников — кто самый активный','⏳ Групповая капсула — послание в будущее',
+          '🎭 Слово дня — тема от основателя','🌡️ Настроение группы — общий вайб'].map(f=>(
+          <div key={f} style={{padding:'8px 12px',background:c.card,borderRadius:10,border:`1px solid ${c.border}`,textAlign:'left',fontSize:12,color:c.mid}}>{f}</div>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{padding:'12px 16px'}}>
+      <p style={{margin:'0 0 12px',fontSize:12,color:c.sub,fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase'}}>Мои группы</p>
+      {groups.map(g=>(
+        <motion.div key={g.id} whileTap={{scale:0.98}} onClick={()=>onOpen(g.id)}
+          style={{background:c.card,borderRadius:16,padding:'14px',marginBottom:10,cursor:'pointer',border:`1px solid ${c.border}`,overflow:'hidden',position:'relative'}}>
+          <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:g.gradient}}/>
+          <div style={{display:'flex',gap:12,alignItems:'center'}}>
+            <div style={{width:48,height:48,borderRadius:'50%',background:g.gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,flexShrink:0}}>
+              {g.emoji}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:15,fontWeight:900,color:c.light}}>{g.name}</span>
+                {g.isPrivate&&<span style={{fontSize:10,color:c.sub,background:'rgba(255,255,255,0.08)',padding:'1px 6px',borderRadius:6}}>🔒</span>}
+                {g.streak>0&&<span style={{fontSize:11,color:'#f97316',fontWeight:800}}>🔥{g.streak}</span>}
+              </div>
+              <span style={{fontSize:12,color:c.sub}}>{g.members.length} участн. · {g.posts.length} постов</span>
+            </div>
+            {g.todayMood&&<span style={{fontSize:20}}>{g.todayMood.split(' ')[0]}</span>}
+          </div>
+          {g.wordOfDay&&(
+            <div style={{marginTop:10,padding:'8px 10px',background:'rgba(255,255,255,0.05)',borderRadius:10,border:`1px solid ${c.border}`}}>
+              <span style={{fontSize:11,color:c.sub}}>🎭 Слово дня: </span>
+              <span style={{fontSize:12,color:c.light,fontWeight:700}}>{g.wordOfDay}</span>
+            </div>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   СТРАНИЦА ГРУППЫ
+══════════════════════════════════════════════════════ */
+interface GroupPageProps {
+  group:SwaipGroup; c:Props['c']; accent:string; isDark:boolean;
+  userName:string; userAvatar:string;
+  onBack:()=>void;
+  onAddPost:(post:Omit<GroupPost,'id'|'createdAt'|'likes'|'myLiked'|'comments'>)=>void;
+  onLike:(pid:string)=>void;
+  onComment:(pid:string,text:string,anon:boolean)=>void;
+  onVotePoll:(pid:string,idx:number)=>void;
+  onSetWordOfDay:(w:string)=>void;
+  onSetMood:(m:string)=>void;
+  onJoinEvent:(pid:string)=>void;
+  onAddIdea:(pid:string,idea:string)=>void;
+  onVoteIdea:(pid:string,iid:string)=>void;
+  tick:number;
+}
+function GroupPage({group,c,accent,isDark,userName,userAvatar,onBack,onAddPost,onLike,onComment,onVotePoll,onSetWordOfDay,onSetMood,onJoinEvent,onAddIdea,onVoteIdea,tick}:GroupPageProps) {
+  const [subTab,setSubTab]=useState<'feed'|'leaderboard'|'settings'>('feed');
+  const [showComposer,setShowComposer]=useState(false);
+  const [expandedPost,setExpandedPost]=useState<string|null>(null);
+  const [commentText,setCommentText]=useState('');
+  const [commentAnon,setCommentAnon]=useState(false);
+  const [ideaText,setIdeaText]=useState<{[pid:string]:string}>({});
+  const [showMoodPicker,setShowMoodPicker]=useState(false);
+  const [showWordInput,setShowWordInput]=useState(false);
+  const [wordInput,setWordInput]=useState('');
+
+  const myMember=group.members[0];
+  const isFounder=myMember?.role==='founder';
+
+  const sorted=[...group.posts].sort((a,b)=>b.createdAt-a.createdAt);
+  const leaderboard=[...group.members].sort((a,b)=>b.score-a.score);
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      {/* Header */}
+      <div style={{background:group.gradient,padding:'0 16px 16px',flexShrink:0,position:'relative',overflow:'hidden'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0 16px'}}>
+          <motion.button whileTap={{scale:0.9}} onClick={onBack} style={{background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:18,cursor:'pointer',flexShrink:0}}>←</motion.button>
+          <div style={{width:44,height:44,borderRadius:'50%',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26}}>
+            {group.emoji}
+          </div>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:17,fontWeight:900,color:'#fff'}}>{group.name}</span>
+              {group.isPrivate&&<span style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>🔒</span>}
+            </div>
+            <span style={{fontSize:12,color:'rgba(255,255,255,0.7)'}}>@{group.handle} · {group.members.length} участн.</span>
+          </div>
+          {group.streak>0&&<div style={{background:'rgba(0,0,0,0.3)',borderRadius:20,padding:'4px 10px',display:'flex',alignItems:'center',gap:4}}>
+            <span style={{fontSize:14}}>🔥</span>
+            <span style={{fontSize:13,color:'#fff',fontWeight:900}}>{group.streak}д</span>
+          </div>}
+        </div>
+        {/* Stats row */}
+        <div style={{display:'flex',gap:8}}>
+          {[
+            {emoji:'👥',val:group.members.length,label:'участн.'},
+            {emoji:'📝',val:group.posts.length,label:'постов'},
+            {emoji:'🔥',val:group.streak,label:'стрик'},
+          ].map(s=>(
+            <div key={s.label} style={{flex:1,background:'rgba(255,255,255,0.12)',borderRadius:12,padding:'8px',textAlign:'center'}}>
+              <div style={{fontSize:16}}>{s.emoji}</div>
+              <div style={{fontSize:14,fontWeight:900,color:'#fff'}}>{s.val}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.6)'}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Слово дня + Настроение */}
+      <div style={{padding:'10px 16px',display:'flex',gap:8,flexShrink:0,borderBottom:`1px solid ${c.border}`}}>
+        <motion.button whileTap={{scale:0.97}} onClick={()=>setShowWordInput(v=>!v)}
+          style={{flex:1,padding:'8px 12px',background:c.card,borderRadius:12,border:`1px solid ${c.border}`,cursor:'pointer',textAlign:'left'}}>
+          <div style={{fontSize:11,color:c.sub,fontWeight:700}}>🎭 СЛОВО ДНЯ</div>
+          <div style={{fontSize:13,color:c.light,fontWeight:800,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+            {group.wordOfDay||'не задано'}
+          </div>
+        </motion.button>
+        <motion.button whileTap={{scale:0.97}} onClick={()=>setShowMoodPicker(v=>!v)}
+          style={{flex:1,padding:'8px 12px',background:c.card,borderRadius:12,border:`1px solid ${c.border}`,cursor:'pointer',textAlign:'left'}}>
+          <div style={{fontSize:11,color:c.sub,fontWeight:700}}>🌡️ НАСТРОЕНИЕ</div>
+          <div style={{fontSize:13,color:c.light,fontWeight:800,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+            {group.todayMood||'не задано'}
+          </div>
+        </motion.button>
+      </div>
+
+      {/* Word input */}
+      <AnimatePresence>
+        {showWordInput&&(
+          <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}}
+            style={{overflow:'hidden',flexShrink:0,borderBottom:`1px solid ${c.border}`}}>
+            <div style={{padding:'8px 16px',display:'flex',gap:8}}>
+              <input value={wordInput} onChange={e=>setWordInput(e.target.value)} placeholder="Введи слово дня…"
+                style={{flex:1,padding:'8px 12px',background:c.cardAlt,border:`1px solid ${c.border}`,borderRadius:10,color:c.light,fontSize:14,outline:'none'}}/>
+              <motion.button whileTap={{scale:0.97}} onClick={()=>{if(wordInput.trim()){onSetWordOfDay(wordInput.trim());setWordInput('');setShowWordInput(false);}}}
+                style={{padding:'8px 14px',background:accent,borderRadius:10,border:'none',cursor:'pointer',color:'#000',fontWeight:800,fontSize:13}}>ОК</motion.button>
+            </div>
+          </motion.div>
+        )}
+        {showMoodPicker&&(
+          <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}}
+            style={{overflow:'hidden',flexShrink:0,borderBottom:`1px solid ${c.border}`}}>
+            <div style={{padding:'8px 16px',display:'flex',flexWrap:'wrap',gap:6}}>
+              {MOOD_OPTIONS.map(m=>(
+                <motion.button key={m} whileTap={{scale:0.95}} onClick={()=>{onSetMood(m);setShowMoodPicker(false);}}
+                  style={{padding:'6px 12px',borderRadius:20,border:`1px solid ${group.todayMood===m?group.color:c.border}`,
+                    background:group.todayMood===m?`${group.color}25`:'transparent',cursor:'pointer',
+                    fontSize:13,color:c.light,fontWeight:group.todayMood===m?800:500}}>
+                  {m}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sub-tabs */}
+      <div style={{display:'flex',gap:0,borderBottom:`1px solid ${c.border}`,flexShrink:0}}>
+        {([['feed','📰 Лента'],['leaderboard','🏆 Рейтинг'],['settings','⚙️ О группе']] as const).map(([tab,label])=>(
+          <button key={tab} onClick={()=>setSubTab(tab)}
+            style={{flex:1,padding:'10px 0',background:'none',border:'none',cursor:'pointer',
+              fontSize:12,fontWeight:subTab===tab?800:500,color:subTab===tab?group.color:c.sub,
+              borderBottom:subTab===tab?`2px solid ${group.color}`:'2px solid transparent'}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:'auto',paddingBottom:80}}>
+        {subTab==='feed'&&(
+          <div style={{padding:'12px 16px'}}>
+            {sorted.length===0&&(
+              <div style={{textAlign:'center',padding:'40px 0',color:c.sub}}>
+                <div style={{fontSize:40,marginBottom:12}}>💬</div>
+                <p>Пока тихо. Создай первый пост!</p>
+              </div>
+            )}
+            {sorted.map(post=>(
+              <GroupPostCard key={post.id} post={post} group={group} c={c} accent={accent}
+                isExpanded={expandedPost===post.id}
+                onToggleExpand={()=>setExpandedPost(prev=>prev===post.id?null:post.id)}
+                onLike={()=>onLike(post.id)}
+                onVotePoll={(idx)=>onVotePoll(post.id,idx)}
+                onJoinEvent={()=>onJoinEvent(post.id)}
+                ideaInput={ideaText[post.id]||''}
+                onIdeaChange={(v)=>setIdeaText(p=>({...p,[post.id]:v}))}
+                onAddIdea={()=>{if((ideaText[post.id]||'').trim()){onAddIdea(post.id,ideaText[post.id].trim());setIdeaText(p=>({...p,[post.id]:''}));}}}
+                onVoteIdea={(iid)=>onVoteIdea(post.id,iid)}
+                commentText={expandedPost===post.id?commentText:''}
+                commentAnon={commentAnon}
+                onCommentAnon={()=>setCommentAnon(v=>!v)}
+                onCommentChange={setCommentText}
+                onSendComment={()=>{if(commentText.trim()){onComment(post.id,commentText.trim(),commentAnon);setCommentText('');}}}
+                tick={tick}/>
+            ))}
+          </div>
+        )}
+        {subTab==='leaderboard'&&(
+          <div style={{padding:'16px'}}>
+            <p style={{margin:'0 0 12px',fontSize:12,color:c.sub,fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase'}}>Рейтинг активности</p>
+            {leaderboard.map((m,i)=>{
+              const role=ROLE_META[m.role];
+              return (
+                <div key={m.hash} style={{display:'flex',alignItems:'center',gap:12,padding:'12px',background:c.card,borderRadius:14,marginBottom:8,border:`1px solid ${i<3?role.color+'40':c.border}`}}>
+                  <div style={{width:32,height:32,borderRadius:'50%',background:i===0?'#f59e0b':i===1?'#9ca3af':i===2?'#b45309':'rgba(255,255,255,0.1)',
+                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:i<3?18:14,fontWeight:900,color:i<3?'#000':c.sub,flexShrink:0}}>
+                    {i<3?['🥇','🥈','🥉'][i]:i+1}
+                  </div>
+                  <div style={{width:36,height:36,borderRadius:'50%',background:group.gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
+                    {m.avatar||group.emoji}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6}}>
+                      <span style={{fontSize:14,fontWeight:800,color:c.light}}>{m.name}</span>
+                      <span style={{fontSize:11,color:role.color,fontWeight:700}}>{role.icon} {role.label}</span>
+                    </div>
+                    <span style={{fontSize:12,color:c.sub}}>{m.score} очков</span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2}}>
+                    <span style={{fontSize:16}}>{role.icon}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {leaderboard.length===0&&(
+              <div style={{textAlign:'center',padding:'40px 0',color:c.sub}}>
+                <div style={{fontSize:40}}>🏆</div>
+                <p>Пока никого нет в рейтинге</p>
+              </div>
+            )}
+          </div>
+        )}
+        {subTab==='settings'&&(
+          <div style={{padding:'16px'}}>
+            <div style={{background:group.gradient,borderRadius:20,padding:'20px',textAlign:'center',marginBottom:16}}>
+              <div style={{fontSize:52}}>{group.emoji}</div>
+              <p style={{margin:'10px 0 4px',fontSize:18,fontWeight:900,color:'#fff'}}>{group.name}</p>
+              <p style={{margin:'0 0 8px',fontSize:13,color:'rgba(255,255,255,0.7)'}}>@{group.handle}</p>
+              <p style={{margin:0,fontSize:13,color:'rgba(255,255,255,0.8)',lineHeight:1.5}}>{group.description}</p>
+            </div>
+            <div style={{background:c.card,borderRadius:16,padding:'16px',border:`1px solid ${c.border}`}}>
+              <p style={{margin:'0 0 12px',fontSize:13,fontWeight:800,color:c.light}}>👥 Участники ({group.members.length})</p>
+              {group.members.map(m=>{
+                const r=ROLE_META[m.role];
+                return (
+                  <div key={m.hash} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                    <div style={{width:34,height:34,borderRadius:'50%',background:group.gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{m.avatar||group.emoji}</div>
+                    <div style={{flex:1}}>
+                      <span style={{fontSize:13,fontWeight:700,color:c.light}}>{m.name}</span>
+                      <span style={{marginLeft:6,fontSize:11,color:r.color}}>{r.icon} {r.label}</span>
+                    </div>
+                    <span style={{fontSize:12,color:c.sub}}>{m.score}оч</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* FAB — создать пост */}
+      {subTab==='feed'&&(
+        <motion.button whileTap={{scale:0.92}} onClick={()=>setShowComposer(true)}
+          style={{position:'fixed',bottom:90,right:20,width:54,height:54,borderRadius:'50%',
+            background:`linear-gradient(135deg,${group.color},${accent})`,
+            border:'none',cursor:'pointer',fontSize:24,display:'flex',alignItems:'center',justifyContent:'center',
+            boxShadow:`0 6px 20px ${group.color}55`,zIndex:100}}>
+          ✏️
+        </motion.button>
+      )}
+
+      {/* Composer */}
+      <AnimatePresence>
+        {showComposer&&(
+          <GroupComposer group={group} c={c} accent={accent} isDark={isDark}
+            userName={userName} userAvatar={userAvatar}
+            onClose={()=>setShowComposer(false)}
+            onPost={(post)=>{onAddPost(post);setShowComposer(false);}}/>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   КАРТОЧКА ПОСТА ГРУППЫ
+══════════════════════════════════════════════════════ */
+interface GroupPostCardProps {
+  post:GroupPost; group:SwaipGroup; c:Props['c']; accent:string;
+  isExpanded:boolean; onToggleExpand:()=>void; onLike:()=>void;
+  onVotePoll:(idx:number)=>void; onJoinEvent:()=>void;
+  ideaInput:string; onIdeaChange:(v:string)=>void; onAddIdea:()=>void;
+  onVoteIdea:(iid:string)=>void;
+  commentText:string; commentAnon:boolean;
+  onCommentAnon:()=>void; onCommentChange:(v:string)=>void; onSendComment:()=>void;
+  tick:number;
+}
+
+const GROUP_POST_META: Record<GroupPost['type'],{icon:string;label:string;color:string}> = {
+  text:       {icon:'📝',label:'Пост',color:'#6b7280'},
+  poll:       {icon:'📊',label:'Опрос',color:'#3b82f6'},
+  brainstorm: {icon:'🧠',label:'Мозговой штурм',color:'#8b5cf6'},
+  challenge:  {icon:'📋',label:'Задание дня',color:'#f97316'},
+  confession: {icon:'🤫',label:'Анонимное',color:'#ec4899'},
+  roulette:   {icon:'🎲',label:'Рулетка',color:'#f59e0b'},
+  event:      {icon:'📅',label:'Событие',color:'#22c55e'},
+  capsule:    {icon:'⏳',label:'Капсула',color:'#06b6d4'},
+  mood:       {icon:'🌡️',label:'Настроение',color:'#a855f7'},
+  collab:     {icon:'🎨',label:'Совместный',color:'#ef4444'},
+};
+
+function GroupPostCard({post,group,c,accent,isExpanded,onToggleExpand,onLike,onVotePoll,onJoinEvent,ideaInput,onIdeaChange,onAddIdea,onVoteIdea,commentText,commentAnon,onCommentAnon,onCommentChange,onSendComment,tick}:GroupPostCardProps) {
+  const meta=GROUP_POST_META[post.type];
+  const totalPollVotes=(post.pollOptions||[]).reduce((s,o)=>s+o.votes,0);
+
+  return (
+    <motion.div layout style={{background:c.card,borderRadius:16,marginBottom:10,overflow:'hidden',border:`1px solid ${c.border}`}}>
+      {/* Тип-полоска */}
+      <div style={{height:3,background:`linear-gradient(90deg,${meta.color},${meta.color}44)`}}/>
+
+      <div style={{padding:'12px 14px'}}>
+        {/* Author row */}
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+          <div style={{width:32,height:32,borderRadius:'50%',background:group.gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
+            {post.isAnon?'🎭':post.authorAvatar||group.emoji}
+          </div>
+          <div style={{flex:1}}>
+            <span style={{fontSize:13,fontWeight:800,color:c.light}}>{post.isAnon?'Аноним':post.authorName}</span>
+            <span style={{marginLeft:6,fontSize:10,color:meta.color,fontWeight:700,background:`${meta.color}18`,padding:'1px 6px',borderRadius:6}}>{meta.icon} {meta.label}</span>
+          </div>
+          <span style={{fontSize:11,color:c.sub}}>{fmtAge(post.createdAt)}</span>
+        </div>
+
+        {/* Контент по типу */}
+        {post.text&&<p style={{margin:'0 0 10px',fontSize:14,color:c.mid,lineHeight:1.5}}>{post.text}</p>}
+        {post.imageUrl&&<img src={post.imageUrl} alt="" style={{width:'100%',borderRadius:10,marginBottom:10,objectFit:'cover',maxHeight:240}}/>}
+
+        {/* POLL */}
+        {post.type==='poll'&&post.pollOptions&&(
+          <div style={{marginBottom:10}}>
+            {post.pollQuestion&&<p style={{margin:'0 0 8px',fontSize:14,fontWeight:700,color:c.light}}>{post.pollQuestion}</p>}
+            {post.pollOptions.map((opt,i)=>{
+              const pct=totalPollVotes>0?Math.round(opt.votes/totalPollVotes*100):0;
+              const voted=post.pollVotedIdx===i;
+              return (
+                <motion.button key={i} whileTap={{scale:0.98}} onClick={()=>post.pollVotedIdx===undefined&&onVotePoll(i)}
+                  style={{width:'100%',padding:'8px 12px',background:voted?`${group.color}22`:'rgba(255,255,255,0.05)',
+                    borderRadius:10,border:`1px solid ${voted?group.color:c.border}`,cursor:post.pollVotedIdx===undefined?'pointer':'default',
+                    marginBottom:6,display:'flex',alignItems:'center',gap:8,position:'relative',overflow:'hidden',textAlign:'left'}}>
+                  {post.pollVotedIdx!==undefined&&<div style={{position:'absolute',left:0,top:0,bottom:0,width:`${pct}%`,background:`${group.color}18`,pointerEvents:'none'}}/>}
+                  <span style={{flex:1,fontSize:13,color:c.light,fontWeight:voted?800:500,position:'relative'}}>{opt.text}</span>
+                  {post.pollVotedIdx!==undefined&&<span style={{fontSize:12,color:group.color,fontWeight:800,position:'relative'}}>{pct}%</span>}
+                </motion.button>
+              );
+            })}
+            <p style={{margin:'4px 0 0',fontSize:11,color:c.sub}}>{totalPollVotes} голосов</p>
+          </div>
+        )}
+
+        {/* BRAINSTORM */}
+        {post.type==='brainstorm'&&(
+          <div style={{marginBottom:10}}>
+            <p style={{margin:'0 0 8px',fontSize:13,color:c.sub,fontWeight:700}}>💡 Идеи участников:</p>
+            {(post.brainstormIdeas||[]).sort((a,b)=>b.votes-a.votes).slice(0,5).map(idea=>(
+              <div key={idea.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'rgba(255,255,255,0.05)',borderRadius:8,marginBottom:4}}>
+                <span style={{flex:1,fontSize:13,color:c.mid}}>{idea.text}</span>
+                <span style={{fontSize:11,color:c.sub}}>{idea.author}</span>
+                <motion.button whileTap={{scale:0.9}} onClick={()=>onVoteIdea(idea.id)}
+                  style={{background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:3}}>
+                  <span style={{fontSize:13}}>👍</span>
+                  <span style={{fontSize:11,color:c.sub,fontWeight:700}}>{idea.votes}</span>
+                </motion.button>
+              </div>
+            ))}
+            <div style={{display:'flex',gap:6,marginTop:6}}>
+              <input value={ideaInput} onChange={e=>onIdeaChange(e.target.value)} placeholder="Твоя идея…"
+                style={{flex:1,padding:'6px 10px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:8,color:c.light,fontSize:13,outline:'none'}}/>
+              <motion.button whileTap={{scale:0.95}} onClick={onAddIdea}
+                style={{padding:'6px 12px',background:group.color,borderRadius:8,border:'none',cursor:'pointer',color:'#000',fontWeight:800,fontSize:12}}>+</motion.button>
+            </div>
+          </div>
+        )}
+
+        {/* CHALLENGE */}
+        {post.type==='challenge'&&post.challengeDeadline&&(
+          <div style={{marginBottom:10,padding:'10px',background:`${group.color}15`,borderRadius:12,border:`1px solid ${group.color}40`}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+              <span style={{fontSize:14}}>⏳</span>
+              <span style={{fontSize:13,color:group.color,fontWeight:800}}>До конца: {fmtCountdown(post.challengeDeadline)}</span>
+            </div>
+            {post.challengeCompleted!==undefined&&<span style={{fontSize:12,color:c.sub}}>{post.challengeCompleted} человек выполнили</span>}
+          </div>
+        )}
+
+        {/* ROULETTE */}
+        {post.type==='roulette'&&(
+          <div style={{marginBottom:10,padding:'12px',background:`${group.color}15`,borderRadius:12,border:`1px solid ${group.color}40`}}>
+            <p style={{margin:'0 0 4px',fontSize:14,fontWeight:800,color:c.light}}>🎲 Вопрос рулетки:</p>
+            <p style={{margin:'0 0 8px',fontSize:13,color:group.color,fontWeight:700}}>{post.rouletteQuestion}</p>
+            {post.rouletteAnswer&&<p style={{margin:0,fontSize:13,color:c.mid,lineHeight:1.5,fontStyle:'italic'}}>"{post.rouletteAnswer}"</p>}
+          </div>
+        )}
+
+        {/* EVENT */}
+        {post.type==='event'&&(
+          <div style={{marginBottom:10}}>
+            {post.eventTitle&&<p style={{margin:'0 0 4px',fontSize:15,fontWeight:900,color:c.light}}>📅 {post.eventTitle}</p>}
+            {post.eventAt&&<p style={{margin:'0 0 8px',fontSize:12,color:group.color,fontWeight:700}}>{new Date(post.eventAt).toLocaleString('ru')}</p>}
+            <motion.button whileTap={{scale:0.97}} onClick={onJoinEvent}
+              style={{padding:'8px 16px',background:`${group.color}22`,border:`1px solid ${group.color}`,borderRadius:10,cursor:'pointer',fontSize:13,color:group.color,fontWeight:800}}>
+              ✅ Пойду ({post.eventJoined||0})
+            </motion.button>
+          </div>
+        )}
+
+        {/* CAPSULE */}
+        {post.type==='capsule'&&(
+          <div style={{marginBottom:10,padding:'12px',background:'rgba(6,182,212,0.1)',borderRadius:12,border:'1px solid rgba(6,182,212,0.3)'}}>
+            {post.capsuleOpened?(
+              <div>
+                <p style={{margin:'0 0 4px',fontSize:12,color:'#06b6d4',fontWeight:700}}>📦 Капсула открыта!</p>
+                <p style={{margin:0,fontSize:14,color:c.light}}>{post.text}</p>
+              </div>
+            ):(
+              <div style={{textAlign:'center'}}>
+                <p style={{margin:'0 0 4px',fontSize:12,color:'#06b6d4',fontWeight:700}}>⏳ Откроется:</p>
+                {post.capsuleOpensAt&&<p style={{margin:0,fontSize:16,fontWeight:900,color:'#06b6d4',fontVariantNumeric:'tabular-nums'}}>{fmtCountdown(post.capsuleOpensAt)}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* COLLAB */}
+        {post.type==='collab'&&post.collabParts&&(
+          <div style={{marginBottom:10}}>
+            <p style={{margin:'0 0 8px',fontSize:13,color:c.sub,fontWeight:700}}>🎨 Совместный пост:</p>
+            {post.collabParts.map((part,i)=>(
+              <div key={i} style={{padding:'8px 12px',background:'rgba(255,255,255,0.05)',borderRadius:10,marginBottom:6,borderLeft:`3px solid ${group.color}`}}>
+                <p style={{margin:'0 0 2px',fontSize:11,color:group.color,fontWeight:700}}>{part.author}:</p>
+                <p style={{margin:0,fontSize:13,color:c.mid}}>{part.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{display:'flex',alignItems:'center',gap:12,paddingTop:8,borderTop:`1px solid ${c.border}`}}>
+          <motion.button whileTap={{scale:0.85}} onClick={onLike}
+            style={{display:'flex',alignItems:'center',gap:4,background:'none',border:'none',cursor:'pointer'}}>
+            <span style={{fontSize:18,filter:post.myLiked?'saturate(2)':'saturate(0.3)'}}>{post.myLiked?'❤️':'🤍'}</span>
+            <span style={{fontSize:12,color:post.myLiked?'#ec4899':c.sub,fontWeight:700}}>{post.likes}</span>
+          </motion.button>
+          <motion.button whileTap={{scale:0.9}} onClick={onToggleExpand}
+            style={{display:'flex',alignItems:'center',gap:4,background:'none',border:'none',cursor:'pointer'}}>
+            <span style={{fontSize:16}}>💬</span>
+            <span style={{fontSize:12,color:c.sub,fontWeight:700}}>{post.comments.length}</span>
+          </motion.button>
+        </div>
+
+        {/* Comments */}
+        <AnimatePresence>
+          {isExpanded&&(
+            <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}} style={{overflow:'hidden'}}>
+              <div style={{marginTop:10,borderTop:`1px solid ${c.border}`,paddingTop:10}}>
+                {post.comments.map(com=>(
+                  <div key={com.id} style={{display:'flex',gap:8,marginBottom:8}}>
+                    <div style={{width:28,height:28,borderRadius:'50%',background:group.gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>
+                      {com.isAnon?'🎭':com.avatar||group.emoji}
+                    </div>
+                    <div style={{background:'rgba(255,255,255,0.05)',borderRadius:10,padding:'6px 10px',flex:1}}>
+                      <div style={{fontSize:11,color:c.sub,marginBottom:2,fontWeight:700}}>{com.author}</div>
+                      <div style={{fontSize:13,color:c.mid}}>{com.text}</div>
+                    </div>
+                  </div>
+                ))}
+                <div style={{display:'flex',gap:6,alignItems:'center',marginTop:8}}>
+                  <motion.button whileTap={{scale:0.9}} onClick={onCommentAnon}
+                    style={{width:32,height:32,borderRadius:'50%',background:commentAnon?`${group.color}30`:'rgba(255,255,255,0.06)',
+                      border:`1px solid ${commentAnon?group.color:c.border}`,cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    🎭
+                  </motion.button>
+                  <input value={commentText} onChange={e=>onCommentChange(e.target.value)} placeholder="Комментарий…"
+                    style={{flex:1,padding:'7px 10px',background:'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:10,color:c.light,fontSize:13,outline:'none'}}/>
+                  <motion.button whileTap={{scale:0.9}} onClick={onSendComment}
+                    style={{width:32,height:32,borderRadius:'50%',background:group.color,border:'none',cursor:'pointer',fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    ↑
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   COMPOSER ГРУППЫ
+══════════════════════════════════════════════════════ */
+interface GroupComposerProps {
+  group:SwaipGroup; c:Props['c']; accent:string; isDark:boolean;
+  userName:string; userAvatar:string;
+  onClose:()=>void;
+  onPost:(post:Omit<GroupPost,'id'|'createdAt'|'likes'|'myLiked'|'comments'>)=>void;
+}
+
+const POST_TYPES: {type:GroupPost['type'];icon:string;label:string;color:string;desc:string}[] = [
+  {type:'text',      icon:'📝',label:'Пост',       color:'#6b7280',desc:'Обычный текст'},
+  {type:'poll',      icon:'📊',label:'Опрос',      color:'#3b82f6',desc:'Голосование'},
+  {type:'brainstorm',icon:'🧠',label:'Штурм',      color:'#8b5cf6',desc:'Идеи команды'},
+  {type:'challenge', icon:'📋',label:'Задание',    color:'#f97316',desc:'Вызов участникам'},
+  {type:'confession',icon:'🤫',label:'Анонимно',   color:'#ec4899',desc:'Без имени'},
+  {type:'roulette',  icon:'🎲',label:'Рулетка',    color:'#f59e0b',desc:'Случайный вопрос'},
+  {type:'event',     icon:'📅',label:'Событие',    color:'#22c55e',desc:'Встреча/активность'},
+  {type:'capsule',   icon:'⏳',label:'Капсула',    color:'#06b6d4',desc:'Послание в будущее'},
+  {type:'collab',    icon:'🎨',label:'Совместный', color:'#ef4444',desc:'Пишем вместе'},
+];
+
+function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost}:GroupComposerProps) {
+  const [postType,setPostType]=useState<GroupPost['type']>('text');
+  const [text,setText]=useState('');
+  const [isAnon,setIsAnon]=useState(false);
+  /* poll */
+  const [pollQ,setPollQ]=useState('');
+  const [pollOpts,setPollOpts]=useState(['','']);
+  /* challenge */
+  const [challengeH,setChallengeH]=useState(24);
+  /* event */
+  const [eventTitle,setEventTitle]=useState('');
+  const [eventDate,setEventDate]=useState('');
+  /* capsule */
+  const [capsuleH,setCapsuleH]=useState(72);
+  /* collab */
+  const [collabText,setCollabText]=useState('');
+  /* roulette — auto-pick */
+  const [rouletteQ]=useState(ROULETTE_QUESTIONS[Math.floor(Math.random()*ROULETTE_QUESTIONS.length)]);
+
+  const meta=GROUP_POST_META[postType];
+
+  const handleSubmit=()=>{
+    let base: Omit<GroupPost,'id'|'createdAt'|'likes'|'myLiked'|'comments'>={
+      type:postType,text,authorName:userName,authorAvatar:userAvatar,isAnon:isAnon||postType==='confession',
+    };
+    if(postType==='poll') base={...base,pollQuestion:pollQ,pollOptions:pollOpts.filter(o=>o.trim()).map(t=>({text:t,votes:0}))};
+    if(postType==='brainstorm') base={...base,brainstormIdeas:[]};
+    if(postType==='challenge') base={...base,challengeDeadline:Date.now()+challengeH*3600000,challengeCompleted:0};
+    if(postType==='roulette') base={...base,rouletteQuestion:rouletteQ,rouletteAnswer:text};
+    if(postType==='event') base={...base,eventTitle,eventAt:eventDate?new Date(eventDate).getTime():undefined,eventJoined:0};
+    if(postType==='capsule') base={...base,text:'',capsuleOpensAt:Date.now()+capsuleH*3600000};
+    if(postType==='collab') base={...base,text:'',collabParts:[{author:userName,text:collabText}]};
+    onPost(base);
+  };
+
+  const canSubmit=(()=>{
+    if(postType==='poll') return pollQ.trim()&&pollOpts.filter(o=>o.trim()).length>=2;
+    if(postType==='event') return eventTitle.trim();
+    if(postType==='capsule') return text.trim();
+    if(postType==='collab') return collabText.trim();
+    if(postType==='roulette') return text.trim();
+    if(postType==='brainstorm') return text.trim();
+    if(postType==='challenge') return text.trim();
+    return text.trim();
+  })();
+
+  return (
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+      style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:200,display:'flex',flexDirection:'column'}}>
+      <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:30,stiffness:300}}
+        style={{marginTop:'auto',background:c.bg,borderRadius:'24px 24px 0 0',maxHeight:'90vh',display:'flex',flexDirection:'column'}}>
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:'16px 16px 0'}}>
+          <div style={{width:36,height:36,borderRadius:'50%',background:group.gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{group.emoji}</div>
+          <div style={{flex:1}}>
+            <p style={{margin:0,fontSize:15,fontWeight:900,color:c.light}}>Новый пост в {group.name}</p>
+            <p style={{margin:0,fontSize:12,color:c.sub}}>Выбери тип и заполни</p>
+          </div>
+          <motion.button whileTap={{scale:0.9}} onClick={onClose} style={{background:'rgba(255,255,255,0.1)',border:'none',borderRadius:'50%',width:34,height:34,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:c.light,fontSize:18}}>✕</motion.button>
+        </div>
+
+        {/* Type picker */}
+        <div style={{padding:'12px 16px',overflowX:'auto',flexShrink:0}}>
+          <div style={{display:'flex',gap:8}}>
+            {POST_TYPES.map(pt=>(
+              <motion.button key={pt.type} whileTap={{scale:0.93}} onClick={()=>setPostType(pt.type)}
+                style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'8px 10px',
+                  borderRadius:12,border:`1.5px solid ${postType===pt.type?pt.color:c.border}`,cursor:'pointer',
+                  background:postType===pt.type?`${pt.color}20`:'transparent'}}>
+                <span style={{fontSize:20}}>{pt.icon}</span>
+                <span style={{fontSize:10,color:postType===pt.type?pt.color:c.sub,fontWeight:700,whiteSpace:'nowrap'}}>{pt.label}</span>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
+        {/* Form */}
+        <div style={{flex:1,overflowY:'auto',padding:'0 16px 16px'}}>
+          <div style={{height:2,background:`linear-gradient(90deg,${meta.color},transparent)`,borderRadius:2,marginBottom:14}}/>
+
+          {/* Анонимный toggle */}
+          {postType!=='confession'&&(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+              <motion.button whileTap={{scale:0.9}} onClick={()=>setIsAnon(v=>!v)}
+                style={{width:40,height:22,borderRadius:11,background:isAnon?meta.color:'rgba(255,255,255,0.1)',border:'none',cursor:'pointer',position:'relative',transition:'all 0.2s',flexShrink:0}}>
+                <div style={{position:'absolute',top:2,left:isAnon?20:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'left 0.2s'}}/>
+              </motion.button>
+              <span style={{fontSize:13,color:c.sub}}>🎭 Анонимно</span>
+            </div>
+          )}
+
+          {/* TEXT area */}
+          {postType!=='collab'&&postType!=='capsule'&&(
+            <textarea value={postType==='roulette'?text:postType==='confession'?text:text}
+              onChange={e=>setText(e.target.value)}
+              placeholder={
+                postType==='roulette'?`${rouletteQ}\n\nТвой ответ…`:
+                postType==='confession'?'Признайся анонимно…':
+                postType==='challenge'?'Опиши задание…':
+                postType==='brainstorm'?'Тема для мозгового штурма…':
+                postType==='poll'?'Дополнительный текст (необязательно)…':
+                'Что хочешь сказать?'
+              }
+              style={{width:'100%',minHeight:100,padding:'12px',background:c.cardAlt||'rgba(255,255,255,0.06)',
+                border:`1px solid ${c.border}`,borderRadius:12,color:c.light,fontSize:14,
+                lineHeight:1.6,resize:'vertical',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
+          )}
+
+          {/* ROULETTE question preview */}
+          {postType==='roulette'&&(
+            <div style={{marginTop:10,padding:'10px',background:`${meta.color}15`,borderRadius:10,border:`1px solid ${meta.color}40`}}>
+              <p style={{margin:0,fontSize:12,color:meta.color,fontWeight:700}}>🎲 Случайный вопрос:</p>
+              <p style={{margin:'4px 0 0',fontSize:14,color:c.light}}>{rouletteQ}</p>
+            </div>
+          )}
+
+          {/* POLL options */}
+          {postType==='poll'&&(
+            <div style={{marginTop:12}}>
+              <input value={pollQ} onChange={e=>setPollQ(e.target.value)} placeholder="Вопрос опроса…"
+                style={{width:'100%',padding:'10px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:10,color:c.light,fontSize:14,outline:'none',marginBottom:8,boxSizing:'border-box'}}/>
+              {pollOpts.map((opt,i)=>(
+                <input key={i} value={opt} onChange={e=>setPollOpts(o=>{const n=[...o];n[i]=e.target.value;return n;})} placeholder={`Вариант ${i+1}`}
+                  style={{width:'100%',padding:'9px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:10,color:c.light,fontSize:13,outline:'none',marginBottom:6,boxSizing:'border-box'}}/>
+              ))}
+              {pollOpts.length<6&&(
+                <button onClick={()=>setPollOpts(o=>[...o,''])}
+                  style={{background:'none',border:`1px dashed ${c.border}`,borderRadius:10,color:c.sub,fontSize:13,padding:'6px 12px',cursor:'pointer',width:'100%'}}>+ Добавить вариант</button>
+              )}
+            </div>
+          )}
+
+          {/* CHALLENGE deadline */}
+          {postType==='challenge'&&(
+            <div style={{marginTop:10}}>
+              <p style={{margin:'0 0 6px',fontSize:12,color:c.sub,fontWeight:700}}>Дедлайн:</p>
+              <div style={{display:'flex',gap:6}}>
+                {[12,24,48,72].map(h=>(
+                  <button key={h} onClick={()=>setChallengeH(h)}
+                    style={{flex:1,padding:'6px',borderRadius:8,border:`1px solid ${challengeH===h?meta.color:c.border}`,background:challengeH===h?`${meta.color}20`:'transparent',cursor:'pointer',fontSize:12,color:challengeH===h?meta.color:c.sub,fontWeight:700}}>
+                    {h}ч
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* EVENT */}
+          {postType==='event'&&(
+            <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:8}}>
+              <input value={eventTitle} onChange={e=>setEventTitle(e.target.value)} placeholder="Название события…"
+                style={{padding:'10px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:10,color:c.light,fontSize:14,outline:'none'}}/>
+              <input type="datetime-local" value={eventDate} onChange={e=>setEventDate(e.target.value)}
+                style={{padding:'10px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:10,color:c.light,fontSize:14,outline:'none'}}/>
+            </div>
+          )}
+
+          {/* CAPSULE */}
+          {postType==='capsule'&&(
+            <div style={{marginTop:4}}>
+              <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Послание в будущее…"
+                style={{width:'100%',minHeight:100,padding:'12px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:12,color:c.light,fontSize:14,lineHeight:1.6,resize:'vertical',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
+              <p style={{margin:'8px 0 4px',fontSize:12,color:c.sub,fontWeight:700}}>Откроется через:</p>
+              <div style={{display:'flex',gap:6}}>
+                {[24,48,72,168,720].map(h=>(
+                  <button key={h} onClick={()=>setCapsuleH(h)}
+                    style={{flex:1,padding:'5px 2px',borderRadius:8,border:`1px solid ${capsuleH===h?meta.color:c.border}`,background:capsuleH===h?`${meta.color}20`:'transparent',cursor:'pointer',fontSize:11,color:capsuleH===h?meta.color:c.sub,fontWeight:700}}>
+                    {h>=168?`${h/24}д`:h+'ч'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* COLLAB */}
+          {postType==='collab'&&(
+            <div style={{marginTop:4}}>
+              <p style={{margin:'0 0 8px',fontSize:12,color:c.sub}}>Твоя часть совместного поста:</p>
+              <textarea value={collabText} onChange={e=>setCollabText(e.target.value)} placeholder="Начни пост, другие продолжат…"
+                style={{width:'100%',minHeight:100,padding:'12px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:12,color:c.light,fontSize:14,lineHeight:1.6,resize:'vertical',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
+            </div>
+          )}
+
+          {/* Submit */}
+          <motion.button whileTap={{scale:0.97}} onClick={handleSubmit} disabled={!canSubmit}
+            style={{width:'100%',padding:'15px',borderRadius:16,border:'none',cursor:canSubmit?'pointer':'not-allowed',marginTop:16,
+              background:canSubmit?`linear-gradient(135deg,${meta.color},${accent})`:'rgba(255,255,255,0.08)',
+              color:canSubmit?'#000':'rgba(255,255,255,0.3)',fontSize:15,fontWeight:900,fontFamily:'"Montserrat",sans-serif'}}>
+            {meta.icon} Опубликовать
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   МОДАЛКА СОЗДАТЬ ГРУППУ
+══════════════════════════════════════════════════════ */
+interface CreateGroupModalProps {
+  c:Props['c']; accent:string; isDark:boolean;
+  userName:string; userAvatar?:string;
+  onClose:()=>void;
+  onCreate:(g:SwaipGroup)=>void;
+}
+function CreateGroupModal({c,accent,isDark,userName,userAvatar,onClose,onCreate}:CreateGroupModalProps) {
+  const [step,setStep]=useState(0);
+  const [name,setName]=useState('');
+  const [handle,setHandle]=useState('');
+  const [desc,setDesc]=useState('');
+  const [emoji,setEmoji]=useState(GROUP_EMOJIS[0]);
+  const [color,setColor]=useState(GROUP_COLORS[0]);
+  const [gradient,setGradient]=useState(GROUP_GRADIENTS[0]);
+  const [isPrivate,setIsPrivate]=useState(false);
+
+  const handleCreate=()=>{
+    const founder:GroupMember={hash:'me',name:userName,avatar:userAvatar||'',role:'founder',score:100,joinedAt:Date.now()};
+    const g:SwaipGroup={
+      id:uid(),name:name.trim(),handle:handle.trim()||name.trim().toLowerCase().replace(/\s+/g,'_'),
+      description:desc.trim(),emoji,color,gradient,category:'general',
+      createdAt:Date.now(),posts:[],members:[founder],
+      wordOfDay:'',wordSetAt:0,todayMood:'',streak:0,isPrivate,
+    };
+    onCreate(g);
+  };
+
+  return (
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+      style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.88)',zIndex:200,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:28,stiffness:280}}
+        style={{background:c.bg,borderRadius:'24px 24px 0 0',maxHeight:'88vh',display:'flex',flexDirection:'column'}}>
+
+        {/* Grip */}
+        <div style={{width:36,height:4,background:'rgba(255,255,255,0.2)',borderRadius:2,margin:'12px auto 0'}}/>
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',padding:'14px 20px 0'}}>
+          <div style={{flex:1}}>
+            <p style={{margin:0,fontSize:17,fontWeight:900,color:c.light}}>👥 Создать группу</p>
+            <p style={{margin:0,fontSize:12,color:c.sub}}>Шаг {step+1} из 3</p>
+          </div>
+          <motion.button whileTap={{scale:0.9}} onClick={onClose} style={{background:'rgba(255,255,255,0.1)',border:'none',borderRadius:'50%',width:34,height:34,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:c.light,fontSize:18}}>✕</motion.button>
+        </div>
+
+        {/* Steps */}
+        <div style={{flex:1,overflowY:'auto',padding:'16px 20px 24px'}}>
+
+          {/* ШАГ 0: Название + handle */}
+          {step===0&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{display:'flex',justifyContent:'center',marginBottom:8}}>
+                <div style={{width:80,height:80,borderRadius:'50%',background:gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:40,border:`2px solid ${color}55`}}>
+                  {emoji}
+                </div>
+              </div>
+              <div>
+                <label style={{fontSize:12,color:c.sub,fontWeight:700,display:'block',marginBottom:6}}>НАЗВАНИЕ ГРУППЫ*</label>
+                <input value={name} onChange={e=>{setName(e.target.value);setHandle(e.target.value.toLowerCase().replace(/\s+/g,'_'));}}
+                  placeholder="Моя крутая группа"
+                  style={{width:'100%',padding:'12px',background:c.card,border:`1.5px solid ${name?color:c.border}`,borderRadius:12,color:c.light,fontSize:15,outline:'none',boxSizing:'border-box'}}/>
+              </div>
+              <div>
+                <label style={{fontSize:12,color:c.sub,fontWeight:700,display:'block',marginBottom:6}}>HANDLE</label>
+                <div style={{display:'flex',alignItems:'center',background:c.card,border:`1px solid ${c.border}`,borderRadius:12,padding:'0 12px'}}>
+                  <span style={{fontSize:15,color:c.sub}}>@</span>
+                  <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="my_group"
+                    style={{flex:1,padding:'12px 6px',background:'none',border:'none',color:c.light,fontSize:15,outline:'none'}}/>
+                </div>
+              </div>
+              <div>
+                <label style={{fontSize:12,color:c.sub,fontWeight:700,display:'block',marginBottom:6}}>ОПИСАНИЕ</label>
+                <textarea value={desc} onChange={e=>setDesc(e.target.value)} placeholder="О чём ваша группа?"
+                  style={{width:'100%',padding:'12px',background:c.card,border:`1px solid ${c.border}`,borderRadius:12,color:c.light,fontSize:14,outline:'none',minHeight:80,resize:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <motion.button whileTap={{scale:0.9}} onClick={()=>setIsPrivate(v=>!v)}
+                  style={{width:44,height:24,borderRadius:12,background:isPrivate?color:'rgba(255,255,255,0.1)',border:'none',cursor:'pointer',position:'relative',flexShrink:0}}>
+                  <div style={{position:'absolute',top:2,left:isPrivate?22:2,width:20,height:20,borderRadius:'50%',background:'#fff',transition:'left 0.2s'}}/>
+                </motion.button>
+                <span style={{fontSize:14,color:c.mid}}>🔒 Закрытая группа</span>
+              </div>
+            </div>
+          )}
+
+          {/* ШАГ 1: Эмодзи + цвет */}
+          {step===1&&(
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              <div style={{display:'flex',justifyContent:'center',marginBottom:4}}>
+                <div style={{width:80,height:80,borderRadius:'50%',background:gradient,display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,border:`3px solid ${color}55`}}>
+                  {emoji}
+                </div>
+              </div>
+              <div>
+                <label style={{fontSize:12,color:c.sub,fontWeight:700,display:'block',marginBottom:8}}>ЭМОДЗИ ГРУППЫ</label>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {GROUP_EMOJIS.map(e=>(
+                    <motion.button key={e} whileTap={{scale:0.9}} onClick={()=>setEmoji(e)}
+                      style={{width:44,height:44,borderRadius:12,border:`2px solid ${emoji===e?color:'transparent'}`,background:emoji===e?`${color}22`:'rgba(255,255,255,0.06)',cursor:'pointer',fontSize:24,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {e}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label style={{fontSize:12,color:c.sub,fontWeight:700,display:'block',marginBottom:8}}>ЦВЕТ АКЦЕНТА</label>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {GROUP_COLORS.map(col=>(
+                    <motion.button key={col} whileTap={{scale:0.9}} onClick={()=>setColor(col)}
+                      style={{width:36,height:36,borderRadius:'50%',background:col,border:`3px solid ${color===col?'#fff':'transparent'}`,cursor:'pointer',boxShadow:color===col?`0 0 10px ${col}`:'none'}}/>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label style={{fontSize:12,color:c.sub,fontWeight:700,display:'block',marginBottom:8}}>ГРАДИЕНТ</label>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  {GROUP_GRADIENTS.map((gr,i)=>(
+                    <motion.button key={i} whileTap={{scale:0.9}} onClick={()=>setGradient(gr)}
+                      style={{width:52,height:52,borderRadius:14,background:gr,border:`2.5px solid ${gradient===gr?'#fff':'transparent'}`,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>
+                      {gradient===gr?emoji:''}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ШАГ 2: ФИНАЛ */}
+          {step===2&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{padding:'20px',background:gradient,borderRadius:20,textAlign:'center'}}>
+                <div style={{fontSize:56}}>{emoji}</div>
+                <p style={{margin:'12px 0 4px',fontSize:19,fontWeight:900,color:'#fff'}}>{name||'Твоя группа'}</p>
+                <p style={{margin:'0 0 4px',fontSize:13,color:'rgba(255,255,255,0.7)'}}>@{handle||'handle'}</p>
+                {desc&&<p style={{margin:'0 0 12px',fontSize:13,color:'rgba(255,255,255,0.8)',lineHeight:1.5}}>{desc}</p>}
+                <span style={{fontSize:12,color:'rgba(255,255,255,0.7)',background:'rgba(0,0,0,0.2)',padding:'3px 10px',borderRadius:20}}>
+                  {isPrivate?'🔒 Закрытая':'🌐 Открытая'}
+                </span>
+              </div>
+              <div style={{background:c.card,borderRadius:16,padding:'16px',border:`1px solid ${c.border}`}}>
+                <p style={{margin:'0 0 10px',fontSize:13,fontWeight:800,color:c.light}}>🚀 Фишки твоей группы:</p>
+                {['🧠 Мозговой штурм — идеи всей команды','📋 Задание дня — ежедневные вызовы','🤫 Анонимные посты — без страха','🎲 Рулетка вопросов — неожиданные ответы','🏆 Рейтинг активности — кто самый крутой','⏳ Групповые капсулы — послания в будущее','🎭 Слово дня — тема от основателя','🌡️ Настроение группы — общий вайб','🎨 Совместный пост — пишем вместе'].map(f=>(
+                  <div key={f} style={{display:'flex',gap:8,alignItems:'center',marginBottom:6}}>
+                    <div style={{width:5,height:5,borderRadius:'50%',background:color,flexShrink:0}}/>
+                    <span style={{fontSize:12,color:c.mid}}>{f}</span>
+                  </div>
+                ))}
+              </div>
+              <motion.button whileTap={{scale:0.97}} onClick={handleCreate}
+                style={{width:'100%',padding:'16px',borderRadius:16,border:'none',cursor:'pointer',
+                  background:`linear-gradient(135deg,${color},${accent})`,
+                  color:'#000',fontSize:16,fontWeight:900,boxShadow:`0 6px 24px ${color}44`}}>
+                {emoji} Создать группу!
+              </motion.button>
+            </div>
+          )}
+
+          {step<2&&(
+            <motion.button whileTap={{scale:0.97}} onClick={()=>setStep(s=>s+1)}
+              disabled={step===0&&!name.trim()}
+              style={{width:'100%',padding:'15px',borderRadius:16,border:'none',cursor:'pointer',marginTop:20,
+                background:step===0&&!name.trim()?'rgba(255,255,255,0.08)':`linear-gradient(135deg,${color},${accent})`,
+                color:step===0&&!name.trim()?c.sub:'#000',fontSize:15,fontWeight:900}}>
+              Далее →
+            </motion.button>
+          )}
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
