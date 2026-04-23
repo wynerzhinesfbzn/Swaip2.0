@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBackHandler } from './backHandler';
 
 /* ─── Audio ───────────────────────────────────────────────────── */
 let _audioCtx: AudioContext | null = null;
@@ -1246,6 +1247,16 @@ export default function GamesArcade({ onBack, accentColor = '#6366f1' }: { onBac
   const [selected, setSelected] = useState<GameMeta | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [filter, setFilter] = useState<'all'|'solo'|'multi'>('all');
+
+  /* Обработчик аппаратной кнопки «Назад»:
+     инструкции → закрыть инструкции
+     игра выбрана → вернуться в список
+     иначе → вернуться в приложение */
+  useBackHandler(
+    showInstructions ? () => setShowInstructions(false)
+    : selected       ? () => setSelected(null)
+    : onBack
+  );
 
   const filtered = GAMES.filter(g => filter === 'all' ? true : filter === 'solo' ? !g.multiplayer : g.multiplayer);
 

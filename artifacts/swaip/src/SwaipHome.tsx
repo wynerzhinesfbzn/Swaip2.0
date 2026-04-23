@@ -10,6 +10,7 @@ import { useCallSignaling, RINGTONE_OPTIONS, RINGTONE_PREF_KEY } from './useCall
 import type { RingtoneId } from './useCallSignaling';
 import { usePushNotifications } from './usePushNotifications';
 import type { ConvUser } from './ProMessaging';
+import { useBackHandler } from './backHandler';
 declare global{interface Window{_sqTimer:ReturnType<typeof setTimeout>;}}
 
 /* ══ Хук установки PWA ══ */
@@ -3386,6 +3387,27 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [codeLoading,setCodeLoading]=useState(false);
   const [searchResults,setSearchResults]=useState<{hash:string;name:string;handle:string;avatar:string;bio:string;mood?:{emoji:string;text:string}}[]>([]);
   const [searchLoading,setSearchLoading]=useState(false);
+
+  /* ── Обработчик кнопки «Назад» (аппаратная / браузерная) ──────────
+     Приоритет: сайдменю → модалы → экраны → вкладки навбара.
+     Единый хук с fnRef-паттерном — всегда вызывает актуальное действие. */
+  useBackHandler(
+    showSideMenu       ? () => setShowSideMenu(false)
+    : showDesignModal  ? () => setShowDesignModal(false)
+    : showFeedBgPicker ? () => setShowFeedBgPicker(false)
+    : showCardStylePicker ? () => setShowCardStylePicker(false)
+    : showVizitkaModal ? () => setShowVizitkaModal(false)
+    : showHlEditor     ? () => setShowHlEditor(false)
+    : showReferralModal? () => setShowReferralModal(false)
+    : showMoodPicker   ? () => setShowMoodPicker(false)
+    : showCoverPicker  ? () => setShowCoverPicker(false)
+    : showShare        ? () => setShowShare(false)
+    : showSearch       ? () => setShowSearch(false)
+    : profileViewHash  ? () => setProfileViewHash(null)
+    : currentScreen !== 'home' ? () => setCurrentScreen('home')
+    : navTab !== 'home'        ? () => setNavTab('home')
+    : null
+  );
 
   /* ── Обложка: загрузка своего фото ── */
   const [coverImageUrl,setCoverImageUrl]=useSaved('pro_coverImageUrl','');

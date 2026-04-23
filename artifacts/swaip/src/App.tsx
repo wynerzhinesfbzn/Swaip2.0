@@ -10,58 +10,7 @@ import type { CallType, UseCallSignalingReturn } from './useCallSignaling';
 import { getTranslations, type T } from './i18n';
 import { getWordList } from './wordLists';
 import fixWebmDuration from 'fix-webm-duration';
-
-/* ─────────────────────────────────────────────────
-   HARDWARE / BROWSER BACK BUTTON HANDLING
-   Works on Android (hardware back), iOS Safari
-   swipe-back, and any browser back navigation.
-   Stack-based: only the topmost handler fires.
-───────────────────────────────────────────────── */
-const _backStack: Array<{ id: symbol; fn: () => void }> = [];
-let _backListenerAdded = false;
-
-function _ensureBackListener() {
-  if (_backListenerAdded) return;
-  _backListenerAdded = true;
-  window.addEventListener('popstate', () => {
-    const top = _backStack[_backStack.length - 1];
-    if (top) {
-      // Push a new dummy entry so we stay "inside" the app
-      window.history.pushState({ swaip: true }, '');
-      top.fn();
-    }
-    // If stack is empty → browser navigates away normally (app exit)
-  });
-}
-
-/**
- * Register a back-button handler.
- * Pass `null` to unregister (e.g., when a sub-screen closes).
- * A history entry is pushed when the handler becomes active,
- * giving the browser "something to go back to".
- */
-function useBackHandler(onBack: (() => void) | null) {
-  const idRef = useRef<symbol>(Symbol());
-  const fnRef = useRef(onBack);
-  fnRef.current = onBack;
-
-  useEffect(() => {
-    _ensureBackListener();
-    if (!onBack) return;
-
-    const id = idRef.current;
-    const fn = () => fnRef.current?.();
-
-    window.history.pushState({ swaip: true }, '');
-    _backStack.push({ id, fn });
-
-    return () => {
-      const idx = _backStack.findIndex(e => e.id === id);
-      if (idx !== -1) _backStack.splice(idx, 1);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!onBack]);
-}
+import { useBackHandler, initBackHandler } from './backHandler';
 
 /* ─────────────────────────────────────────────────
    TYPES & DATA
@@ -24406,6 +24355,9 @@ export default function App() {
     } catch {}
     return 'login';
   });
+
+  /* Инициализируем обработчик кнопки «Назад» как можно раньше */
+  useEffect(() => { initBackHandler(); }, []);
 
   /* При старте: если экран загрузки — проверяем сессию через httpOnly cookie */
   useEffect(() => {
