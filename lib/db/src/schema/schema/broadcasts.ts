@@ -14,7 +14,15 @@ export const broadcastsTable = pgTable("broadcasts", {
   meta:       text("meta"),
   createdAt:  timestamp("created_at").defaultNow(),
   viewCount:  integer("view_count").default(0),
+  parentId:   integer("parent_id"),
 });
+
+export const bookmarksTable = pgTable("bookmarks", {
+  id:          serial("id").primaryKey(),
+  userHash:    text("user_hash").notNull(),
+  broadcastId: integer("broadcast_id").notNull(),
+  createdAt:   timestamp("created_at").defaultNow(),
+}, (t) => [unique().on(t.userHash, t.broadcastId)]);
 
 export const broadcastReactionsTable = pgTable("broadcast_reactions", {
   id:          serial("id").primaryKey(),
