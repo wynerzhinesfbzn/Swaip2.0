@@ -21,6 +21,7 @@
 - **Прикрепить к посту через плеер** — dispatch `swaip-track-picked-for-post` event → PostComposerFull слушает и показывает карточку трека
 - Виджет 🎵 Музыка в профиле открывает плеер (через `setShowMusicSheet(true)`)
 - Выбор стиля сохраняется в `localStorage` ключ `swaip_music_style`
+- **КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ**: MusicPlayerSheet, mini-player и пикер были внутри `MeetingsScreen` (чужой компонент) — переенсены внутрь `SwaipHome` return (строки 7364-7456). Вот почему плеер вообще не открывался.
 - **Исправлено**: music добавлен в WIDGET_LIST (L4044) — первым элементом
 - **Исправлено**: все 6 стилей профиля обрабатывают `key==='music'` → `setShowMusicSheet(true)`
 - **Исправлено**: `custom-ringtone.mp3` перемещён в `artifacts/swaip/public/` (был в `public/public/`)

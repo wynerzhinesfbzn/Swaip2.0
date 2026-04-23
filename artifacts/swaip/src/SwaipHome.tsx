@@ -7360,6 +7360,101 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         e.target.value='';setUploadingWKey(null);
       }}/>
 
+    {/* ══ МУЗЫКАЛЬНЫЙ ПЛЕЕР (полный шит) ══ */}
+    <AnimatePresence>
+      {showMusicSheet&&(
+        <MusicPlayerSheet
+          playlist={playlist}
+          musicIdx={musicIdx}
+          musicPlaying={musicPlaying}
+          musicProgress={musicProgress}
+          musicDuration={musicDuration}
+          playerStyle={musicPlayerStyle}
+          setPlayerStyle={setMusicPlayerStyle}
+          onPlay={playTrack}
+          onPause={pauseTrack}
+          onNext={nextTrack}
+          onPrev={prevTrack}
+          onSeek={seekTrack}
+          onRemove={removeTrack}
+          onAddFiles={handleMusicFilePick}
+          onClose={()=>setShowMusicSheet(false)}
+          c={c}
+          accent={activeAccent}
+          fileRef={musicFileRef}
+          onPickForPost={(t:Track)=>{window.dispatchEvent(new CustomEvent('swaip-track-picked-for-post',{detail:t}));setShowMusicSheet(false);}}
+        />
+      )}
+    </AnimatePresence>
+
+    {/* ══ FLOATING MINI-PLAYER ══ */}
+    <AnimatePresence>
+      {musicPlaying&&!showMusicSheet&&playlist[musicIdx]&&(
+        <motion.div
+          initial={{y:80,opacity:0}} animate={{y:0,opacity:1}} exit={{y:80,opacity:0}}
+          transition={{type:'spring',damping:24,stiffness:260}}
+          style={{position:'fixed',bottom:72,left:12,right:12,zIndex:2900,
+            background:'rgba(10,10,20,0.95)',backdropFilter:'blur(20px)',
+            border:`1px solid ${activeAccent}44`,borderRadius:18,
+            padding:'10px 14px',boxShadow:`0 4px 32px rgba(0,0,0,0.6),0 0 20px ${activeAccent}33`,
+            display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,
+            display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🎵</div>
+          <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setShowMusicSheet(true)}>
+            <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{playlist[musicIdx].title}</div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{playlist[musicIdx].artist||'Неизвестный'}</div>
+            <div style={{marginTop:4,height:2,borderRadius:1,background:'rgba(255,255,255,0.12)',position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',left:0,top:0,height:'100%',background:activeAccent,
+                width:`${musicDuration>0?(musicProgress/musicDuration)*100:0}%`,transition:'width 0.1s linear'}}/>
+            </div>
+          </div>
+          <button onClick={prevTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏮</button>
+          <button onClick={()=>musicPlaying?pauseTrack():playTrack(musicIdx)}
+            style={{width:38,height:38,borderRadius:'50%',background:activeAccent,border:'none',color:'#fff',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            {musicPlaying?'⏸':'▶'}
+          </button>
+          <button onClick={nextTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏭</button>
+          <button onClick={pauseTrack} style={{background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.4)',fontSize:13,cursor:'pointer',borderRadius:8,padding:'4px 8px'}}>✕</button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* ══ ПИКЕР ТРЕКА ДЛЯ ПОСТА ══ */}
+    <AnimatePresence>
+      {showMusicPicker&&(
+        <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+          style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:4500,backdropFilter:'blur(10px)'}}
+          onClick={()=>setShowMusicPicker(false)}>
+          <motion.div initial={{y:60,opacity:0}} animate={{y:0,opacity:1}} exit={{y:60,opacity:0}}
+            style={{position:'absolute',bottom:0,left:0,right:0,maxHeight:'70vh',background:'#0f0f1a',
+              borderRadius:'20px 20px 0 0',border:'1px solid rgba(255,255,255,0.1)',overflow:'hidden',display:'flex',flexDirection:'column'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{padding:'14px 16px 10px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:10}}>
+              <div style={{flex:1,fontSize:15,fontWeight:800,color:'#fff'}}>🎵 Выбери трек для поста</div>
+              <button onClick={()=>setShowMusicPicker(false)} style={{background:'rgba(255,255,255,0.08)',border:'none',borderRadius:'50%',width:30,height:30,color:'rgba(255,255,255,0.6)',fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'8px 12px 16px'}}>
+              {playlist.length===0?<div style={{textAlign:'center',padding:'40px 0',color:'rgba(255,255,255,0.4)',fontSize:13}}>Плейлист пуст — добавь треки в плеере</div>:
+                playlist.map((t,i)=>(
+                  <motion.div key={t.id} whileTap={{scale:0.97}}
+                    onClick={()=>{if(musicPickerCb)musicPickerCb(t);setShowMusicPicker(false);setMusicPickerCb(null);}}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',marginBottom:4,borderRadius:12,
+                      background:i===musicIdx?`${activeAccent}22`:'rgba(255,255,255,0.04)',
+                      border:`1px solid ${i===musicIdx?activeAccent+'66':'rgba(255,255,255,0.07)'}`,cursor:'pointer'}}>
+                    <div style={{width:34,height:34,borderRadius:8,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>🎵</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</div>
+                      <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{t.artist||'Неизвестный'}</div>
+                    </div>
+                  </motion.div>
+                ))
+              }
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
     </div>
     </div>
     </CallCtx.Provider>
@@ -8829,101 +8924,6 @@ function MeetingsScreen({apiBase,userHash,onBack}:{apiBase:string;userHash:strin
                   </motion.button>
                 </div>
                 <div style={{height:20}}/>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Музыкальный плеер (полный шит) ── */}
-      <AnimatePresence>
-        {showMusicSheet&&(
-          <MusicPlayerSheet
-            playlist={playlist}
-            musicIdx={musicIdx}
-            musicPlaying={musicPlaying}
-            musicProgress={musicProgress}
-            musicDuration={musicDuration}
-            playerStyle={musicPlayerStyle}
-            setPlayerStyle={setMusicPlayerStyle}
-            onPlay={playTrack}
-            onPause={pauseTrack}
-            onNext={nextTrack}
-            onPrev={prevTrack}
-            onSeek={seekTrack}
-            onRemove={removeTrack}
-            onAddFiles={handleMusicFilePick}
-            onClose={()=>setShowMusicSheet(false)}
-            c={c}
-            accent={activeAccent}
-            fileRef={musicFileRef}
-            onPickForPost={(t:Track)=>{window.dispatchEvent(new CustomEvent('swaip-track-picked-for-post',{detail:t}));setShowMusicSheet(false);}}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ── Floating mini-player ── */}
-      <AnimatePresence>
-        {musicPlaying&&!showMusicSheet&&playlist[musicIdx]&&(
-          <motion.div
-            initial={{y:80,opacity:0}} animate={{y:0,opacity:1}} exit={{y:80,opacity:0}}
-            transition={{type:'spring',damping:24,stiffness:260}}
-            style={{position:'fixed',bottom:72,left:12,right:12,zIndex:2900,
-              background:'rgba(10,10,20,0.95)',backdropFilter:'blur(20px)',
-              border:`1px solid ${activeAccent}44`,borderRadius:18,
-              padding:'10px 14px',boxShadow:`0 4px 32px rgba(0,0,0,0.6),0 0 20px ${activeAccent}33`,
-              display:'flex',alignItems:'center',gap:10}}>
-            <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,
-              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🎵</div>
-            <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setShowMusicSheet(true)}>
-              <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{playlist[musicIdx].title}</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{playlist[musicIdx].artist||'Неизвестный'}</div>
-              <div style={{marginTop:4,height:2,borderRadius:1,background:'rgba(255,255,255,0.12)',position:'relative',overflow:'hidden'}}>
-                <div style={{position:'absolute',left:0,top:0,height:'100%',background:activeAccent,
-                  width:`${musicDuration>0?(musicProgress/musicDuration)*100:0}%`,transition:'width 0.1s linear'}}/>
-              </div>
-            </div>
-            <button onClick={prevTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏮</button>
-            <button onClick={()=>musicPlaying?pauseTrack():playTrack(musicIdx)}
-              style={{width:38,height:38,borderRadius:'50%',background:activeAccent,border:'none',color:'#fff',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              {musicPlaying?'⏸':'▶'}
-            </button>
-            <button onClick={nextTrack} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',fontSize:18,cursor:'pointer',padding:'0 2px'}}>⏭</button>
-            <button onClick={pauseTrack} style={{background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.4)',fontSize:13,cursor:'pointer',borderRadius:8,padding:'4px 8px'}}>✕</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Пикер трека для поста ── */}
-      <AnimatePresence>
-        {showMusicPicker&&(
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-            style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:4500,backdropFilter:'blur(10px)'}}
-            onClick={()=>setShowMusicPicker(false)}>
-            <motion.div initial={{y:60,opacity:0}} animate={{y:0,opacity:1}} exit={{y:60,opacity:0}}
-              style={{position:'absolute',bottom:0,left:0,right:0,maxHeight:'70vh',background:'#0f0f1a',
-                borderRadius:'20px 20px 0 0',border:'1px solid rgba(255,255,255,0.1)',overflow:'hidden',display:'flex',flexDirection:'column'}}
-              onClick={e=>e.stopPropagation()}>
-              <div style={{padding:'14px 16px 10px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:10}}>
-                <div style={{flex:1,fontSize:15,fontWeight:800,color:'#fff'}}>🎵 Выбери трек для поста</div>
-                <button onClick={()=>setShowMusicPicker(false)} style={{background:'rgba(255,255,255,0.08)',border:'none',borderRadius:'50%',width:30,height:30,color:'rgba(255,255,255,0.6)',fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-              </div>
-              <div style={{flex:1,overflowY:'auto',padding:'8px 12px 16px'}}>
-                {playlist.length===0?<div style={{textAlign:'center',padding:'40px 0',color:'rgba(255,255,255,0.4)',fontSize:13}}>Плейлист пуст — добавь треки в плеере</div>:
-                  playlist.map((t,i)=>(
-                    <motion.div key={t.id} whileTap={{scale:0.97}}
-                      onClick={()=>{if(musicPickerCb)musicPickerCb(t);setShowMusicPicker(false);setMusicPickerCb(null);}}
-                      style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',marginBottom:4,borderRadius:12,
-                        background:i===musicIdx?`${activeAccent}22`:'rgba(255,255,255,0.04)',
-                        border:`1px solid ${i===musicIdx?activeAccent+'66':'rgba(255,255,255,0.07)'}`,cursor:'pointer'}}>
-                      <div style={{width:34,height:34,borderRadius:8,background:`linear-gradient(135deg,${activeAccent},#818cf8)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>🎵</div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:13,fontWeight:700,color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</div>
-                        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{t.artist||'Неизвестный'}</div>
-                      </div>
-                    </motion.div>
-                  ))
-                }
               </div>
             </motion.div>
           </motion.div>
