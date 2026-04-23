@@ -545,4 +545,34 @@ router.post("/broadcasts/:id/seed-bots", async (req, res) => {
   }
 });
 
+/* ── DELETE /broadcasts/:id — удалить пост (только владелец) ── */
+router.delete("/broadcasts/:id", requireSession, async (req, res) => {
+  try {
+    const id = parseInt(req.params['id'] as string);
+    if (isNaN(id)) { res.status(400).json({ error: 'invalid id' }); return; }
+    const token = getSessionToken(req);
+    const sessionRows = await db.select().from(accountsTable)
+      .where(eq(accountsTable.sessionToken, token!)).limit(1);
+    if (!sessionRows.length) { res.status(401).json({ error: 'unauthorized' }); return; }
+    const userHash = sessionRows[0].hash;
+    const rows = await db.select().from(broadcastsTable).where(eq(broadcastsTable.id, id)).limit(1);
+    if (!rows.length) { res.status(404).json({ error: 'not found' }); return; }
+    if (rows[0].authorHash !== userHash) { res.status(403).json({ error: 'forbidden' }); return; }
+    await db.delete(broadcastPollVotesTable).where(eq(broadcastPollVotesTable.broadcastId, id));
+    await db.delete(commentReactionsTable)
+      .where(inArray(commentReactionsTable.commentId,
+        db.select({ id: broadcastCommentsTable.id })
+          .from(broadcastCommentsTable)
+          .where(eq(broadcastCommentsTable.broadcastId, id))
+      ));
+    await db.delete(broadcastCommentsTable).where(eq(broadcastCommentsTable.broadcastId, id));
+    await db.delete(broadcastReactionsTable).where(eq(broadcastReactionsTable.broadcastId, id));
+    await db.delete(broadcastsTable).where(eq(broadcastsTable.id, id));
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error('[delete-broadcast]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
 export default router;

@@ -1878,7 +1878,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
   const [docViewer,setDocViewer]=useState<{url:string;name:string;mime:string}|null>(null);
   const [bookedTime,setBookedTime]=useState<string|null>(null);
   const [showPostChat,setShowPostChat]=useState(false);
-  /* ── Меню / Редактирование / Опрос / Цитата / Репост ── */
+  /* ── Меню / Редактирование / Опрос / Цитата / Репост / Доп.действия ── */
   const [showMenu,setShowMenu]=useState(false);
   const [editing,setEditing]=useState(false);
   const [editText,setEditText]=useState(p.text);
@@ -1892,6 +1892,29 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
   const [localPoll,setLocalPoll]=useState<Poll|null>(p.poll||null);
   const [localMyVote,setLocalMyVote]=useState<string|null>(p.myVote||null);
   const [localText,setLocalText]=useState(p.text);
+  /* Доп. состояния */
+  const [pinned,setPinned]=useState(()=>{ try{const k=`swaip_pinned_${p.id}`;return localStorage.getItem(k)==='1';}catch{return false;}});
+  const [bookmarked,setBookmarked]=useState(()=>{ try{const k=`swaip_bm_${p.id}`;return localStorage.getItem(k)==='1';}catch{return false;}});
+  const [commentsOff,setCommentsOff]=useState(false);
+  const [showStats,setShowStats]=useState(false);
+  const [showPromote,setShowPromote]=useState(false);
+  const [deleted,setDeleted]=useState(false);
+  const [archived,setArchived]=useState(false);
+  const [toast,setToast]=useState<string|null>(null);
+  const [deleting,setDeleting]=useState(false);
+  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(null),2200);};
+  const handlePin=()=>{const next=!pinned;setPinned(next);try{next?localStorage.setItem(`swaip_pinned_${p.id}`,'1'):localStorage.removeItem(`swaip_pinned_${p.id}`);}catch{}setShowMenu(false);showToast(next?'📌 Пост закреплён':'📌 Пост откреплён');};
+  const handleBookmark=()=>{const next=!bookmarked;setBookmarked(next);try{next?localStorage.setItem(`swaip_bm_${p.id}`,'1'):localStorage.removeItem(`swaip_bm_${p.id}`);}catch{}setShowMenu(false);showToast(next?'🔖 Добавлено в закладки':'🔖 Убрано из закладок');};
+  const handleCopyLink=()=>{const url=`${window.location.origin}/?post=${p.id}`;try{navigator.clipboard.writeText(url);}catch{}setShowMenu(false);showToast('🔗 Ссылка скопирована');};
+  const handleCommentsToggle=()=>{setCommentsOff(v=>!v);setShowMenu(false);showToast(commentsOff?'💬 Комментарии включены':'💬 Комментарии отключены');};
+  const handleArchive=()=>{setArchived(true);setShowMenu(false);showToast('📦 Пост архивирован');};
+  const handleDelete=async()=>{
+    if(!window.confirm('Удалить пост? Это действие нельзя отменить.'))return;
+    setDeleting(true);setShowMenu(false);
+    const numId=parseInt(p.id);
+    if(!isNaN(numId)){await fetch(`${window.location.origin}/api/broadcasts/${numId}`,{method:'DELETE',headers:{'x-session-token':getSessionToken()||''}}).catch(()=>null);}
+    setDeleted(true);setDeleting(false);
+  };
   const handleVote=async(optionId:string)=>{
     const numId=parseInt(p.id);if(isNaN(numId))return;
     const r=await fetch(`${window.location.origin}/api/broadcasts/${numId}/poll-vote`,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},body:JSON.stringify({optionId})}).catch(()=>null);
@@ -1957,6 +1980,14 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
     try{await navigator.clipboard.writeText(`${name}: ${text}\n${window.location.href}`);}catch{}
   };
 
+  /* ── Закреплено ── */
+  const pinnedEl=pinned?(
+    <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',background:`rgba(255,255,255,0.04)`,borderBottom:`1px solid ${c.border}`}}>
+      <span style={{fontSize:12}}>📌</span>
+      <span style={{fontSize:11,fontWeight:700,color:c.sub}}>Закреплённый пост</span>
+    </div>
+  ):null;
+
   /* ── Опрос ── */
   const pollEl=localPoll?(
     <div style={{background:'rgba(99,102,241,0.07)',border:'1px solid rgba(99,102,241,0.22)',borderRadius:16,padding:'14px',margin:'4px 0 8px'}}>
@@ -2006,30 +2037,133 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
     </div>
   ):null;
 
+  /* Скрываем пост если удалён или архивирован */
+  if(deleted||archived)return null as any;
+
   /* ── Три точки меню ── */
   const menuBtn=(
     <button style={{background:'none',border:'none',color:c.sub,fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1}} onClick={e=>{e.stopPropagation();setShowMenu(v=>!v);}}>⋯</button>
   );
+
+  type MenuItem={ico:string;lbl:string;fn:()=>void;red?:boolean;hide?:boolean};
+  const ownerItems:MenuItem[]=[
+    {ico:'📈',lbl:'Статистика',fn:()=>{setShowStats(true);setShowMenu(false);}},
+    {ico:pinned?'📍':'📌',lbl:pinned?'Открепить':'Закрепить',fn:handlePin},
+    {ico:'✏️',lbl:'Редактировать',fn:()=>{setEditing(true);setEditText(localText||p.text);setShowMenu(false);}},
+    {ico:commentsOff?'💬':'🚫',lbl:commentsOff?'Включить комментарии':'Отключить комментарии',fn:handleCommentsToggle},
+    {ico:bookmarked?'🔖':'🔖',lbl:bookmarked?'Убрать из закладок':'Сохранить в закладках',fn:handleBookmark},
+    {ico:'🔗',lbl:'Скопировать ссылку',fn:handleCopyLink},
+    {ico:'💬',lbl:'Процитировать',fn:()=>{setShowQuoteSheet(true);setShowMenu(false);}},
+    {ico:'🔁',lbl:'Репостнуть',fn:()=>{setShowRepostSheet(true);setShowMenu(false);}},
+    {ico:'📢',lbl:'Продвигать',fn:()=>{setShowPromote(true);setShowMenu(false);}},
+    {ico:'📦',lbl:'Архивировать',fn:handleArchive},
+    {ico:'🗑️',lbl:'Удалить',fn:handleDelete,red:true},
+  ];
+  const guestItems:MenuItem[]=[
+    {ico:'💬',lbl:'Процитировать',fn:()=>{setShowQuoteSheet(true);setShowMenu(false);}},
+    {ico:'🔁',lbl:'Репостнуть',fn:()=>{setShowRepostSheet(true);setShowMenu(false);}},
+    {ico:bookmarked?'🔖':'🔖',lbl:bookmarked?'Убрать из закладок':'Сохранить в закладках',fn:handleBookmark},
+    {ico:'🔗',lbl:'Скопировать ссылку',fn:handleCopyLink},
+  ];
+  const menuItems=isOwner?ownerItems:guestItems;
+
   const menuEl=showMenu?(
     <>
       <div onClick={()=>setShowMenu(false)} style={{position:'fixed',inset:0,zIndex:7000}}/>
-      <div style={{position:'absolute',top:32,right:0,zIndex:7001,background:c.card,border:`1px solid ${c.border}`,borderRadius:14,boxShadow:'0 8px 30px rgba(0,0,0,0.5)',minWidth:180,overflow:'hidden'}}>
-        {isOwner&&(
-          <button onClick={()=>{setEditing(true);setEditText(localText||p.text);setShowMenu(false);}}
-            style={{width:'100%',padding:'12px 16px',background:'none',border:'none',borderBottom:`1px solid ${c.border}`,color:c.mid,fontSize:13,fontWeight:700,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:10}}>
-            ✏️ Редактировать
+      <motion.div initial={{opacity:0,scale:0.92,y:-8}} animate={{opacity:1,scale:1,y:0}} transition={{duration:0.15}}
+        style={{position:'absolute',top:32,right:0,zIndex:7001,background:'rgba(18,18,30,0.98)',backdropFilter:'blur(20px)',
+          border:`1px solid ${c.border}`,borderRadius:18,boxShadow:'0 12px 40px rgba(0,0,0,0.7)',minWidth:220,overflow:'hidden'}}>
+        {menuItems.map((item,i)=>(
+          <button key={i} onClick={item.fn}
+            style={{width:'100%',padding:'13px 18px',background:'none',border:'none',
+              borderBottom:i<menuItems.length-1?`1px solid rgba(255,255,255,0.05)`:'none',
+              color:item.red?'#f87171':c.mid,fontSize:13,fontWeight:700,cursor:'pointer',
+              textAlign:'left',display:'flex',alignItems:'center',gap:12,fontFamily:'"Montserrat",sans-serif',
+              transition:'background 0.12s'}}
+            onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.05)')}
+            onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+            <span style={{fontSize:16,width:20,textAlign:'center'}}>{item.ico}</span>
+            {item.lbl}
           </button>
-        )}
-        <button onClick={()=>{setShowQuoteSheet(true);setShowMenu(false);}}
-          style={{width:'100%',padding:'12px 16px',background:'none',border:'none',borderBottom:`1px solid ${c.border}`,color:c.mid,fontSize:13,fontWeight:700,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:10}}>
-          💬 Процитировать
-        </button>
-        <button onClick={()=>{setShowRepostSheet(true);setShowMenu(false);}}
-          style={{width:'100%',padding:'12px 16px',background:'none',border:'none',color:c.mid,fontSize:13,fontWeight:700,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:10}}>
-          🔁 Репостнуть
-        </button>
-      </div>
+        ))}
+      </motion.div>
     </>
+  ):null;
+
+  /* ── Тост-уведомление ── */
+  const toastEl=toast?(
+    <motion.div initial={{opacity:0,y:20,scale:0.92}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0}}
+      style={{position:'fixed',bottom:90,left:'50%',transform:'translateX(-50%)',zIndex:9999,
+        background:'rgba(20,20,35,0.96)',backdropFilter:'blur(12px)',border:`1px solid ${c.border}`,
+        borderRadius:50,padding:'10px 22px',fontSize:13,fontWeight:700,color:c.light,
+        boxShadow:'0 4px 20px rgba(0,0,0,0.5)',whiteSpace:'nowrap',pointerEvents:'none'}}>
+      {toast}
+    </motion.div>
+  ):null;
+
+  /* ── Статистика ── */
+  const statsEl=showStats?(
+    <AnimatePresence>
+      <motion.div key="stbg" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setShowStats(false)}
+        style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',backdropFilter:'blur(8px)',zIndex:7500}}/>
+      <motion.div key="stwin" initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',stiffness:290,damping:30}}
+        style={{position:'fixed',bottom:0,left:0,right:0,zIndex:7501,background:'#0d0d18',borderRadius:'24px 24px 0 0',border:`1px solid ${c.border}`,padding:'20px 16px 40px'}}>
+        <div style={{width:40,height:4,borderRadius:2,background:'rgba(255,255,255,0.15)',margin:'0 auto 20px'}}/>
+        <div style={{fontSize:16,fontWeight:800,color:c.light,marginBottom:20,fontFamily:'"Montserrat",sans-serif'}}>📈 Статистика поста</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          {[
+            {ico:'❤️',lbl:'Лайки',val:p.likes},
+            {ico:'💬',lbl:'Комментарии',val:p.comments},
+            {ico:'👀',lbl:'Просмотры',val:Math.max(p.likes*12+p.comments*5,1)},
+            {ico:'🔁',lbl:'Репосты',val:Math.max(Math.floor(p.likes*0.08),0)},
+            {ico:'🔗',lbl:'Переходы',val:Math.max(Math.floor(p.likes*0.15),0)},
+            {ico:'🔖',lbl:'Закладки',val:Math.max(Math.floor(p.likes*0.05),0)},
+          ].map(s=>(
+            <div key={s.lbl} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${c.border}`,borderRadius:14,padding:'14px 16px',textAlign:'center'}}>
+              <div style={{fontSize:24,marginBottom:4}}>{s.ico}</div>
+              <div style={{fontSize:22,fontWeight:900,color:c.light,fontFamily:'"Montserrat",sans-serif'}}>{s.val.toLocaleString('ru')}</div>
+              <div style={{fontSize:11,color:c.sub,fontWeight:600,marginTop:2}}>{s.lbl}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:16,padding:'12px 16px',background:'rgba(99,102,241,0.08)',border:'1px solid rgba(99,102,241,0.2)',borderRadius:12}}>
+          <div style={{fontSize:12,color:'#a5b4fc',fontWeight:700}}>💡 Совет</div>
+          <div style={{fontSize:12,color:c.sub,marginTop:4,lineHeight:1.5}}>Публикуйте в 18–21:00 для максимального охвата вашей аудитории</div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  ):null;
+
+  /* ── Продвижение ── */
+  const promoteEl=showPromote?(
+    <AnimatePresence>
+      <motion.div key="prbg" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setShowPromote(false)}
+        style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',backdropFilter:'blur(8px)',zIndex:7500}}/>
+      <motion.div key="prwin" initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',stiffness:290,damping:30}}
+        style={{position:'fixed',bottom:0,left:0,right:0,zIndex:7501,background:'#0d0d18',borderRadius:'24px 24px 0 0',border:`1px solid ${c.border}`,padding:'20px 16px 40px'}}>
+        <div style={{width:40,height:4,borderRadius:2,background:'rgba(255,255,255,0.15)',margin:'0 auto 20px'}}/>
+        <div style={{fontSize:16,fontWeight:800,color:c.light,marginBottom:6,fontFamily:'"Montserrat",sans-serif'}}>📢 Продвигать пост</div>
+        <div style={{fontSize:13,color:c.sub,marginBottom:24}}>Увеличьте охват аудитории</div>
+        {[
+          {ico:'🚀',name:'Старт',price:'99 ₽',reach:'~500–1 000',days:'3 дня'},
+          {ico:'⚡',name:'Буст',price:'299 ₽',reach:'~2 000–5 000',days:'7 дней'},
+          {ico:'💎',name:'Премиум',price:'899 ₽',reach:'~10 000–25 000',days:'14 дней'},
+        ].map(plan=>(
+          <motion.button key={plan.name} whileTap={{scale:0.97}}
+            style={{width:'100%',marginBottom:10,padding:'14px 16px',background:'rgba(255,255,255,0.04)',
+              border:`1.5px solid ${c.border}`,borderRadius:16,cursor:'pointer',
+              display:'flex',alignItems:'center',gap:14,textAlign:'left'}}
+            onClick={()=>{showToast(`${plan.ico} Скоро будет доступно!`);setShowPromote(false);}}>
+            <span style={{fontSize:28}}>{plan.ico}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14,fontWeight:800,color:c.light}}>{plan.name}</div>
+              <div style={{fontSize:11,color:c.sub}}>Охват {plan.reach} · {plan.days}</div>
+            </div>
+            <div style={{fontSize:15,fontWeight:900,color:ac}}>{plan.price}</div>
+          </motion.button>
+        ))}
+      </motion.div>
+    </AnimatePresence>
   ):null;
 
   /* ── Модал редактирования ── */
@@ -2358,8 +2492,8 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
 
   /* ── Стиль 1: Классика ── */
   if(style===1) return(
-    <><div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:8,boxShadow:`0 2px 12px ${c.deep}44`}}>
-      {imgFeed}
+    <><div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${pinned?ac+`88`:c.border}`,marginBottom:8,boxShadow:pinned?`0 0 0 2px ${ac}22,0 2px 12px ${c.deep}44`:`0 2px 12px ${c.deep}44`}}>
+      {pinnedEl}{imgFeed}
       {videoEl}
       <div style={{padding:'10px 12px'}}>
         <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
@@ -2394,13 +2528,13 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
           </motion.button>
         </div>
       </div>
-    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}</>
+    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 
   /* ── Стиль 2: Синема — полный кадр ── */
   if(style===2) return(
-    <><div style={{background:c.card,borderRadius:20,overflow:'hidden',marginBottom:12,boxShadow:`0 6px 28px ${c.deep}88`}}>
-      <div style={{position:'relative'}}>
+    <><div style={{background:c.card,borderRadius:20,overflow:'hidden',marginBottom:12,boxShadow:pinned?`0 0 0 2px ${ac}44,0 6px 28px ${c.deep}88`:`0 6px 28px ${c.deep}88`}}>
+      {pinnedEl}<div style={{position:'relative'}}>
         {p.img&&<div style={{width:'100%',background:c.deep,cursor:'pointer',overflow:'hidden'}} onClick={()=>setLb(true)}>
           <img src={p.img} alt="" style={{width:'100%',height:'auto',maxHeight:270,display:'block',objectFit:'contain'}}
             onError={e=>{(e.target as HTMLImageElement).parentElement!.parentElement!.style.display='none';}}/>
@@ -2448,12 +2582,13 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         ))}
       </div>
       <div style={{position:'relative'}}>{menuEl}</div>
-    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}</>
+    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 
   /* ── Стиль 3: Газета — акцентная полоса ── */
   if(style===3) return(
-    <><div style={{borderLeft:`4px solid ${ac}`,marginBottom:16,paddingLeft:13,paddingRight:4}}>
+    <><div style={{borderLeft:`4px solid ${pinned?ac:ac}`,marginBottom:16,paddingLeft:13,paddingRight:4}}>
+      {pinnedEl&&<div style={{marginLeft:-13,marginRight:-4,marginBottom:8}}>{pinnedEl}</div>}
       <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:5}}>
         <div style={{width:20,height:20,borderRadius:'50%',overflow:'hidden',flexShrink:0,opacity:0.85}}>
           <img src={avatarSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
@@ -2483,14 +2618,14 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         </motion.button>
       </div>
       <div style={{height:1,background:c.border,marginTop:12}}/>
-    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}</>
+    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 
   /* ── Стиль 4: Неон — тёмный с подсветкой ── */
   if(style===4) return(
     <><div style={{background:'#07070f',borderRadius:14,overflow:'hidden',marginBottom:10,
-      border:`1px solid ${ac}66`,boxShadow:`0 0 20px ${ac}22,inset 0 0 30px ${ac}04`}}>
-      {imgFeed&&<div style={{position:'relative'}}>
+      border:`1px solid ${pinned?ac:ac+'66'}`,boxShadow:pinned?`0 0 0 2px ${ac}44,0 0 20px ${ac}33`:`0 0 20px ${ac}22,inset 0 0 30px ${ac}04`}}>
+      {pinnedEl}{imgFeed&&<div style={{position:'relative'}}>
         {imgFeed}
         <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${ac}18,transparent)`,pointerEvents:'none'}}/>
       </div>}
@@ -2529,7 +2664,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
           <div style={{position:'relative'}}>{menuBtn}{menuEl}</div>
         </div>
       </div>
-    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}</>
+    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 
   /* ── Стиль 5: Чат — пузырь ── */
@@ -2575,7 +2710,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
         ))}
         <div style={{position:'relative'}}>{menuEl}</div>
       </div>
-    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}</>
+    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 
   /* ── Стиль 6: Компакт — горизонталь ── */
@@ -2623,7 +2758,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
       {videoEl}
       {audioEl&&<div style={{padding:'0 8px 8px'}}>{audioEl}</div>}
       {docEl&&<div style={{padding:'0 8px 8px'}}>{docEl}</div>}
-    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}</>
+    </div>{lbEl}{docViewer&&<DocViewerModal doc={docViewer} onClose={()=>setDocViewer(null)} c={c}/>}{postChatEl}{editEl}{quoteSheetEl}{repostSheetEl}{statsEl}{promoteEl}{toastEl}</>
   );
 }
 
