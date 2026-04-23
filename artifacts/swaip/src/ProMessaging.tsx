@@ -975,18 +975,25 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                             </div>
                           )}
                           {m.messageType==='videoMessage' && m.mediaUrl && (
-                            <div style={{ position:'relative', display:'inline-block' }}>
+                            <div style={{ position:'relative', display:'inline-block', borderRadius:18, overflow:'hidden',
+                              width:148, boxShadow:'0 6px 28px rgba(0,0,0,0.55)', flexShrink:0 }}>
                               <video src={m.mediaUrl} controls playsInline
-                                style={{ width:200, height:200, borderRadius:'50%', display:'block',
-                                  objectFit:'cover', border:'3px solid rgba(255,255,255,0.18)',
-                                  boxShadow:'0 4px 20px rgba(0,0,0,0.5)' }} />
-                              {m.duration && (
-                                <div style={{ position:'absolute', bottom:8, right:8, background:'rgba(0,0,0,0.65)',
-                                  borderRadius:10, padding:'2px 7px', fontSize:10, color:'#fff', fontWeight:700,
-                                  fontFamily:'"Montserrat",sans-serif', backdropFilter:'blur(4px)' }}>
-                                  {String(Math.floor(m.duration/60)).padStart(2,'0')}:{String(m.duration%60).padStart(2,'0')}
-                                </div>
-                              )}
+                                style={{ width:148, height:260, display:'block',
+                                  objectFit:'cover' }} />
+                              {/* SWAIP-полоска снизу */}
+                              <div style={{ position:'absolute', bottom:0, left:0, right:0,
+                                background:'linear-gradient(90deg,#6366f1,#a855f7,#06b6d4)',
+                                height:28, display:'flex', alignItems:'center', justifyContent:'center',
+                                gap:5, backdropFilter:'blur(4px)' }}>
+                                <span style={{ fontSize:10, fontWeight:900, color:'#fff', letterSpacing:1.5,
+                                  fontFamily:'"Montserrat",sans-serif', textShadow:'0 1px 4px rgba(0,0,0,0.4)' }}>SWAIP</span>
+                                {m.duration && (
+                                  <span style={{ fontSize:9, color:'rgba(255,255,255,0.75)',
+                                    fontFamily:'"Montserrat",sans-serif', fontWeight:700 }}>
+                                    · {String(Math.floor(m.duration/60)).padStart(2,'0')}:{String(m.duration%60).padStart(2,'0')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           )}
                           {m.messageType==='file' && (
@@ -1123,17 +1130,34 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                 </div>
               )}
               <div style={{ display:'flex', justifyContent:'center' }}>
-                <div style={{ width:260, height:260, borderRadius:'50%', overflow:'hidden', background:'#000', position:'relative',
-                  border: videoRecording ? '4px solid #ef4444' : '4px solid rgba(255,255,255,0.2)',
-                  boxShadow: videoRecording ? '0 0 0 6px rgba(239,68,68,0.25)' : '0 0 0 4px rgba(255,255,255,0.06)',
+                <div style={{ width:160, height:284, borderRadius:22, overflow:'hidden', background:'#000', position:'relative',
+                  border: videoRecording ? '3px solid #ef4444' : '3px solid rgba(255,255,255,0.18)',
+                  boxShadow: videoRecording ? '0 0 0 5px rgba(239,68,68,0.28),0 8px 32px rgba(0,0,0,0.6)' : '0 8px 32px rgba(0,0,0,0.4)',
                   transition:'border-color 0.3s,box-shadow 0.3s' }}>
                   <video ref={vidPreviewRef} muted playsInline autoPlay
                     style={{ display:'block', width:'100%', height:'100%', objectFit:'cover',
                       transform: camFacing==='user' ? 'scaleX(-1)' : 'none' }} />
+                  {/* Пульсирующая рамка при записи */}
                   {videoRecording && (
-                    <motion.div animate={{ opacity:[0.4,0.9,0.4] }} transition={{ repeat:Infinity, duration:0.9 }}
-                      style={{ position:'absolute', inset:0, border:'4px solid #ef4444', borderRadius:'50%', pointerEvents:'none' }} />
+                    <motion.div animate={{ opacity:[0.35,0.9,0.35] }} transition={{ repeat:Infinity, duration:0.85 }}
+                      style={{ position:'absolute', inset:0, border:'3px solid #ef4444', borderRadius:19, pointerEvents:'none' }} />
                   )}
+                  {/* REC-бейдж */}
+                  {videoRecording && (
+                    <div style={{ position:'absolute', top:10, left:12, display:'flex', alignItems:'center', gap:5,
+                      background:'rgba(0,0,0,0.55)', borderRadius:20, padding:'3px 8px', backdropFilter:'blur(4px)' }}>
+                      <motion.div animate={{ opacity:[1,0.2,1] }} transition={{ repeat:Infinity, duration:0.9 }}
+                        style={{ width:7, height:7, borderRadius:'50%', background:'#ef4444', flexShrink:0 }} />
+                      <span style={{ fontSize:9, fontWeight:900, color:'#fff', letterSpacing:1, fontFamily:'"Montserrat",sans-serif' }}>REC</span>
+                    </div>
+                  )}
+                  {/* SWAIP-полоска снизу */}
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0,
+                    background:'linear-gradient(90deg,#6366f1,#a855f7,#06b6d4)',
+                    height:26, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontSize:9, fontWeight:900, color:'#fff', letterSpacing:2,
+                      fontFamily:'"Montserrat",sans-serif', textShadow:'0 1px 4px rgba(0,0,0,0.4)' }}>SWAIP</span>
+                  </div>
                 </div>
               </div>
               <div style={{ display:'flex', justifyContent:'center' }}>
