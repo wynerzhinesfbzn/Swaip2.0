@@ -3341,22 +3341,35 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   },[musicIdx,playTrack]);
 
   const handleMusicFilePick=useCallback(async(files:FileList|null)=>{
-    if(!files||!files.length||musicUploadingRef.current)return;
+    if(!files||!files.length)return;
     musicUploadingRef.current=true;
-    const newTracks:Track[]=[];
+    const st=()=>{try{return localStorage.getItem('swaip_session');}catch{return null;}};
     for(let i=0;i<files.length;i++){
       const f=files[i];
       const localUrl=URL.createObjectURL(f);
       const title=f.name.replace(/\.[^.]+$/,'');
-      try{
-        const r=await fetch(`${window.location.origin}/api/audio-upload`,{method:'POST',headers:{'Content-Type':f.type||'audio/mpeg','x-session-token':getSessionToken()||'','x-filename':f.name},body:f});
-        const json=r.ok?await r.json().catch(()=>null):null;
-        newTracks.push({id:`tr_${Date.now()}_${i}`,title,artist:'',url:json?.url||localUrl});
-      }catch{
-        newTracks.push({id:`tr_${Date.now()}_${i}`,title,artist:'',url:localUrl});
-      }
+      const trackId=`tr_${Date.now()}_${i}`;
+      /* Добавляем трек немедленно с локальным blob-URL */
+      addTracksToPlaylist([{id:trackId,title,artist:'',url:localUrl}]);
+      /* Загружаем на сервер в фоне — без блокировки UI */
+      (async()=>{
+        try{
+          const r=await fetch(`${window.location.origin}/api/audio-upload`,{
+            method:'POST',
+            headers:{'Content-Type':f.type||'audio/mpeg','x-session-token':st()||'','x-filename':f.name},
+            body:f
+          });
+          const json=r.ok?await r.json().catch(()=>null):null;
+          if(json?.url){
+            setPlaylist(pl=>{
+              const next=pl.map(t=>t.id===trackId?{...t,url:json.url}:t);
+              savePlaylist(next);
+              return next;
+            });
+          }
+        }catch{ /* локальный blob продолжает работать */ }
+      })();
     }
-    addTracksToPlaylist(newTracks);
     musicUploadingRef.current=false;
     if(musicFileRef.current)musicFileRef.current.value='';
   },[addTracksToPlaylist]);
