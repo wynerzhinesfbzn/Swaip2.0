@@ -23,6 +23,7 @@ import gitPushRouter from "./gitPush.js";
 import ttsRouter from "./tts.js";
 import browserProxyRouter from "./browserProxy.js";
 import battleRouter from "./battle.js";
+import gamesRouter from "./games.js";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(gitPushRouter);
 router.use(ttsRouter);
 router.use(browserProxyRouter);
 router.use(battleRouter);
+router.use(gamesRouter);
 
 export default router;

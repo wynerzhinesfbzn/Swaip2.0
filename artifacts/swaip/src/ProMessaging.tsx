@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, createContext, useContext, useCallb
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UseCallSignalingReturn } from './useCallSignaling';
 import { getOrCreateMyPubKey, getOrDeriveSharedKey, encryptMsg, decryptMsg } from './secretCrypto';
+import { useGameSession, GamePanel, GamePickerModal } from './ChatGames';
 
 /* ── CallCtx — провайдится из SwaipHome ── */
 export const CallCtx = createContext<UseCallSignalingReturn | null>(null);
@@ -231,6 +232,9 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
   const [battleCountdown, setBattleCountdown] = useState(30);
   const battlePollRef = useRef<ReturnType<typeof setInterval>|null>(null);
   const battleCdRef   = useRef<ReturnType<typeof setInterval>|null>(null);
+  /* ── Chat Games ── */
+  const [showGamePicker, setShowGamePicker] = useState(false);
+  const gameSession = useGameSession(convId ?? null, myHash);
 
   const bottomRef     = useRef<HTMLDivElement>(null);
   const mediaRef      = useRef<MediaRecorder | null>(null);
@@ -857,6 +861,12 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
             style={{ background:'rgba(251,146,60,0.15)', border:'1px solid rgba(251,146,60,0.4)', borderRadius:'50%',
               width:36, height:36, cursor:'pointer', fontSize:17, display:'flex', alignItems:'center',
               justifyContent:'center', flexShrink:0 }} title="Swipe Battle ⚔️">⚔️</motion.button>
+        )}
+        {!isSecret && (
+          <motion.button whileTap={{ scale:0.88 }} onClick={() => setShowGamePicker(true)}
+            style={{ background:'rgba(99,102,241,0.15)', border:'1px solid rgba(99,102,241,0.4)', borderRadius:'50%',
+              width:36, height:36, cursor:'pointer', fontSize:17, display:'flex', alignItems:'center',
+              justifyContent:'center', flexShrink:0 }} title="Игры 🎮">🎮</motion.button>
         )}
         {!isGroup && !isSecret && call && (
           <>
@@ -1710,6 +1720,37 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
               </div>
             )}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ══ Chat Games Panel ══ */}
+      <AnimatePresence>
+        {gameSession.game && (
+          <GamePanel
+            game={gameSession.game}
+            myHash={myHash}
+            otherName={isGroup ? (groupName || 'Группа') : otherInfo.name}
+            onAccept={gameSession.accept}
+            onDecline={gameSession.decline}
+            onLeave={gameSession.leave}
+            onMove={gameSession.move}
+            onJoin={gameSession.joinGame}
+            onStart={gameSession.startGame}
+            isGroup={isGroup}
+            accent={accent}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ══ Game Picker Modal ══ */}
+      <AnimatePresence>
+        {showGamePicker && (
+          <GamePickerModal
+            onSelect={type => gameSession.sendInvite(type, isGroup ? undefined : otherHash)}
+            onClose={() => setShowGamePicker(false)}
+            isGroup={isGroup}
+            accent={accent}
+          />
         )}
       </AnimatePresence>
     </div>
