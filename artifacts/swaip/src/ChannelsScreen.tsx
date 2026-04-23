@@ -175,6 +175,7 @@ interface GroupPost {
   createdAt: number;
   likes: number;
   myLiked: boolean;
+  likedBy?: {name:string;avatar:string}[];
   comments: GroupComment[];
   imageUrl?: string;
   /* poll */
@@ -376,11 +377,19 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
 
   /* ── Group mutations ── */
   const addGroupPost=(gId:string,post:Omit<GroupPost,'id'|'createdAt'|'likes'|'myLiked'|'comments'>)=>{
-    const np:GroupPost={...post,id:uid(),createdAt:Date.now(),likes:0,myLiked:false,comments:[]};
+    const np:GroupPost={...post,id:uid(),createdAt:Date.now(),likes:0,myLiked:false,likedBy:[],comments:[]};
     setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:[np,...g.posts],streak:g.streak}));
   };
   const likeGroupPost=(gId:string,postId:string)=>{
-    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>p.id!==postId?p:{...p,likes:p.myLiked?p.likes-1:p.likes+1,myLiked:!p.myLiked})}));
+    setGroups(gs=>gs.map(g=>g.id!==gId?g:{...g,posts:g.posts.map(p=>{
+      if(p.id!==postId)return p;
+      const wasLiked=p.myLiked;
+      const prevLikedBy=p.likedBy||[];
+      const newLikedBy=wasLiked
+        ?prevLikedBy.filter(lb=>lb.name!==userName)
+        :[...prevLikedBy,{name:userName,avatar:userAvatar||''}];
+      return{...p,likes:wasLiked?p.likes-1:p.likes+1,myLiked:!wasLiked,likedBy:newLikedBy};
+    })}));
   };
   const addComment=(gId:string,postId:string,text:string,isAnon:boolean)=>{
     const c2:GroupComment={id:uid(),text,author:isAnon?'Аноним':userName,avatar:isAnon?'':userAvatar||'',isAnon,createdAt:Date.now()};
@@ -2683,6 +2692,98 @@ function GroupsFeed({groups,c,accent,onOpen}:{groups:SwaipGroup[];c:Props['c'];a
 }
 
 /* ══════════════════════════════════════════════════════
+   ТОП УЧАСТНИКОВ ГРУППЫ — карточки под шапкой
+══════════════════════════════════════════════════════ */
+const RANK_COLORS=['#f59e0b','#9ca3af','#b45309'];
+
+function TopPersonCard({name,avatar,count,rank,label,color,c}:{name:string;avatar:string;count:number;rank:number;label:string;color:string;c:Props['c']}) {
+  const rc=RANK_COLORS[rank-1]||color;
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flexShrink:0,width:68}}>
+      <div style={{position:'relative'}}>
+        <div style={{width:54,height:54,borderRadius:12,overflow:'hidden',border:`2px solid ${rank<=3?rc:c.border}`,
+          background:c.cardAlt,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          {avatar
+            ?<img src={avatar} style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/>
+            :<span style={{fontSize:22,fontWeight:900,color:rc}}>{name.charAt(0).toUpperCase()}</span>}
+        </div>
+        {rank<=3&&(
+          <div style={{position:'absolute',top:-7,right:-7,width:19,height:19,borderRadius:'50%',
+            background:rc,border:`2px solid ${c.bg}`,display:'flex',alignItems:'center',justifyContent:'center',
+            fontSize:9,fontWeight:900,color:'#000',lineHeight:1}}>
+            {rank}
+          </div>
+        )}
+      </div>
+      <div style={{textAlign:'center',width:'100%'}}>
+        <div style={{fontSize:11,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',
+          whiteSpace:'nowrap',maxWidth:66,lineHeight:1.2}}>
+          {name.split(' ')[0]}
+        </div>
+        <div style={{fontSize:10,color:c.sub,marginTop:1}}>{count} {label}</div>
+      </div>
+    </div>
+  );
+}
+
+function GroupTopSection({group,c,accent}:{group:SwaipGroup;c:Props['c'];accent:string}) {
+  /* ─ Топ комментаторов ─ */
+  const commMap=new Map<string,{name:string;avatar:string;count:number}>();
+  for(const post of group.posts){
+    for(const cm of post.comments){
+      if(cm.isAnon||!cm.author||cm.author==='Аноним')continue;
+      const e=commMap.get(cm.author);
+      if(e)e.count++;else commMap.set(cm.author,{name:cm.author,avatar:cm.avatar||'',count:1});
+    }
+  }
+  const topCommenters=[...commMap.values()].sort((a,b)=>b.count-a.count).slice(0,5);
+
+  /* ─ Топ лайкеров (кто жал эмодзи/лайк) ─ */
+  const likeMap=new Map<string,{name:string;avatar:string;count:number}>();
+  for(const post of group.posts){
+    for(const lb of (post.likedBy||[])){
+      if(!lb.name)continue;
+      const e=likeMap.get(lb.name);
+      if(e)e.count++;else likeMap.set(lb.name,{name:lb.name,avatar:lb.avatar||'',count:1});
+    }
+  }
+  const topLikers=[...likeMap.values()].sort((a,b)=>b.count-a.count).slice(0,5);
+
+  if(topCommenters.length===0&&topLikers.length===0)return null;
+
+  return (
+    <div style={{borderBottom:`1px solid ${c.border}`,paddingBottom:12,paddingTop:4}}>
+      {topCommenters.length>0&&(
+        <div style={{marginBottom:topLikers.length>0?10:0}}>
+          <p style={{margin:'8px 0 8px 16px',fontSize:10,color:c.sub,fontWeight:800,
+            textTransform:'uppercase',letterSpacing:'0.07em'}}>💬 Топ комментаторов</p>
+          <div style={{display:'flex',gap:10,overflowX:'auto',padding:'0 16px',
+            scrollbarWidth:'none',WebkitOverflowScrolling:'touch'} as React.CSSProperties}>
+            {topCommenters.map((p,i)=>(
+              <TopPersonCard key={p.name} name={p.name} avatar={p.avatar} count={p.count}
+                rank={i+1} label="ком." color={accent} c={c}/>
+            ))}
+          </div>
+        </div>
+      )}
+      {topLikers.length>0&&(
+        <div>
+          <p style={{margin:'8px 0 8px 16px',fontSize:10,color:c.sub,fontWeight:800,
+            textTransform:'uppercase',letterSpacing:'0.07em'}}>❤️ Топ активных</p>
+          <div style={{display:'flex',gap:10,overflowX:'auto',padding:'0 16px',
+            scrollbarWidth:'none',WebkitOverflowScrolling:'touch'} as React.CSSProperties}>
+            {topLikers.map((p,i)=>(
+              <TopPersonCard key={p.name} name={p.name} avatar={p.avatar} count={p.count}
+                rank={i+1} label="❤️" color={accent} c={c}/>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
    СТРАНИЦА ГРУППЫ
 ══════════════════════════════════════════════════════ */
 interface GroupPageProps {
@@ -2753,6 +2854,9 @@ function GroupPage({group,c,accent,isDark,userName,userAvatar,onBack,onAddPost,o
           ))}
         </div>
       </div>
+
+      {/* Топ участников группы */}
+      <GroupTopSection group={group} c={c} accent={accent}/>
 
       {/* Слово дня + Настроение */}
       <div style={{padding:'10px 16px',display:'flex',gap:8,flexShrink:0,borderBottom:`1px solid ${c.border}`}}>
