@@ -210,3 +210,19 @@ Backend: добавлен `routes/linkPreview.ts` — fetch URL → парсин
 - Поля `bgMusicUrl` + `bgMusicLabel` в `Post`-интерфейсе и `rawToPost()`.
 - Отправляются в обоих body POST `/api/broadcasts` (postData + JSON).
 - Backend сохраняет в `data` JSONB (без явной схемной валидации).
+
+## Фоновая музыка — расширено на каналы и чаты (2026-04-26)
+
+Создан общий модуль `src/BgMusic.tsx` с:
+- 14 пресетов (3 категории), импорт mp3 из `@assets/`.
+- `BgMusicAutoplay` (singleton-плеер с IO-наблюдателем). Принимает `attach: 'sibling'|'parent'` (по умолчанию `'sibling'` — для совместимости с PostCard).
+- `BgMusicPicker` — компактная сетка пресетов с превью (▶/⏸) и выбором (✓).
+
+### Где доступно
+- **Лента (PostCard)** — `bgmusic` в меню «➕ Добавить в пост».
+- **Каналы/Группы (`GroupComposer` в ChannelsScreen)** — кнопка «🎵 Фоновая музыка» в композере, сохранение в `GroupPost.bgMusicUrl/bgMusicLabel`. `GroupPostCard` рендерит `<BgMusicAutoplay attach="parent"/>` в начале карточки.
+- **Чаты (1:1, групповые, broadcast)** — кнопка «🎵» рядом с 😊 в input-bar. Открывает шит с пикером + кнопкой «Отправить». Отправляется как сообщение `messageType='bgmusic'` (`mediaUrl`=URL, `mediaName`=label). В рендере: `<BgMusicAutoplay attach="parent"/>`. Превью в списке чатов: `🎵 [label]`.
+- **Секретные E2E-чаты** — кнопка `🎵` скрыта (URL не шифруется через E2E, чтобы не разглашать дорожку).
+
+### Архитектура singleton'а
+`window._swaipBgAudio` + `_swaipBgPostId` — один плеер на всё приложение. Музыка из ленты, канала и чата конкурирует за одну активную дорожку. localStorage `swaip_bg_muted` глобален.

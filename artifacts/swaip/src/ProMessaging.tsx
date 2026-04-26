@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { UseCallSignalingReturn } from './useCallSignaling';
 import { getOrCreateMyPubKey, getOrDeriveSharedKey, encryptMsg, decryptMsg } from './secretCrypto';
 import { useGameSession, GamePanel, GamePickerModal } from './ChatGames';
+import { BgMusicAutoplay, BgMusicPicker, type BgMusicPreset } from './BgMusic';
 
 /* ── CallCtx — провайдится из SwaipHome ── */
 export const CallCtx = createContext<UseCallSignalingReturn | null>(null);
@@ -92,6 +93,7 @@ function getReplyPreview(r: ReplyInfo): string {
   if (r.messageType==='audio') return '🎤 Голосовое';
   if (r.messageType==='gif')   return '🎞 GIF';
   if (r.messageType==='file')  return '📎 Файл';
+  if (r.messageType==='bgmusic') return `🎵 ${r.content || 'Фоновая музыка'}`;
   if (r.content==='__deleted__') return 'Сообщение удалено';
   if (r.content.startsWith('e2e:')) return '🔒 Зашифровано';
   return r.content.length>60 ? r.content.slice(0,60)+'…' : r.content;
@@ -107,6 +109,7 @@ function getMsgPreview(m: MsgItem | null): string {
   if (m.messageType === 'audio') return '🎤 Голосовое';
   if (m.messageType === 'gif') return '🎞 GIF';
   if (m.messageType === 'file') return `📎 ${m.mediaName || 'Файл'}`;
+  if (m.messageType === 'bgmusic') return `🎵 ${m.mediaName || m.content || 'Фоновая музыка'}`;
   if (m.messageType === 'system') return `• ${m.content}`;
   if (typeof m.content === 'string' && m.content.startsWith('e2e:')) return '🔒 Зашифровано';
   return m.content || '';
@@ -234,6 +237,8 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
   const battleCdRef   = useRef<ReturnType<typeof setInterval>|null>(null);
   /* ── Chat Games ── */
   const [showGamePicker, setShowGamePicker] = useState(false);
+  const [showBgMusicPicker, setShowBgMusicPicker] = useState(false);
+  const [chatBgMusicSel, setChatBgMusicSel] = useState<BgMusicPreset|null>(null);
   const gameSession = useGameSession(convId ?? null, myHash);
 
   const bottomRef     = useRef<HTMLDivElement>(null);
@@ -1180,6 +1185,12 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                               </div>
                             </a>
                           )}
+                          {m.messageType==='bgmusic' && m.mediaUrl && (
+                            <div style={{ minWidth:230, maxWidth:280 }}>
+                              <BgMusicAutoplay url={m.mediaUrl} postId={`msg-${m.id}`}
+                                label={m.mediaName || m.content || 'Фоновая музыка'} attach="parent"/>
+                            </div>
+                          )}
                           {(m.messageType==='text'||!m.messageType) && (
                             <span style={{ fontSize:14, fontFamily:'"Montserrat",sans-serif', lineHeight:1.5 }}>{m.content}</span>
                           )}
@@ -1477,6 +1488,12 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
           <motion.button whileTap={{ scale:0.88 }} onClick={() => setShowEmoji(s=>!s)}
             style={{ background:'rgba(255,255,255,0.07)', border:'none', borderRadius:'50%', width:36, height:36,
               cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>😊</motion.button>
+          {!isSecret && (
+            <motion.button whileTap={{ scale:0.88 }} onClick={() => setShowBgMusicPicker(true)} title="Фоновая музыка"
+              style={{ background:'rgba(236,72,153,0.12)', border:'1.5px solid rgba(236,72,153,0.35)',
+                borderRadius:'50%', width:36, height:36, cursor:'pointer', fontSize:16,
+                display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>🎵</motion.button>
+          )}
           <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
             onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); } }}
             disabled={isSecret && !e2eReady && !e2eError}
@@ -1751,6 +1768,58 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
             isGroup={isGroup}
             accent={accent}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Bg music picker для чата */}
+      <AnimatePresence>
+        {showBgMusicPicker && (
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            onClick={() => setShowBgMusicPicker(false)}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', zIndex:300,
+              display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+            <motion.div initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
+              transition={{ type:'spring', damping:30, stiffness:300 }}
+              onClick={e => e.stopPropagation()}
+              style={{ width:'100%', maxWidth:560, background:'#0e0e16', borderRadius:'24px 24px 0 0',
+                padding:'18px 16px calc(20px + env(safe-area-inset-bottom,0px))',
+                maxHeight:'80vh', overflowY:'auto', boxShadow:'0 -8px 40px rgba(0,0,0,0.6)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+                <span style={{ fontSize:20 }}>🎵</span>
+                <p style={{ margin:0, fontSize:15, fontWeight:900, color:'#fff', flex:1,
+                  fontFamily:'"Montserrat",sans-serif' }}>Фоновая музыка для чата</p>
+                <button onClick={() => setShowBgMusicPicker(false)}
+                  style={{ background:'rgba(255,255,255,0.08)', border:'none', borderRadius:'50%',
+                    width:30, height:30, color:'#fff', fontSize:14, cursor:'pointer', lineHeight:1 }}>✕</button>
+              </div>
+              <p style={{ margin:'0 0 12px', fontSize:11.5, color:'rgba(255,255,255,0.55)',
+                fontFamily:'"Montserrat",sans-serif', lineHeight:1.5 }}>
+                Выбери дорожку — она отправится в чат и будет автоматически играть у всех при открытии переписки.
+              </p>
+              <BgMusicPicker selected={chatBgMusicSel} onChange={setChatBgMusicSel} />
+              <div style={{ display:'flex', gap:8, marginTop:14 }}>
+                <button onClick={() => { setChatBgMusicSel(null); setShowBgMusicPicker(false); }}
+                  style={{ flex:1, padding:'12px', borderRadius:12, border:'1.5px solid rgba(255,255,255,0.15)',
+                    background:'transparent', color:'#fff', fontSize:13, fontWeight:700,
+                    fontFamily:'"Montserrat",sans-serif', cursor:'pointer' }}>Отмена</button>
+                <motion.button whileTap={{ scale:0.97 }} disabled={!chatBgMusicSel}
+                  onClick={() => {
+                    if (!chatBgMusicSel) return;
+                    sendMsg(`${chatBgMusicSel.emoji} ${chatBgMusicSel.label}`, 'bgmusic',
+                      chatBgMusicSel.url, `${chatBgMusicSel.emoji} ${chatBgMusicSel.label}`);
+                    setChatBgMusicSel(null);
+                    setShowBgMusicPicker(false);
+                  }}
+                  style={{ flex:2, padding:'12px', borderRadius:12, border:'none',
+                    background: chatBgMusicSel ? 'linear-gradient(135deg,#ec4899,#a855f7)' : 'rgba(255,255,255,0.08)',
+                    color: chatBgMusicSel ? '#fff' : 'rgba(255,255,255,0.3)',
+                    fontSize:13, fontWeight:900, fontFamily:'"Montserrat",sans-serif',
+                    cursor: chatBgMusicSel ? 'pointer' : 'not-allowed' }}>
+                  🎵 Отправить
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { checkContent, collectPostText } from './contentFilter';
+import { BgMusicAutoplay, BgMusicPicker, type BgMusicPreset } from './BgMusic';
 
 /* ══════════════════════════════════════════════════════
    ТИПЫ
@@ -199,6 +200,9 @@ interface GroupPost {
   /* roulette answer */
   rouletteQuestion?: string;
   rouletteAnswer?: string;
+  /* bg music */
+  bgMusicUrl?: string;
+  bgMusicLabel?: string;
 }
 
 type GroupRole = 'founder'|'moderator'|'vip'|'activist'|'member';
@@ -3068,6 +3072,7 @@ function GroupPostCard({post,group,c,accent,isExpanded,onToggleExpand,onLike,onV
 
   return (
     <motion.div layout style={{background:c.card,borderRadius:16,marginBottom:10,overflow:'hidden',border:`1px solid ${c.border}`}}>
+      {post.bgMusicUrl&&<BgMusicAutoplay url={post.bgMusicUrl} postId={post.id} label={post.bgMusicLabel||''} attach="parent"/>}
       {/* Тип-полоска */}
       <div style={{height:3,background:`linear-gradient(90deg,${meta.color},${meta.color}44)`}}/>
 
@@ -3289,6 +3294,9 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
   const [collabText,setCollabText]=useState('');
   /* roulette — auto-pick */
   const [rouletteQ]=useState(ROULETTE_QUESTIONS[Math.floor(Math.random()*ROULETTE_QUESTIONS.length)]);
+  /* bg music */
+  const [showBgMusic,setShowBgMusic]=useState(false);
+  const [postBgMusic,setPostBgMusic]=useState<BgMusicPreset|null>(null);
 
   const meta=GROUP_POST_META[postType];
 
@@ -3307,6 +3315,7 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
     if(postType==='event') base={...base,eventTitle,eventAt:eventDate?new Date(eventDate).getTime():undefined,eventJoined:0};
     if(postType==='capsule') base={...base,text:'',capsuleOpensAt:Date.now()+capsuleH*3600000};
     if(postType==='collab') base={...base,text:'',collabParts:[{author:userName,text:collabText}]};
+    if(postBgMusic) base={...base,bgMusicUrl:postBgMusic.url,bgMusicLabel:`${postBgMusic.emoji} ${postBgMusic.label}`};
     onPost(base);
   };
 
@@ -3458,6 +3467,26 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
                 style={{width:'100%',minHeight:100,padding:'12px',background:c.cardAlt||'rgba(255,255,255,0.06)',border:`1px solid ${c.border}`,borderRadius:12,color:c.light,fontSize:14,lineHeight:1.6,resize:'vertical',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
             </div>
           )}
+
+          {/* Bg music toggle */}
+          <div style={{marginTop:14}}>
+            <motion.button whileTap={{scale:0.96}} onClick={()=>setShowBgMusic(s=>!s)}
+              style={{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',borderRadius:10,
+                border:`1.5px solid ${showBgMusic||postBgMusic?'#ec4899':c.border}`,cursor:'pointer',
+                background:showBgMusic||postBgMusic?'rgba(236,72,153,0.1)':'transparent',width:'100%'}}>
+              <span style={{fontSize:16}}>🎵</span>
+              <span style={{flex:1,textAlign:'left',fontSize:13,fontWeight:700,color:postBgMusic?'#ec4899':c.light}}>
+                Фоновая музыка{postBgMusic?` · ${postBgMusic.label}`:''}
+              </span>
+              <span style={{fontSize:11,color:c.sub}}>{showBgMusic?'▴':'▾'}</span>
+            </motion.button>
+            {showBgMusic&&(
+              <div style={{marginTop:8,padding:10,background:c.cardAlt||'rgba(255,255,255,0.04)',borderRadius:10,border:`1px solid ${c.border}`}}>
+                <BgMusicPicker selected={postBgMusic} onChange={setPostBgMusic}
+                  textColor={c.light} subColor={c.sub} borderColor={c.border}/>
+              </div>
+            )}
+          </div>
 
           {/* Submit */}
           {groupContentError&&(
