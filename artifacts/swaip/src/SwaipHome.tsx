@@ -8640,6 +8640,72 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const [showGeo,setShowGeo]=useState(false);
   const [postGeo,setPostGeo]=useState<{city:string;lat:number;lng:number}|null>(null);
   const [geoLoading,setGeoLoading]=useState(false);
+  /* Карусель / галерея */
+  const [showCarousel,setShowCarousel]=useState(false);
+  const [postImages,setPostImages]=useState<{file:File;url:string}[]>([]);
+  const carouselRef=useRef<HTMLInputElement|null>(null);
+  const postImagesRef=useRef<{file:File;url:string}[]>([]);
+  useEffect(()=>{postImagesRef.current=postImages;},[postImages]);
+  useEffect(()=>()=>{postImagesRef.current.forEach(x=>URL.revokeObjectURL(x.url));},[]);
+  const addCarouselImages=(files:FileList|null)=>{
+    if(!files)return;
+    const arr=Array.from(files).slice(0,10-postImages.length);
+    const next=arr.map(f=>({file:f,url:URL.createObjectURL(f)}));
+    setPostImages(p=>[...p,...next].slice(0,10));
+  };
+  const removeCarouselImage=(i:number)=>setPostImages(p=>{const x=p[i];if(x)URL.revokeObjectURL(x.url);return p.filter((_,j)=>j!==i);});
+  /* Превью ссылки */
+  const [showLinkPreview,setShowLinkPreview]=useState(false);
+  const [linkUrl,setLinkUrl]=useState('');
+  const [linkPreview,setLinkPreview]=useState<{title?:string;description?:string;image?:string;url:string}|null>(null);
+  const [linkLoading,setLinkLoading]=useState(false);
+  const fetchLinkPreview=async(u:string)=>{
+    const url=u.trim();if(!url)return;setLinkLoading(true);
+    try{
+      const r=await fetch(`${window.location.origin}/api/link-preview?url=${encodeURIComponent(url)}`,{headers:{'x-session-token':getSessionToken()||''}});
+      if(r.ok){const d=await r.json();setLinkPreview({title:d.title,description:d.description,image:d.image,url});}
+      else{setLinkPreview({url});}
+    }catch{setLinkPreview({url});}
+    finally{setLinkLoading(false);}
+  };
+  /* Вопрос подписчикам */
+  const [showQuestion,setShowQuestion]=useState(false);
+  const [postQuestion,setPostQuestion]=useState('');
+  /* Викторина */
+  const [showQuiz,setShowQuiz]=useState(false);
+  const [quizCorrect,setQuizCorrect]=useState(0);
+  /* Челлендж */
+  const [showChallenge,setShowChallenge]=useState(false);
+  const [challengeTitle,setChallengeTitle]=useState('');
+  const [challengeDeadline,setChallengeDeadline]=useState('');
+  const [challengeHashtag,setChallengeHashtag]=useState('');
+  /* Хештеги */
+  const [showHashtags,setShowHashtags]=useState(false);
+  const [postHashtags,setPostHashtags]=useState<string[]>([]);
+  const [hashtagInput,setHashtagInput]=useState('');
+  const POPULAR_TAGS=['музыка','фото','арт','танцы','стиль','юмор','новости','спорт','путешествия','еда','книги','кино','игры','технологии','мода'];
+  const addHashtag=(t:string)=>{const v=t.trim().replace(/^#/,'').toLowerCase().replace(/\s+/g,'_');if(!v||postHashtags.includes(v)||postHashtags.length>=10)return;setPostHashtags(p=>[...p,v]);};
+  const removeHashtag=(t:string)=>setPostHashtags(p=>p.filter(x=>x!==t));
+  /* Отметить людей */
+  const [showMentions,setShowMentions]=useState(false);
+  const [mentionQ,setMentionQ]=useState('');
+  const [mentionRes,setMentionRes]=useState<any[]>([]);
+  const [postMentions,setPostMentions]=useState<{hash:string;name:string;avatar:string}[]>([]);
+  const searchMention=async(q:string)=>{setMentionQ(q);if(!q.trim()){setMentionRes([]);return;}try{const r=await fetch(`${window.location.origin}/api/search?q=${encodeURIComponent(q)}&limit=5`,{headers:{'x-session-token':getSessionToken()||''}});if(r.ok){const d=await r.json();setMentionRes(d.results||[]);}}catch{}};
+  const addMention=(u:any)=>{const name=u.pro_name||u.pro_full||u.scene_name||'Пользователь';if(postMentions.some(m=>m.hash===u.hash)||postMentions.length>=10)return;setPostMentions(p=>[...p,{hash:u.hash,name,avatar:u.pro_avatar||u.scene_avatar||''}]);setMentionQ('');setMentionRes([]);};
+  const removeMention=(h:string)=>setPostMentions(p=>p.filter(m=>m.hash!==h));
+  /* Активность */
+  const [showActivity,setShowActivity]=useState(false);
+  const ACTIVITIES=[{k:'movie',e:'🎬',l:'Смотрю'},{k:'music',e:'🎵',l:'Слушаю'},{k:'book',e:'📖',l:'Читаю'},{k:'game',e:'🎮',l:'Играю'},{k:'show',e:'📺',l:'Сериал'}] as const;
+  const [activityType,setActivityType]=useState<'movie'|'music'|'book'|'game'|'show'>('movie');
+  const [activityTitle,setActivityTitle]=useState('');
+  /* Запретить комментарии / репост */
+  const [postDisableComments,setPostDisableComments]=useState(false);
+  const [postDisableRepost,setPostDisableRepost]=useState(false);
+  /* TTS озвучка */
+  const [postEnableTTS,setPostEnableTTS]=useState(false);
+  /* Детальная статистика */
+  const [postEnableStats,setPostEnableStats]=useState(false);
   /* Меню «Добавить в пост» */
   const [showAddMenu,setShowAddMenu]=useState(false);
   const getGeo=async()=>{
@@ -8768,7 +8834,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const stopSelfieRec=()=>{selfieRecRef.current?.stop();setSelfieRec(false);};
   const discardSelfie=()=>{selfieStreamRef.current?.getTracks().forEach(t=>t.stop());selfieStreamRef.current=null;if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);};
 
-  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPlaylistTrack(null);setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);setPostIsAnonVoting(false);setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');setShowGeo(false);setPostGeo(null);};
+  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPlaylistTrack(null);setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);setPostIsAnonVoting(false);setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');setShowGeo(false);setPostGeo(null);postImages.forEach(x=>URL.revokeObjectURL(x.url));setPostImages([]);setShowCarousel(false);setShowLinkPreview(false);setLinkUrl('');setLinkPreview(null);setShowQuestion(false);setPostQuestion('');setShowQuiz(false);setQuizCorrect(0);setShowChallenge(false);setChallengeTitle('');setChallengeDeadline('');setChallengeHashtag('');setShowHashtags(false);setPostHashtags([]);setHashtagInput('');setShowMentions(false);setMentionQ('');setMentionRes([]);setPostMentions([]);setShowActivity(false);setActivityType('movie');setActivityTitle('');setPostDisableComments(false);setPostDisableRepost(false);setPostEnableTTS(false);setPostEnableStats(false);setShowAddMenu(false);};
 
   const handlePost=async()=>{
     const validPoll=postHasPoll&&pollQuestion.trim()&&pollOptions.filter(o=>o.trim()).length>=2;
@@ -8789,11 +8855,36 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
       const anonExtra=postIsAnonVoting?{isAnonVoting:true}:{};
       const timerExtra=postPublishAt?{publishAt:new Date(postPublishAt).toISOString(),...(postExpiresAt?{expiresAt:new Date(postExpiresAt).toISOString()}:{})}:{};
       const geoExtra=postGeo?{location:postGeo}:{};
-      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||(playlistTrack?.url)||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra};
+      // Загрузка карусели параллельно
+      let carouselUrls:string[]=[];
+      if(postImages.length>0){
+        try{
+          const ups=await Promise.all(postImages.map(im=>{
+            return fetch(`${window.location.origin}/api/image-upload`,{method:'POST',headers:{'Content-Type':im.file.type||'image/jpeg','x-session-token':getSessionToken()||''},body:im.file})
+              .then(r=>r.ok?r.json():null).catch(()=>null);
+          }));
+          carouselUrls=ups.map(u=>u?.url).filter(Boolean) as string[];
+        }catch{}
+      }
+      const carouselExtra=carouselUrls.length?{additionalImageUrls:carouselUrls}:{};
+      const linkExtra=(showLinkPreview&&linkPreview)?{linkPreview}:{};
+      const questionExtra=(showQuestion&&postQuestion.trim())?{question:postQuestion.trim()}:{};
+      const quizExtra=(showQuiz&&validPoll)?{quiz:{correctIndex:quizCorrect}}:{};
+      const challengeExtra=(showChallenge&&challengeTitle.trim())?{challenge:{title:challengeTitle.trim(),deadline:challengeDeadline||null,hashtag:challengeHashtag||null}}:{};
+      const hashtagExtra=postHashtags.length?{hashtags:postHashtags}:{};
+      const mentionExtra=postMentions.length?{mentions:postMentions.map(m=>({hash:m.hash,name:m.name}))}:{};
+      const activityExtra=(showActivity&&activityTitle.trim())?{activity:{type:activityType,title:activityTitle.trim()}}:{};
+      const flagsExtra={
+        ...(postDisableComments?{disableComments:true}:{}),
+        ...(postDisableRepost?{disableRepost:true}:{}),
+        ...(postEnableTTS?{enableTTS:true}:{}),
+        ...(postEnableStats?{enableStats:true}:{}),
+      };
+      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||(playlistTrack?.url)||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra};
       try{
         const r=await fetch(`${window.location.origin}/api/broadcasts`,{
           method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},
-          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...((musUrl||playlistTrack?.url)?{audioUrl:musUrl||playlistTrack!.url}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra,...coAuthorExtra,...anonExtra,...timerExtra,...geoExtra}),
+          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...((musUrl||playlistTrack?.url)?{audioUrl:musUrl||playlistTrack!.url}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra,...coAuthorExtra,...anonExtra,...timerExtra,...geoExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra}),
         });
         if(r.ok){const created=await r.json().catch(()=>null);setOpen(false);reset();onPostCreated({...postData,...created});return;}
       }catch{}
@@ -8944,12 +9035,24 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
           {/* ══ Меню «➕ Добавить в пост» ══ */}
           {(() => {
             const ADDONS=[
+              {id:'carousel', emo:'🖼️', lbl:'Карусель / галерея',   clr:'#fb923c', on:postImages.length>0||showCarousel, toggle:()=>setShowCarousel(s=>!s)},
               {id:'booking',  emo:'📅', lbl:'Кнопка «Записаться»', clr:'#34d399', on:postHasBooking,    toggle:()=>setPostHasBooking(s=>!s)},
               {id:'poll',     emo:'📊', lbl:'Опрос',                clr:'#a5b4fc', on:postHasPoll,        toggle:()=>setPostHasPoll(s=>!s)},
+              {id:'quiz',     emo:'🎯', lbl:'Викторина / квиз',     clr:'#fde047', on:showQuiz,          toggle:()=>setShowQuiz(s=>!s), need:'poll' as const},
+              {id:'question', emo:'❓', lbl:'Вопрос подписчикам',   clr:'#f472b6', on:showQuestion,      toggle:()=>setShowQuestion(s=>!s)},
+              {id:'challenge',emo:'🏆', lbl:'Челлендж',            clr:'#f97316', on:showChallenge,     toggle:()=>setShowChallenge(s=>!s)},
+              {id:'link',     emo:'🔗', lbl:'Превью ссылки',        clr:'#60a5fa', on:showLinkPreview,   toggle:()=>setShowLinkPreview(s=>!s)},
+              {id:'activity', emo:'🎬', lbl:'Активность',          clr:'#fbbf24', on:showActivity,      toggle:()=>setShowActivity(s=>!s)},
+              {id:'mention',  emo:'🏷️', lbl:'Отметить людей',       clr:'#a78bfa', on:showMentions||postMentions.length>0, toggle:()=>setShowMentions(s=>!s)},
+              {id:'hashtag',  emo:'#️⃣', lbl:'Хештеги / темы',       clr:'#22d3ee', on:showHashtags||postHashtags.length>0, toggle:()=>setShowHashtags(s=>!s)},
               {id:'coauthor', emo:'🤝', lbl:'Коллаборативный пост', clr:'#a5b4fc', on:showCoAuthor,       toggle:()=>setShowCoAuthor(s=>!s)},
               {id:'anon',     emo:'🕵️', lbl:'Анонимное голосование',clr:'#c4b5fd', on:postIsAnonVoting,   toggle:()=>setPostIsAnonVoting(s=>!s), need:'poll' as const},
               {id:'timer',    emo:'⏰', lbl:'Таймер публикации',    clr:'#fbbf24', on:showTimer,          toggle:()=>setShowTimer(s=>!s)},
               {id:'geo',      emo:'📍', lbl:'Геолокация поста',     clr:'#4ade80', on:showGeo,            toggle:()=>setShowGeo(s=>!s)},
+              {id:'tts',      emo:'🔊', lbl:'Озвучка текста (TTS)', clr:'#34d399', on:postEnableTTS,      toggle:()=>setPostEnableTTS(s=>!s)},
+              {id:'stats',    emo:'📈', lbl:'Детальная статистика', clr:'#a3e635', on:postEnableStats,    toggle:()=>setPostEnableStats(s=>!s)},
+              {id:'nocomm',   emo:'🚫', lbl:'Запретить комментарии',clr:'#f87171', on:postDisableComments,toggle:()=>setPostDisableComments(s=>!s)},
+              {id:'norepost', emo:'♻️', lbl:'Запретить репост',     clr:'#f87171', on:postDisableRepost,  toggle:()=>setPostDisableRepost(s=>!s)},
             ];
             const onCount=ADDONS.filter(a=>a.on).length;
             return (
@@ -9226,6 +9329,275 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                   </motion.button>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ── Карусель / галерея ── */}
+          {(showCarousel||postImages.length>0)&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(251,146,60,0.4)',background:'rgba(251,146,60,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🖼️</span>
+                <span style={{flex:1,fontSize:12,color:'#fb923c',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Карусель ({postImages.length}/10)</span>
+                <button onClick={()=>{postImages.forEach(x=>URL.revokeObjectURL(x.url));setPostImages([]);setShowCarousel(false);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                <input ref={carouselRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>{addCarouselImages(e.target.files);if(e.target)e.target.value='';}}/>
+                {postImages.length>0&&(
+                  <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4}}>
+                    {postImages.map((im,i)=>(
+                      <div key={i} style={{position:'relative',width:64,height:64,borderRadius:8,overflow:'hidden',flexShrink:0,border:'1px solid rgba(251,146,60,0.3)'}}>
+                        <img src={im.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                        <button onClick={()=>removeCarouselImage(i)} style={{position:'absolute',top:2,right:2,width:18,height:18,borderRadius:'50%',background:'rgba(0,0,0,0.7)',border:'none',color:'#fff',fontSize:10,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {postImages.length<10&&(
+                  <button onClick={()=>carouselRef.current?.click()} style={{padding:'9px',borderRadius:8,border:'1px dashed rgba(251,146,60,0.4)',background:'rgba(251,146,60,0.06)',color:'#fb923c',fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:'"Montserrat",sans-serif'}}>
+                    + Добавить фото ({10-postImages.length} осталось)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Превью ссылки ── */}
+          {showLinkPreview&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(96,165,250,0.4)',background:'rgba(96,165,250,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🔗</span>
+                <span style={{flex:1,fontSize:12,color:'#60a5fa',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Превью ссылки</span>
+                <button onClick={()=>{setShowLinkPreview(false);setLinkUrl('');setLinkPreview(null);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{display:'flex',gap:6}}>
+                  <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)} placeholder="https://..."
+                    style={{flex:1,boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(96,165,250,0.3)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                  <button onClick={()=>fetchLinkPreview(linkUrl)} disabled={linkLoading||!linkUrl.trim()} style={{padding:'8px 13px',borderRadius:8,background:'rgba(96,165,250,0.2)',border:'1px solid rgba(96,165,250,0.4)',color:'#93c5fd',fontSize:12,fontWeight:700,cursor:linkLoading?'wait':'pointer',flexShrink:0}}>
+                    {linkLoading?'⌛':'Загрузить'}
+                  </button>
+                </div>
+                {linkPreview&&(
+                  <div style={{display:'flex',gap:8,padding:8,background:'rgba(96,165,250,0.08)',borderRadius:10,border:'1px solid rgba(96,165,250,0.25)'}}>
+                    {linkPreview.image&&<img src={linkPreview.image} alt="" style={{width:60,height:60,borderRadius:6,objectFit:'cover',flexShrink:0}}/>}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:800,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{linkPreview.title||linkPreview.url}</div>
+                      {linkPreview.description&&<div style={{fontSize:10,color:'rgba(255,255,255,0.5)',marginTop:2,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{linkPreview.description}</div>}
+                      <div style={{fontSize:9,color:'#60a5fa',marginTop:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{linkPreview.url}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Вопрос подписчикам ── */}
+          {showQuestion&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(244,114,182,0.4)',background:'rgba(244,114,182,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>❓</span>
+                <span style={{flex:1,fontSize:12,color:'#f472b6',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Вопрос подписчикам</span>
+                <button onClick={()=>{setShowQuestion(false);setPostQuestion('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:6}}>
+                <input value={postQuestion} onChange={e=>setPostQuestion(e.target.value)} placeholder="Задайте вопрос (ответы придут в личку)…" maxLength={140}
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(244,114,182,0.3)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>💬 Подписчики смогут ответить в чат, ответы видны только вам</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Викторина / квиз ── */}
+          {showQuiz&&postHasPoll&&pollOptions.filter(o=>o.trim()).length>=2&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(253,224,71,0.4)',background:'rgba(253,224,71,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🎯</span>
+                <span style={{flex:1,fontSize:12,color:'#fde047',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Викторина — отметьте правильный ответ</span>
+                <button onClick={()=>setShowQuiz(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:5}}>
+                {pollOptions.filter(o=>o.trim()).map((o,i)=>(
+                  <button key={i} onClick={()=>setQuizCorrect(i)}
+                    style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:8,
+                      background:quizCorrect===i?'rgba(253,224,71,0.15)':'rgba(255,255,255,0.04)',
+                      border:`1px solid ${quizCorrect===i?'rgba(253,224,71,0.5)':'rgba(255,255,255,0.08)'}`,
+                      cursor:'pointer',textAlign:'left',color:'#fff',fontSize:12,fontFamily:'"Montserrat",sans-serif'}}>
+                    <span style={{fontSize:14}}>{quizCorrect===i?'✅':'⚪'}</span>
+                    <span style={{flex:1}}>{o}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Челлендж ── */}
+          {showChallenge&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(249,115,22,0.4)',background:'rgba(249,115,22,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🏆</span>
+                <span style={{flex:1,fontSize:12,color:'#f97316',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Челлендж</span>
+                <button onClick={()=>{setShowChallenge(false);setChallengeTitle('');setChallengeDeadline('');setChallengeHashtag('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                <input value={challengeTitle} onChange={e=>setChallengeTitle(e.target.value)} placeholder="Название челленджа: например, 7 дней без сахара" maxLength={80}
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(249,115,22,0.3)',color:'#fff',fontSize:12,fontWeight:700,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                <input value={challengeHashtag} onChange={e=>setChallengeHashtag(e.target.value.replace(/^#/,'').replace(/\s+/g,'_'))} placeholder="Хештег для участников: #7днейбезсахара" maxLength={40}
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(249,115,22,0.3)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                <div>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:4,fontWeight:600}}>⏳ Дедлайн (когда подвести итоги):</div>
+                  <input type="datetime-local" value={challengeDeadline} min={new Date().toISOString().slice(0,16)} onChange={e=>setChallengeDeadline(e.target.value)}
+                    style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(249,115,22,0.3)',color:'#fff',fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Активность ── */}
+          {showActivity&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(251,191,36,0.4)',background:'rgba(251,191,36,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🎬</span>
+                <span style={{flex:1,fontSize:12,color:'#fbbf24',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Активность</span>
+                <button onClick={()=>{setShowActivity(false);setActivityTitle('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                  {ACTIVITIES.map(a=>(
+                    <button key={a.k} onClick={()=>setActivityType(a.k)}
+                      style={{display:'flex',alignItems:'center',gap:5,padding:'6px 10px',borderRadius:20,
+                        background:activityType===a.k?'rgba(251,191,36,0.18)':'rgba(255,255,255,0.04)',
+                        border:`1px solid ${activityType===a.k?'rgba(251,191,36,0.5)':'rgba(255,255,255,0.08)'}`,
+                        color:activityType===a.k?'#fbbf24':'rgba(255,255,255,0.6)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'"Montserrat",sans-serif'}}>
+                      <span>{a.e}</span><span>{a.l}</span>
+                    </button>
+                  ))}
+                </div>
+                <input value={activityTitle} onChange={e=>setActivityTitle(e.target.value)} placeholder="Название…" maxLength={80}
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(251,191,36,0.3)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+              </div>
+            </div>
+          )}
+
+          {/* ── Отметить людей ── */}
+          {(showMentions||postMentions.length>0)&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(167,139,250,0.4)',background:'rgba(167,139,250,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🏷️</span>
+                <span style={{flex:1,fontSize:12,color:'#a78bfa',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Отметить людей ({postMentions.length}/10)</span>
+                <button onClick={()=>{setShowMentions(false);setMentionQ('');setMentionRes([]);setPostMentions([]);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                {postMentions.length>0&&(
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                    {postMentions.map(m=>(
+                      <div key={m.hash} style={{display:'flex',alignItems:'center',gap:5,background:'rgba(167,139,250,0.12)',border:'1px solid rgba(167,139,250,0.3)',borderRadius:20,padding:'4px 4px 4px 4px'}}>
+                        <div style={{width:18,height:18,borderRadius:'50%',overflow:'hidden',flexShrink:0}}>
+                          {m.avatar?<img src={m.avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:10}}>👤</span>}
+                        </div>
+                        <span style={{fontSize:11,color:'#c4b5fd',fontWeight:700,paddingRight:4}}>{m.name}</span>
+                        <button onClick={()=>removeMention(m.hash)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:'0 4px',fontSize:11,lineHeight:1}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {postMentions.length<10&&(
+                  <input value={mentionQ} onChange={e=>searchMention(e.target.value)} placeholder="Поиск по имени или нику…"
+                    style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(167,139,250,0.3)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                )}
+                {mentionRes.length>0&&(
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    {mentionRes.map((u:any,i:number)=>{
+                      const uName=u.pro_name||u.pro_full||u.scene_name||'Пользователь';
+                      const uAv=u.pro_avatar||u.scene_avatar||'';
+                      const already=postMentions.some(m=>m.hash===u.hash);
+                      return(
+                        <button key={i} disabled={already} onClick={()=>addMention(u)}
+                          style={{display:'flex',alignItems:'center',gap:8,background:already?'rgba(167,139,250,0.05)':'rgba(255,255,255,0.05)',borderRadius:8,padding:'7px 10px',border:'1px solid rgba(255,255,255,0.08)',cursor:already?'not-allowed':'pointer',width:'100%',textAlign:'left',opacity:already?0.5:1}}>
+                          <div style={{width:24,height:24,borderRadius:'50%',overflow:'hidden',flexShrink:0}}>
+                            {uAv?<img src={uAv} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:12}}>👤</span>}
+                          </div>
+                          <span style={{fontSize:12,color:'#fff',fontWeight:700,flex:1}}>{uName}</span>
+                          {already&&<span style={{fontSize:10,color:'#a78bfa'}}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Хештеги / темы ── */}
+          {(showHashtags||postHashtags.length>0)&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(34,211,238,0.4)',background:'rgba(34,211,238,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>#️⃣</span>
+                <span style={{flex:1,fontSize:12,color:'#22d3ee',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Хештеги ({postHashtags.length}/10)</span>
+                <button onClick={()=>{setShowHashtags(false);setPostHashtags([]);setHashtagInput('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                {postHashtags.length>0&&(
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                    {postHashtags.map(t=>(
+                      <div key={t} style={{display:'flex',alignItems:'center',gap:4,background:'rgba(34,211,238,0.12)',border:'1px solid rgba(34,211,238,0.3)',borderRadius:20,padding:'4px 8px 4px 10px'}}>
+                        <span style={{fontSize:11,color:'#67e8f9',fontWeight:700}}>#{t}</span>
+                        <button onClick={()=>removeHashtag(t)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:'0 2px',fontSize:11,lineHeight:1}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {postHashtags.length<10&&(
+                  <div style={{display:'flex',gap:6}}>
+                    <input value={hashtagInput} onChange={e=>setHashtagInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addHashtag(hashtagInput);setHashtagInput('');}}} placeholder="Добавить хештег и Enter…"
+                      style={{flex:1,boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(34,211,238,0.3)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
+                    <button onClick={()=>{addHashtag(hashtagInput);setHashtagInput('');}} disabled={!hashtagInput.trim()} style={{padding:'8px 13px',borderRadius:8,background:'rgba(34,211,238,0.2)',border:'1px solid rgba(34,211,238,0.4)',color:'#67e8f9',fontSize:12,fontWeight:700,cursor:'pointer',flexShrink:0}}>+</button>
+                  </div>
+                )}
+                <div>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginBottom:4,fontWeight:600}}>🔥 Популярные:</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                    {POPULAR_TAGS.filter(t=>!postHashtags.includes(t)).slice(0,10).map(t=>(
+                      <button key={t} onClick={()=>addHashtag(t)} disabled={postHashtags.length>=10} style={{padding:'4px 9px',borderRadius:14,background:'rgba(34,211,238,0.06)',border:'1px solid rgba(34,211,238,0.2)',color:'#67e8f9',fontSize:10,cursor:postHashtags.length>=10?'not-allowed':'pointer',fontFamily:'"Montserrat",sans-serif',opacity:postHashtags.length>=10?0.4:1}}>
+                        #{t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Простые флаги: TTS / Stats / NoComm / NoRepost ── */}
+          {(postEnableTTS||postEnableStats||postDisableComments||postDisableRepost)&&(
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              {postEnableTTS&&(
+                <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(52,211,153,0.35)',background:'rgba(52,211,153,0.06)'}}>
+                  <span style={{fontSize:13}}>🔊</span>
+                  <span style={{flex:1,fontSize:11,color:'#34d399',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Озвучка текста (TTS включена)</span>
+                  <button onClick={()=>setPostEnableTTS(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+                </div>
+              )}
+              {postEnableStats&&(
+                <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(163,230,53,0.35)',background:'rgba(163,230,53,0.06)'}}>
+                  <span style={{fontSize:13}}>📈</span>
+                  <span style={{flex:1,fontSize:11,color:'#a3e635',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Детальная статистика (охваты, демография)</span>
+                  <button onClick={()=>setPostEnableStats(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+                </div>
+              )}
+              {postDisableComments&&(
+                <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(248,113,113,0.35)',background:'rgba(248,113,113,0.06)'}}>
+                  <span style={{fontSize:13}}>🚫</span>
+                  <span style={{flex:1,fontSize:11,color:'#f87171',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Комментарии запрещены</span>
+                  <button onClick={()=>setPostDisableComments(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+                </div>
+              )}
+              {postDisableRepost&&(
+                <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(248,113,113,0.35)',background:'rgba(248,113,113,0.06)'}}>
+                  <span style={{fontSize:13}}>♻️</span>
+                  <span style={{flex:1,fontSize:11,color:'#f87171',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Репост запрещён</span>
+                  <button onClick={()=>setPostDisableRepost(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+                </div>
+              )}
             </div>
           )}
 

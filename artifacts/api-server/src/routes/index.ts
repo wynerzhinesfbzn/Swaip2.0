@@ -24,6 +24,7 @@ import ttsRouter from "./tts.js";
 import browserProxyRouter from "./browserProxy.js";
 import battleRouter from "./battle.js";
 import gamesRouter from "./games.js";
+import linkPreviewRouter from "./linkPreview";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use(ttsRouter);
 router.use(browserProxyRouter);
 router.use(battleRouter);
 router.use(gamesRouter);
+router.use(linkPreviewRouter);
 
 export default router;
