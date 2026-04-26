@@ -248,26 +248,54 @@ function usePWAInstall() {
   return { prompt, isIOS, isInstalled, install };
 }
 
-/* ── Звук «джинк» через Web Audio API ── */
+/* ── Серьёзный звук подтверждения (низкие тона, без яркости) ── */
 function playDing() {
   try {
-    const ctx = new AudioContext();
-    const mkOsc = (freq: number, start: number, end: number, dur: number) => {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const now = ctx.currentTime;
+    const tone = (freq: number, start: number, dur: number, vol = 0.18) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + start);
       osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-      osc.frequency.exponentialRampToValueAtTime(end, ctx.currentTime + start + dur * 0.6);
-      gain.gain.setValueAtTime(0, ctx.currentTime + start);
-      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + start + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + dur);
+      gain.gain.setValueAtTime(0, now + start);
+      gain.gain.linearRampToValueAtTime(vol, now + start + 0.04);
+      gain.gain.setValueAtTime(vol, now + start + dur * 0.7);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+      osc.start(now + start);
+      osc.stop(now + start + dur);
     };
-    mkOsc(1047, 0,    1319, 0.55);
-    mkOsc(1319, 0.12, 1568, 0.55);
-    mkOsc(1568, 0.24, 2093, 0.60);
+    /* Два мягких баритональных тона: «подтверждено» */
+    tone(330, 0,    0.42, 0.16);
+    tone(440, 0.18, 0.55, 0.20);
+    setTimeout(() => { try { ctx.close(); } catch {} }, 1100);
+  } catch {}
+}
+
+/* ── Звук «ключ сгенерирован» — глубокий низкий «бам», предупреждение ── */
+function playKeyRevealSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const now = ctx.currentTime;
+    /* Низкий «удар» — обращает внимание */
+    const osc1 = ctx.createOscillator(); const g1 = ctx.createGain();
+    osc1.type = 'sine'; osc1.frequency.setValueAtTime(110, now);
+    osc1.frequency.exponentialRampToValueAtTime(55, now + 0.6);
+    g1.gain.setValueAtTime(0, now);
+    g1.gain.linearRampToValueAtTime(0.32, now + 0.03);
+    g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+    osc1.connect(g1); g1.connect(ctx.destination);
+    osc1.start(now); osc1.stop(now + 0.75);
+    /* Сверху — спокойный синусоидный «гул» */
+    const osc2 = ctx.createOscillator(); const g2 = ctx.createGain();
+    osc2.type = 'sine'; osc2.frequency.setValueAtTime(220, now + 0.05);
+    g2.gain.setValueAtTime(0, now + 0.05);
+    g2.gain.linearRampToValueAtTime(0.12, now + 0.15);
+    g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+    osc2.connect(g2); g2.connect(ctx.destination);
+    osc2.start(now + 0.05); osc2.stop(now + 0.85);
+    setTimeout(() => { try { ctx.close(); } catch {} }, 1200);
   } catch {}
 }
 
@@ -475,98 +503,147 @@ function playPhoneRing(rings = 2): Promise<void> {
   });
 }
 
-/* ── Компонент криптоанимации при входе ── */
+/* ── Серьёзная криптоанимация: монохром, медленно, без ярких цветов ── */
 function CryptoAuthOverlay({ onDone }: { onDone: () => void }) {
   const { t } = useLang();
   const [phase, setPhase] = useState<'hashing' | 'verified'>('hashing');
   const [rows, setRows] = useState<string[]>(() =>
-    Array.from({ length: 14 }, () => randHexRow())
+    Array.from({ length: 22 }, () => randHexRow())
   );
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState(0);
+  const stages = [
+    'Чтение ключа',
+    'Расчёт SHA-256',
+    'Генерация Ed25519',
+    'Подпись сессии',
+    'Верификация',
+  ];
 
   useEffect(() => {
     let row = 0;
-    const iv = setInterval(() => {
+    const ivRows = setInterval(() => {
       setRows(prev => {
         const next = [...prev];
         next[row % next.length] = randHexRow();
         row++;
         return next;
       });
-    }, 55);
+    }, 80);
+    const totalDur = 3400;
+    const startedAt = performance.now();
+    const ivProg = setInterval(() => {
+      const p = Math.min(100, ((performance.now() - startedAt) / totalDur) * 100);
+      setProgress(p);
+      const s = Math.min(stages.length - 1, Math.floor((p / 100) * stages.length));
+      setStage(s);
+    }, 60);
     const t1 = setTimeout(() => {
-      clearInterval(iv);
+      clearInterval(ivRows);
+      clearInterval(ivProg);
+      setProgress(100);
+      setStage(stages.length - 1);
       setPhase('verified');
       playDing();
-    }, 2100);
-    const t2 = setTimeout(() => onDone(), 2900);
-    return () => { clearInterval(iv); clearTimeout(t1); clearTimeout(t2); };
+    }, totalDur);
+    const t2 = setTimeout(() => onDone(), totalDur + 1100);
+    return () => { clearInterval(ivRows); clearInterval(ivProg); clearTimeout(t1); clearTimeout(t2); };
   }, [onDone]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#020514',
+      transition={{ duration: 0.35 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#04060f',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden' }}>
+        overflow: 'hidden', fontFamily: "'Montserrat',sans-serif" }}>
 
       {phase === 'hashing' ? (
         <>
-          {/* Дождь хэшей */}
-          <div style={{ position: 'absolute', inset: 0, padding: '16px 10px', overflow: 'hidden' }}>
+          {/* Фон: матричная сетка хэшей в монохром */}
+          <div style={{ position: 'absolute', inset: 0, padding: '20px 14px', overflow: 'hidden',
+            opacity: 0.55,
+            maskImage: 'radial-gradient(ellipse at center, transparent 18%, #000 70%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at center, transparent 18%, #000 70%)' }}>
             {rows.map((row, i) => (
-              <motion.div key={i}
-                animate={{ opacity: [0.25, 0.9, 0.25] }}
-                transition={{ duration: 0.5 + (i % 3) * 0.2, repeat: Infinity, delay: i * 0.06 }}
-                style={{ fontFamily: 'monospace', fontSize: 10.5, letterSpacing: '0.04em',
-                  marginBottom: 7, wordBreak: 'break-all',
-                  color: i % 3 === 0 ? '#00d4ff' : i % 3 === 1 ? '#0077cc' : '#003d99' }}>
+              <div key={i}
+                style={{ fontFamily: '"JetBrains Mono","Courier New",monospace', fontSize: 10,
+                  letterSpacing: '0.06em', marginBottom: 6, wordBreak: 'break-all',
+                  color: 'rgba(220,235,255,0.45)' }}>
                 {row}
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          {/* Центральный лейбл */}
-          <div style={{ position: 'relative', textAlign: 'center', padding: '16px 28px',
-            background: 'rgba(2,5,20,0.82)', backdropFilter: 'blur(14px)',
-            borderRadius: 16, border: '1px solid rgba(0,200,255,0.25)' }}>
-            <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.1, repeat: Infinity }}
-              style={{ color: '#00d4ff', fontFamily: 'monospace', fontSize: 11,
-                letterSpacing: '0.22em', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>
-              Ed25519 · SHA-256
-            </motion.div>
-            <motion.div animate={{ opacity: [0.8, 1, 0.8] }} transition={{ duration: 0.75, repeat: Infinity }}
-              style={{ color: '#fff', fontFamily: "'Montserrat',sans-serif", fontSize: 15,
-                fontWeight: 900, letterSpacing: '0.04em', marginBottom: 6 }}>
-              Первый уровень защиты
-            </motion.div>
-            <motion.div animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 0.9, repeat: Infinity, delay: 0.2 }}
-              style={{ color: '#00aaff', fontFamily: 'monospace', fontSize: 10, letterSpacing: '0.08em' }}>
-              генерация криптоключа...
-            </motion.div>
+          {/* Центральный замок */}
+          <motion.div
+            animate={{ opacity: [0.85, 1, 0.85] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ width: 76, height: 76, borderRadius: '50%',
+              border: '1.5px solid rgba(220,235,255,0.6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 26, position: 'relative', zIndex: 2 }}>
+            <span style={{ fontSize: 32, color: 'rgba(235,245,255,0.9)' }}>🔒</span>
+          </motion.div>
+
+          {/* Заголовок */}
+          <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 24px',
+            maxWidth: 340 }}>
+            <div style={{ color: 'rgba(235,245,255,0.95)', fontSize: 18,
+              fontWeight: 700, letterSpacing: '0.04em', marginBottom: 10 }}>
+              Шифрование ключа
+            </div>
+            <div style={{ color: 'rgba(180,200,225,0.55)', fontSize: 12,
+              fontFamily: '"JetBrains Mono","Courier New",monospace',
+              letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 28 }}>
+              Ed25519 · SHA-256 · TLS 1.3
+            </div>
+
+            {/* Прогресс-бар */}
+            <div style={{ width: 260, height: 2, background: 'rgba(255,255,255,0.08)',
+              borderRadius: 2, overflow: 'hidden', margin: '0 auto 14px' }}>
+              <motion.div animate={{ width: `${progress}%` }} transition={{ ease: 'linear', duration: 0.06 }}
+                style={{ height: '100%', background: 'rgba(235,245,255,0.85)' }} />
+            </div>
+
+            {/* Текущий этап */}
+            <div style={{ color: 'rgba(220,235,255,0.7)', fontSize: 12,
+              fontFamily: '"JetBrains Mono","Courier New",monospace', letterSpacing: '0.04em',
+              minHeight: 18 }}>
+              {stages[stage]}<motion.span animate={{ opacity:[1,0.2,1] }}
+                transition={{ duration: 0.9, repeat: Infinity }}>_</motion.span>
+            </div>
+            <div style={{ color: 'rgba(180,200,225,0.4)', fontSize: 11,
+              fontFamily: '"JetBrains Mono","Courier New",monospace', marginTop: 6 }}>
+              {Math.round(progress)}%
+            </div>
           </div>
         </>
       ) : (
-        /* Фаза 2: зелёная галочка */
-        <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', damping: 9, stiffness: 220 }}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
-          <motion.div
-            animate={{ boxShadow: ['0 0 20px rgba(34,197,94,0.3)', '0 0 90px rgba(34,197,94,1)', '0 0 20px rgba(34,197,94,0.3)'] }}
-            transition={{ duration: 0.55, times: [0, 0.4, 1] }}
-            style={{ width: 110, height: 110, borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(34,197,94,0.18) 0%, transparent 70%)',
-              border: '3px solid rgba(34,197,94,0.9)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        /* Фаза 2: спокойная белая галочка в тонком кольце */
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22 }}>
+          <div style={{ width: 96, height: 96, borderRadius: '50%',
+            border: '1.5px solid rgba(235,245,255,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 40px rgba(220,235,255,0.18)' }}>
             <motion.span initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.08, type: 'spring', damping: 7, stiffness: 320 }}
-              style={{ fontSize: 56, color: '#22c55e', lineHeight: 1, fontWeight: 900 }}>
+              transition={{ delay: 0.12, duration: 0.3 }}
+              style={{ fontSize: 44, color: 'rgba(235,245,255,0.95)', lineHeight: 1, fontWeight: 300 }}>
               ✓
             </motion.span>
+          </div>
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            style={{ color: 'rgba(235,245,255,0.92)', fontSize: 16,
+              fontWeight: 600, letterSpacing: '0.03em', textAlign: 'center' }}>
+            {t.key_verified || 'Ключ подтверждён'}
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            style={{ color: '#86efac', fontFamily: "'Arial Black',Arial,sans-serif",
-              fontSize: 15, fontWeight: 900, letterSpacing: '0.12em' }}>
-            {t.key_verified}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+            style={{ color: 'rgba(180,200,225,0.45)', fontSize: 11,
+              fontFamily: '"JetBrains Mono","Courier New",monospace',
+              letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+            Доступ разрешён
           </motion.div>
         </motion.div>
       )}
@@ -672,6 +749,9 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
   const { isIOS, isInstalled, install } = usePWAInstall();
   /* Хранит хэш после успешного входа — пока показываем экран разрешений */
   const [pendingSuccessHash, setPendingSuccessHash] = useState<string|null>(null);
+  /* Большой экран показа сгенерированного мастер-ключа (с предупреждением) */
+  const [showKeyReveal, setShowKeyReveal] = useState(false);
+  const [keyRevealCopied, setKeyRevealCopied] = useState(false);
 
   /* Финальный вход: PWA → финальный экран → onSuccess */
   const doLoginWithPerms = async (hash: string) => {
@@ -738,12 +818,34 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
     const pick = () => words[Math.floor(Math.random() * words.length)];
     const key  = `${pick()} • ${pick()} • ${pick()} • ${pick()}`;
     setMasterKey(key); setInputKey(''); setSecretLink(''); setCopied(false); setStep(2);
+    setKeyRevealCopied(false);
+    setShowKeyReveal(true);
+    playKeyRevealSound();
     /* Сохраняем хеш нового ключа в localStorage */
     const hash = await hashKey(key);
     const updated = [...savedHashes, hash];
     setSavedHashes(updated);
     localStorage.setItem('swaip_hashes', JSON.stringify(updated));
-    notify(t.key_generated);
+  };
+
+  /* Копирование внутри большого экрана ключа */
+  const handleRevealCopy = () => {
+    try { navigator.clipboard.writeText(masterKey); } catch {}
+    setKeyRevealCopied(true);
+    notify(t.copied);
+  };
+
+  /* Подтверждение «я сохранил» — закрывает большой экран и подставляет ключ в форму */
+  const confirmKeySaved = async () => {
+    setShowKeyReveal(false);
+    setInputKey(masterKey);
+    const hash = await hashKey(masterKey);
+    const allHashes = (() => { try { return JSON.parse(localStorage.getItem('swaip_hashes') || '[]'); } catch { return []; } })();
+    if (allHashes.includes(hash)) {
+      setVerifiedHash(hash);
+      setSecretLink(`${window.location.origin}/${hash}/pro`);
+      setStep(3);
+    }
   };
 
   const verifyKey = async () => {
@@ -839,19 +941,20 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
   };
 
   const primaryBtn: React.CSSProperties = {
-    width:'100%', padding:'10px 16px',
-    background:'linear-gradient(180deg,rgba(0,180,255,0.78) 0%,rgba(0,80,200,0.88) 100%)',
-    border:'2px solid rgba(0,220,255,0.58)', borderRadius:14, color:'#fff',
-    fontWeight:900, fontSize:14, letterSpacing:'0.07em', textTransform:'uppercase',
-    cursor:'pointer', fontFamily:"'Arial Black',Arial,sans-serif",
-    backdropFilter:'blur(10px)', boxShadow:'0 0 20px rgba(0,180,255,0.45), inset 0 1px 0 rgba(255,255,255,0.15)',
+    width:'100%', padding:'13px 18px',
+    background:'linear-gradient(180deg,#1e7fd6 0%,#0f5ab8 100%)',
+    border:'1px solid rgba(120,200,255,0.35)', borderRadius:12, color:'#fff',
+    fontWeight:700, fontSize:14, letterSpacing:'0.04em',
+    cursor:'pointer', fontFamily:"'Montserrat',sans-serif",
+    boxShadow:'0 2px 14px rgba(15,90,184,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
+    transition:'all 0.2s',
   };
   const dimBtn: React.CSSProperties = {
-    width:'100%', padding:'9px 16px',
-    background:'rgba(0,20,80,0.6)', border:'1.5px solid rgba(0,180,255,0.3)', borderRadius:12,
-    color:'rgba(170,220,255,0.82)', fontWeight:700, fontSize:13, letterSpacing:'0.06em',
-    textTransform:'uppercase', cursor:'pointer', fontFamily:"'Arial Black',Arial,sans-serif",
-    backdropFilter:'blur(10px)',
+    width:'100%', padding:'12px 18px',
+    background:'rgba(255,255,255,0.04)', border:'1px solid rgba(120,180,235,0.18)', borderRadius:12,
+    color:'rgba(195,220,245,0.88)', fontWeight:600, fontSize:13, letterSpacing:'0.03em',
+    cursor:'pointer', fontFamily:"'Montserrat',sans-serif",
+    transition:'all 0.2s',
   };
 
   return (
@@ -973,7 +1076,128 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
         {toast && <Toast key={toast.msg} msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       </AnimatePresence>
 
-      <div style={{ position:'relative', height:'100%', aspectRatio:'575/1024', flexShrink:0, overflow:'hidden',
+      {/* ══════════════════════════════════════════════════════════
+          БОЛЬШОЙ ПОЛНОЭКРАННЫЙ ПОКАЗ МАСТЕР-КЛЮЧА С ПРЕДУПРЕЖДЕНИЕМ
+      ══════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showKeyReveal && masterKey && (
+          <motion.div key="key-reveal"
+            initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            transition={{ duration:0.3 }}
+            style={{ position:'fixed', inset:0, zIndex:9998,
+              background:'linear-gradient(180deg,#06090f 0%,#0a0d1a 60%,#06090f 100%)',
+              display:'flex', flexDirection:'column',
+              padding:'calc(24px + env(safe-area-inset-top,0px)) 18px calc(18px + env(safe-area-inset-bottom,0px))',
+              fontFamily:"'Montserrat',sans-serif", overflowY:'auto' }}>
+
+            {/* Иконка предупреждения */}
+            <motion.div initial={{ scale:0.6, opacity:0 }} animate={{ scale:1, opacity:1 }}
+              transition={{ delay:0.05, type:'spring', stiffness:180, damping:14 }}
+              style={{ alignSelf:'center', width:64, height:64, borderRadius:'50%',
+                border:'1.5px solid rgba(245,200,80,0.55)',
+                background:'rgba(245,200,80,0.08)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                marginBottom:18 }}>
+              <span style={{ fontSize:32, lineHeight:1 }}>⚠️</span>
+            </motion.div>
+
+            {/* Заголовок */}
+            <motion.div initial={{ y:8, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.12 }}
+              style={{ textAlign:'center', color:'#fff', fontSize:22, fontWeight:800,
+                letterSpacing:'0.02em', marginBottom:6 }}>
+              Ваш мастер-ключ
+            </motion.div>
+            <motion.div initial={{ y:8, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.18 }}
+              style={{ textAlign:'center', color:'rgba(245,200,80,0.95)', fontSize:13,
+                fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:22 }}>
+              это ваш единственный вход в SWAIP
+            </motion.div>
+
+            {/* Большое поле с ключом */}
+            <motion.div initial={{ y:10, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.24 }}
+              style={{ background:'rgba(255,255,255,0.04)',
+                border:'1.5px solid rgba(120,180,235,0.28)', borderRadius:16,
+                padding:'22px 18px', marginBottom:14, position:'relative' }}>
+              <div style={{ color:'rgba(180,200,225,0.5)', fontSize:10,
+                fontFamily:'"JetBrains Mono","Courier New",monospace',
+                letterSpacing:'0.18em', textTransform:'uppercase', marginBottom:10, textAlign:'center' }}>
+                MASTER KEY · SHA-256
+              </div>
+              <div style={{ color:'#fff', fontSize:19, fontWeight:700,
+                fontFamily:'"JetBrains Mono","Courier New",monospace',
+                letterSpacing:'0.04em', textAlign:'center', lineHeight:1.5, wordBreak:'break-word' }}>
+                {masterKey}
+              </div>
+            </motion.div>
+
+            {/* Большая кнопка КОПИРОВАТЬ */}
+            <motion.button initial={{ y:10, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.3 }}
+              whileTap={{ scale:0.97 }}
+              onClick={handleRevealCopy}
+              style={{ width:'100%', padding:'16px',
+                background: keyRevealCopied
+                  ? 'linear-gradient(180deg,rgba(34,197,94,0.85),rgba(21,128,61,0.95))'
+                  : 'linear-gradient(180deg,#1e7fd6 0%,#0f5ab8 100%)',
+                border: keyRevealCopied
+                  ? '1px solid rgba(134,239,172,0.55)'
+                  : '1px solid rgba(120,200,255,0.4)',
+                borderRadius:14, color:'#fff', fontSize:15, fontWeight:800,
+                letterSpacing:'0.06em', textTransform:'uppercase',
+                cursor:'pointer', fontFamily:"'Montserrat',sans-serif",
+                marginBottom:18,
+                boxShadow: keyRevealCopied
+                  ? '0 2px 18px rgba(34,197,94,0.4)'
+                  : '0 2px 18px rgba(15,90,184,0.4)',
+                transition:'all 0.25s' }}>
+              {keyRevealCopied ? '✓ СКОПИРОВАНО' : '📋 КОПИРОВАТЬ КЛЮЧ'}
+            </motion.button>
+
+            {/* Шаги-инструкция с подсвеченными словами */}
+            <motion.div initial={{ y:10, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.36 }}
+              style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:22 }}>
+              {[
+                { n:1, text:<><b style={{color:'#f5c850'}}>НАЖМИТЕ</b> «КОПИРОВАТЬ»</> },
+                { n:2, text:<><b style={{color:'#f5c850'}}>СОХРАНИТЕ</b> ключ — в заметках, парольном менеджере</> },
+                { n:3, text:<><b style={{color:'#f5c850'}}>ЗАПИШИТЕ</b> на бумаге — на случай если потеряете телефон</> },
+                { n:4, text:<>Никогда <b style={{color:'#ff6b6b'}}>НЕ ПЕРЕДАВАЙТЕ</b> ключ другим</> },
+                { n:5, text:<>Без него <b style={{color:'#ff6b6b'}}>ВЫ НЕ ВОЙДЁТЕ</b> обратно в свой аккаунт</> },
+              ].map(s => (
+                <div key={s.n} style={{ display:'flex', alignItems:'flex-start', gap:12,
+                  padding:'10px 12px', background:'rgba(255,255,255,0.025)',
+                  border:'1px solid rgba(120,180,235,0.1)', borderRadius:10 }}>
+                  <div style={{ flexShrink:0, width:24, height:24, borderRadius:'50%',
+                    background:'rgba(120,180,235,0.15)', border:'1px solid rgba(120,180,235,0.35)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    color:'rgba(220,235,255,0.85)', fontSize:11, fontWeight:800 }}>{s.n}</div>
+                  <div style={{ flex:1, color:'rgba(220,235,255,0.85)', fontSize:13, lineHeight:1.55,
+                    paddingTop:3 }}>{s.text}</div>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Кнопка подтверждения */}
+            <motion.button initial={{ y:10, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.42 }}
+              whileTap={{ scale:0.97 }}
+              onClick={confirmKeySaved}
+              disabled={!keyRevealCopied}
+              style={{ width:'100%', padding:'16px',
+                background: keyRevealCopied
+                  ? 'linear-gradient(180deg,rgba(255,255,255,0.95),rgba(220,230,245,0.92))'
+                  : 'rgba(255,255,255,0.06)',
+                border:'1px solid ' + (keyRevealCopied ? 'rgba(255,255,255,0.85)' : 'rgba(120,180,235,0.18)'),
+                borderRadius:14,
+                color: keyRevealCopied ? '#0a1530' : 'rgba(180,200,225,0.45)',
+                fontSize:14, fontWeight:800, letterSpacing:'0.06em', textTransform:'uppercase',
+                cursor: keyRevealCopied ? 'pointer' : 'not-allowed',
+                fontFamily:"'Montserrat',sans-serif",
+                transition:'all 0.25s' }}>
+              {keyRevealCopied ? 'Я СОХРАНИЛ — ПРОДОЛЖИТЬ' : 'Сначала скопируйте ключ'}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div style={{ position:'relative', height:'100%', width:'100%', flexShrink:0, overflow:'hidden',
         background:'radial-gradient(ellipse at 50% 32%, #0a1130 0%, #050a22 36%, #020514 70%, #00030c 100%)' }}>
 
         {/* Космические искры/частицы */}
@@ -1005,49 +1229,27 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
           transform:'rotate(-15deg)', filter:'blur(1px)', opacity:0.7 }} />
 
         {/* Тёплое центральное свечение позади героя */}
-        <div style={{ position:'absolute', top:'14%', left:'50%', transform:'translateX(-50%)',
-          width:'90%', height:'52%', borderRadius:'50%', pointerEvents:'none',
+        <div style={{ position:'absolute', top:'8%', left:'50%', transform:'translateX(-50%)',
+          width:'95%', height:'62%', borderRadius:'50%', pointerEvents:'none',
           background:'radial-gradient(circle, rgba(255,180,90,0.22) 0%, rgba(0,140,255,0.12) 45%, transparent 75%)',
-          filter:'blur(10px)' }} />
+          filter:'blur(12px)' }} />
 
-        {/* ─── Герой: картинка как есть, обрезана снизу чтобы убрать "1 МЕЕР" и кнопки ─── */}
+        {/* ─── Герой: картинка во весь экран сверху, обрезана снизу чтобы убрать "1 МЕЕР" и кнопки ─── */}
         <div role="img" aria-label="SWAIP"
-          style={{ position:'absolute', top:'5%', left:'50%', transform:'translateX(-50%)',
-            width:'94%', aspectRatio:'784/700',
+          style={{ position:'absolute', top:0, left:0, right:0,
+            width:'100%', aspectRatio:'784/700',
             backgroundImage:`url("${heroSwaip}")`,
             backgroundRepeat:'no-repeat',
-            backgroundSize:'100% auto',
+            backgroundSize:'cover',
             backgroundPosition:'center top',
-            maskImage:'linear-gradient(to bottom, #000 0%, #000 65%, transparent 88%)',
-            WebkitMaskImage:'linear-gradient(to bottom, #000 0%, #000 65%, transparent 88%)',
+            maskImage:'linear-gradient(to bottom, #000 0%, #000 68%, transparent 92%)',
+            WebkitMaskImage:'linear-gradient(to bottom, #000 0%, #000 68%, transparent 92%)',
             filter:'drop-shadow(0 12px 40px rgba(0,140,255,0.35))' }} />
 
         {/* Нижний градиент-плавный переход к панели управления */}
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'52%',
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'48%',
           background:'linear-gradient(to bottom,transparent 0%,rgba(2,5,20,0.55) 22%,rgba(2,5,20,0.92) 52%,#020514 100%)',
           pointerEvents:'none' }} />
-
-        {/* ─── Неоновая рамка по всему краю экрана ─── */}
-        <div style={{ position:'absolute', inset:6, borderRadius:22, pointerEvents:'none',
-          border:'1.5px solid rgba(0,210,255,0.55)',
-          boxShadow:'0 0 22px rgba(0,180,255,0.45), inset 0 0 22px rgba(0,180,255,0.22)' }} />
-        <div style={{ position:'absolute', inset:12, borderRadius:18, pointerEvents:'none',
-          border:'1px solid rgba(120,225,255,0.18)' }} />
-        {/* Угловые «скобки» */}
-        {[{t:14,l:14,br:'tl'},{t:14,r:14,br:'tr'},{b:14,l:14,br:'bl'},{b:14,r:14,br:'br'}].map((c,i) => (
-          <div key={i} style={{ position:'absolute',
-            top:c.t, left:c.l, right:c.r, bottom:c.b,
-            width:22, height:22, pointerEvents:'none',
-            borderTop:    c.br==='tl'||c.br==='tr' ? '2px solid rgba(0,230,255,0.85)' : 'none',
-            borderBottom: c.br==='bl'||c.br==='br' ? '2px solid rgba(0,230,255,0.85)' : 'none',
-            borderLeft:   c.br==='tl'||c.br==='bl' ? '2px solid rgba(0,230,255,0.85)' : 'none',
-            borderRight:  c.br==='tr'||c.br==='br' ? '2px solid rgba(0,230,255,0.85)' : 'none',
-            borderTopLeftRadius:     c.br==='tl' ? 6 : 0,
-            borderTopRightRadius:    c.br==='tr' ? 6 : 0,
-            borderBottomLeftRadius:  c.br==='bl' ? 6 : 0,
-            borderBottomRightRadius: c.br==='br' ? 6 : 0,
-            filter:'drop-shadow(0 0 6px rgba(0,210,255,0.7))' }} />
-        ))}
       </div>
 
       <AnimatePresence>
@@ -1221,23 +1423,23 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
                 </motion.button>
               )}
 
-              {/* Показ ключа с копированием */}
+              {/* Тонкий индикатор «ключ загружен» — большой показ уже был в полноэкранном экране */}
               <AnimatePresence mode="wait">
                 {masterKey && (
-                  <motion.div key={masterKey} initial={{ opacity:0, y:4 }} animate={{ opacity:1, y:0 }}
-                    style={{ background:'rgba(0,10,50,0.75)', border:'1.5px solid rgba(0,200,255,0.3)', borderRadius:12,
-                      padding:'8px 12px', display:'flex', alignItems:'center', gap:8, backdropFilter:'blur(12px)' }}>
-                    <span style={{ flex:1, color:'rgba(180,235,255,0.95)', fontSize:12, fontFamily:'monospace',
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{masterKey}</span>
-                    <motion.button whileTap={{ scale:0.92 }} onClick={handleCopy}
-                      style={{ flexShrink:0, padding:'5px 10px',
-                        background: copied ? 'rgba(34,197,94,0.25)' : 'rgba(0,180,255,0.18)',
-                        border:`1px solid ${copied ? 'rgba(34,197,94,0.6)' : 'rgba(0,200,255,0.45)'}`,
-                        borderRadius:8, color: copied ? '#86efac' : '#7dd3fc',
-                        fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Arial,sans-serif',
-                        transition:'all 0.25s', letterSpacing:'0.03em' }}>
-                      {copied ? t.copied : t.copy}
-                    </motion.button>
+                  <motion.div key="key-loaded" initial={{ opacity:0, y:4 }} animate={{ opacity:1, y:0 }}
+                    style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10,
+                      padding:'8px 12px', background:'rgba(255,255,255,0.03)',
+                      border:'1px solid rgba(120,180,235,0.18)', borderRadius:10 }}>
+                    <span style={{ color:'rgba(195,220,245,0.85)', fontSize:11,
+                      fontFamily:'"Montserrat",sans-serif', letterSpacing:'0.04em' }}>
+                      🔑 Ключ загружен в поле
+                    </span>
+                    <button onClick={() => setShowKeyReveal(true)}
+                      style={{ background:'transparent', border:'none', color:'#7dd3fc',
+                        fontSize:11, fontWeight:600, cursor:'pointer', padding:'2px 4px',
+                        fontFamily:'"Montserrat",sans-serif' }}>
+                      Показать
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1246,33 +1448,34 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
               <AnimatePresence>
                 {secretLink && (
                   <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}
-                    style={{ background:'rgba(0,80,30,0.45)', border:'1.5px solid rgba(34,197,94,0.5)', borderRadius:12,
-                      padding:'7px 12px', textAlign:'center', backdropFilter:'blur(10px)' }}>
-                    <span style={{ color:'#86efac', fontSize:11, fontFamily:'monospace' }}>🔗 {secretLink}</span>
+                    style={{ background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.35)', borderRadius:10,
+                      padding:'8px 12px', textAlign:'center' }}>
+                    <span style={{ color:'#86efac', fontSize:11,
+                      fontFamily:'"JetBrains Mono","Courier New",monospace' }}>🔗 {secretLink}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Поле ввода ключа */}
               <div style={{ display:'flex', gap:8 }}>
-                <div style={{ flex:1, background:'rgba(0,10,50,0.68)',
-                  border:`1.5px solid ${step===3 ? 'rgba(34,197,94,0.65)' : 'rgba(0,200,255,0.28)'}`,
-                  borderRadius:12, display:'flex', alignItems:'center', padding:'0 11px',
-                  backdropFilter:'blur(12px)', transition:'border-color 0.3s' }}>
+                <div style={{ flex:1, background:'rgba(255,255,255,0.04)',
+                  border:`1px solid ${step===3 ? 'rgba(34,197,94,0.5)' : 'rgba(120,180,235,0.22)'}`,
+                  borderRadius:12, display:'flex', alignItems:'center', padding:'0 12px',
+                  transition:'border-color 0.3s' }}>
                   <input value={inputKey} onChange={e => { setInputKey(e.target.value); if (step===3) setStep(2); }}
                     onKeyDown={e => e.key==='Enter' && verifyKey()}
                     placeholder={t.paste_placeholder}
                     style={{ width:'100%', background:'transparent', border:'none', outline:'none',
-                      color:'rgba(210,240,255,0.9)', fontSize:12, padding:'11px 0',
-                      caretColor:'#38bdf8', fontFamily:'Arial,sans-serif' }} />
+                      color:'rgba(220,235,255,0.92)', fontSize:13, padding:'12px 0',
+                      caretColor:'#7dd3fc', fontFamily:'"Montserrat",sans-serif' }} />
                 </div>
-                <motion.button whileTap={{ scale:0.95 }} onClick={verifyKey}
-                  style={{ flexShrink:0, padding:'10px 15px',
-                    background:'linear-gradient(180deg,rgba(0,180,255,0.82) 0%,rgba(0,80,200,0.92) 100%)',
-                    border:'2px solid rgba(0,220,255,0.6)', borderRadius:12, color:'#fff',
-                    fontWeight:900, fontSize:12, letterSpacing:'0.07em', textTransform:'uppercase',
-                    cursor:'pointer', boxShadow:'0 0 12px rgba(0,180,255,0.4)',
-                    fontFamily:"'Arial Black',Arial,sans-serif" }}>
+                <motion.button whileTap={{ scale:0.96 }} onClick={verifyKey}
+                  style={{ flexShrink:0, padding:'10px 18px',
+                    background:'rgba(255,255,255,0.06)',
+                    border:'1px solid rgba(120,180,235,0.32)', borderRadius:12,
+                    color:'rgba(220,235,255,0.92)', fontWeight:700, fontSize:12,
+                    letterSpacing:'0.04em', cursor:'pointer',
+                    fontFamily:"'Montserrat',sans-serif" }}>
                   {t.insert}
                 </motion.button>
               </div>
@@ -1280,8 +1483,6 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
               {/* Кнопка «Вход в SWAIP» */}
               <motion.button
                 whileTap={step===3 ? { scale:0.97 } : {}}
-                animate={step===3 ? { boxShadow:['0 0 16px rgba(0,200,255,0.4)','0 0 34px rgba(0,200,255,0.85)','0 0 16px rgba(0,200,255,0.4)'] } : {}}
-                transition={step===3 ? { duration:1.4, repeat:Infinity } : {}}
                 onClick={async () => {
                   if (step===3) {
                     /* isRegistration=true — создаём новый аккаунт (первый вход после генерации ключа) */
@@ -1291,55 +1492,53 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
                     notify(t.first_paste_key,'err');
                   }
                 }}
-                style={{ width:'100%', padding:'14px 16px', fontSize:17, fontWeight:900,
-                  letterSpacing:'0.1em', textTransform:'uppercase', fontFamily:"'Arial Black',Arial,sans-serif",
-                  opacity: step===3 ? 1 : 0.48, cursor: step===3 ? 'pointer' : 'not-allowed',
-                  border:`2px solid ${step===3 ? 'rgba(0,230,255,0.88)' : 'rgba(0,150,200,0.28)'}`,
-                  borderRadius:14, color:'#fff', transition:'all 0.3s ease', backdropFilter:'blur(10px)',
+                style={{ width:'100%', padding:'15px 16px', fontSize:15, fontWeight:800,
+                  letterSpacing:'0.05em', fontFamily:"'Montserrat',sans-serif",
+                  opacity: step===3 ? 1 : 0.5, cursor: step===3 ? 'pointer' : 'not-allowed',
+                  border: step===3 ? '1px solid rgba(255,255,255,0.85)' : '1px solid rgba(120,180,235,0.18)',
+                  borderRadius:14, color: step===3 ? '#0a1530' : 'rgba(180,200,225,0.55)',
+                  transition:'all 0.3s ease',
                   background: step===3
-                    ? 'linear-gradient(180deg,rgba(0,210,255,0.88) 0%,rgba(0,100,220,0.95) 100%)'
-                    : 'rgba(0,20,80,0.6)' }}>
+                    ? 'linear-gradient(180deg,rgba(255,255,255,0.95),rgba(220,230,245,0.92))'
+                    : 'rgba(255,255,255,0.04)',
+                  boxShadow: step===3 ? '0 2px 18px rgba(255,255,255,0.18)' : 'none' }}>
                 {t.enter_swaip}
               </motion.button>
 
-              <p style={{ textAlign:'center', color:'rgba(150,200,255,0.4)', fontSize:10,
-                fontFamily:'Arial,sans-serif', margin:0 }}>
+              <p style={{ textAlign:'center', color:'rgba(180,200,225,0.4)', fontSize:10,
+                fontFamily:'"Montserrat",sans-serif', margin:0 }}>
                 {t.no_email}
               </p>
 
-              <div style={{ height:1, background:'rgba(0,200,255,0.12)', margin:'2px 0' }} />
+              <div style={{ height:1, background:'rgba(120,180,235,0.1)', margin:'2px 0' }} />
 
               {/* У меня уже есть мастер-ключ */}
               <motion.button whileTap={{ scale:0.97 }} onClick={() => setShowExisting(true)}
-                style={{ width:'100%', padding:'12px',
-                  background:'linear-gradient(135deg,rgba(0,80,180,0.55),rgba(0,40,120,0.65))',
-                  border:'1.5px solid rgba(0,180,255,0.45)', borderRadius:14,
-                  color:'rgba(130,210,255,0.95)', fontWeight:700, fontSize:13,
-                  letterSpacing:'0.06em', textTransform:'uppercase',
-                  cursor:'pointer', fontFamily:"'Arial Black',Arial,sans-serif",
-                  backdropFilter:'blur(12px)' }}>
+                style={dimBtn}>
                 {t.have_key}
               </motion.button>
 
               {/* PWA установка */}
               {!isInstalled && (prompt || isIOS) && (
                 isIOS ? (
-                  <div style={{ textAlign:'center' }}>
-                    <div style={{ color:'rgba(0,220,255,0.9)', fontSize:12, fontWeight:700,
-                      fontFamily:'Montserrat,sans-serif', letterSpacing:'0.05em', marginBottom:3 }}>
+                  <div style={{ textAlign:'center', padding:'4px 0' }}>
+                    <div style={{ color:'rgba(220,235,255,0.85)', fontSize:12, fontWeight:600,
+                      fontFamily:'"Montserrat",sans-serif', letterSpacing:'0.03em', marginBottom:3 }}>
                       {t.install_app}
                     </div>
-                    <div style={{ color:'rgba(180,220,255,0.65)', fontSize:10, fontFamily:'Arial,sans-serif', lineHeight:1.6 }}>
+                    <div style={{ color:'rgba(180,200,225,0.55)', fontSize:10,
+                      fontFamily:'"Montserrat",sans-serif', lineHeight:1.6 }}>
                       {t.share_ios}
                     </div>
                   </div>
                 ) : (
                   <motion.button whileTap={{ scale:0.97 }} onClick={install}
                     style={{ width:'100%', padding:'11px',
-                      background:'linear-gradient(135deg,rgba(0,180,255,0.12),rgba(0,100,220,0.18))',
-                      border:'1px solid rgba(0,200,255,0.3)', borderRadius:12, color:'rgba(0,220,255,0.85)',
-                      fontSize:12, fontWeight:700, fontFamily:'Montserrat,sans-serif', letterSpacing:'0.05em',
-                      cursor:'pointer', backdropFilter:'blur(10px)' }}>
+                      background:'transparent',
+                      border:'1px dashed rgba(120,180,235,0.28)', borderRadius:12,
+                      color:'rgba(195,220,245,0.75)',
+                      fontSize:12, fontWeight:600, fontFamily:'"Montserrat",sans-serif',
+                      letterSpacing:'0.03em', cursor:'pointer' }}>
                     {t.add_to_home}
                   </motion.button>
                 )
@@ -1350,13 +1549,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
             <motion.div key="lang-only" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
               style={{ display:'flex', flexDirection:'column', gap:8 }}>
               <motion.button whileTap={{ scale:0.97 }} onClick={() => setShowExisting(true)}
-                style={{ width:'100%', padding:'13px',
-                  background:'linear-gradient(135deg,rgba(0,80,180,0.55),rgba(0,40,120,0.65))',
-                  border:'1.5px solid rgba(0,180,255,0.45)', borderRadius:14,
-                  color:'rgba(130,210,255,0.95)', fontWeight:700, fontSize:13,
-                  letterSpacing:'0.06em', textTransform:'uppercase',
-                  cursor:'pointer', fontFamily:"'Arial Black',Arial,sans-serif",
-                  backdropFilter:'blur(12px)' }}>
+                style={dimBtn}>
                 {t.have_key}
               </motion.button>
             </motion.div>
