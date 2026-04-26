@@ -186,3 +186,27 @@ moderationReports, moderationBans, moderationLog, pushSubscriptions
 Backend: добавлен `routes/linkPreview.ts` — fetch URL → парсинг `og:title/description/image/site_name` через regex (с timeout 6s, лимит 200KB HTML, абсолютные image URLs). Зарегистрирован в `routes/index.ts`.
 
 Все новые поля идут в `extras`-объекты при POST `/api/broadcasts` — backend сохраняет их в `data` JSONB колонку без явной валидации (отображение в ленте — отдельная задача).
+
+## Фоновая музыка постов (2026-04-26)
+
+В композер добавлен пресет `🎵 Фоновая музыка` (15-я опция в меню «➕ Добавить в пост»).
+
+### 14 встроенных пресетов (3 категории)
+- **Кинематограф**: Саспенс терминала, Тёмный удар, Битва в центре, Зловещий I, Зловещий II
+- **Детектив**: Неон в допросной, Имя зачёркнутое чернилами, Заброшенная глушь
+- **Природа**: Лесные птицы, Светлячки, Птицы у реки, Маленький ручей, Тихий поток (loop), Лёгкий дождь
+
+Импорт через `@assets/*.mp3` (Vite alias `attached_assets/`). В композере — превью (▶ кнопка) + выбор галочкой.
+
+### Авто-плеер в ленте
+- Компонент `BgMusicAutoplay` (SwaipHome.tsx ~1949) рендерится в каждом из 5 стилей `PostCard` (через `bgMusicAutoplayEl`).
+- Использует `IntersectionObserver` на самой post-wrapper div (находится через `sentinelRef.nextElementSibling.nextElementSibling`).
+- При intersection >= 0.4 → автозапуск (loop, volume 0.45).
+- **Глобальный singleton**: `window._swaipBgAudio` + `_swaipBgPostId` — одновременно играет только одна дорожка; новый пост в зоне видимости останавливает предыдущий.
+- Если браузер блокирует autoplay → показывается кнопка `▶ Включить звук` (после первого user-gesture работает).
+- Mute-настройка `swaip_bg_muted` в localStorage (кнопка 🔔/🔕 в шапке).
+
+### Передача с поста
+- Поля `bgMusicUrl` + `bgMusicLabel` в `Post`-интерфейсе и `rawToPost()`.
+- Отправляются в обоих body POST `/api/broadcasts` (postData + JSON).
+- Backend сохраняет в `data` JSONB (без явной схемной валидации).

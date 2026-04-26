@@ -11,7 +11,39 @@ import type { RingtoneId } from './useCallSignaling';
 import { usePushNotifications } from './usePushNotifications';
 import type { ConvUser } from './ProMessaging';
 import { useBackHandler } from './backHandler';
-declare global{interface Window{_sqTimer:ReturnType<typeof setTimeout>;}}
+/* Фоновая музыка постов — 14 пресетов */
+import bgMusSuspense   from '@assets/alban_gogh-quot-suspense-in-container-terminal-quot-sound-effe_1777229921746.mp3';
+import bgMusDarkImpact from '@assets/zehendrew-dark-impact-sound-403094_1777229921821.mp3';
+import bgMusBattle     from '@assets/alexis_gaming_cam-the-thing-battle-in-dow-334297_1777229921850.mp3';
+import bgMusSinister1  from '@assets/fronbondi_skegs-sfx-up-to-no-good-sinister-cinematic-sound-eff_1777229921878.mp3';
+import bgMusSinister2  from '@assets/fronbondi_skegs-sfx-up-to-no-good-sinister-cinematic-sound-eff_1777229921907.mp3';
+import bgMusNeonInterr from '@assets/openmindaudio-crime-detective-neon-reflections-on-the-interrog_1777229921931.mp3';
+import bgMusCrimeName  from '@assets/openmindaudio-true-crime-a-name-crossed-out-in-black-ink-short_1777229921961.mp3';
+import bgMusOutlawAmb  from '@assets/fronbondi_skegs-amb-lonely-desolate-outlaw-remote-ambient-soun_1777229921988.mp3';
+import bgMusBirdsForest from '@assets/u_thlvfy3fsc-birds-forrest-457845_1777229922015.mp3';
+import bgMusFireflies  from '@assets/svetlychok--433987_1777229922043.mp3';
+import bgMusRiverBirds from '@assets/baranova_n-river-birds-siskin-394210_1777229922072.mp3';
+import bgMusCreek      from '@assets/mountaindweller-the-sound-of-a-small-creek-268778_1777229922098.mp3';
+import bgMusStream     from '@assets/blendertimer-small-gentle-stream-loop-514373_1777229922125.mp3';
+import bgMusRain       from '@assets/eryliaa-gentle-rain-for-relaxation-and-sleep-337279_1777229922150.mp3';
+type BgMusicPreset={id:string;label:string;emoji:string;cat:string;url:string};
+const BG_MUSIC_PRESETS:BgMusicPreset[]=[
+  {id:'suspense',  label:'Саспенс терминала',     emoji:'🎬', cat:'Кинематограф', url:bgMusSuspense},
+  {id:'dark',      label:'Тёмный удар',           emoji:'🌑', cat:'Кинематограф', url:bgMusDarkImpact},
+  {id:'battle',    label:'Битва в центре',        emoji:'⚔️', cat:'Кинематограф', url:bgMusBattle},
+  {id:'sinister1', label:'Зловещий I',            emoji:'🕷️', cat:'Кинематограф', url:bgMusSinister1},
+  {id:'sinister2', label:'Зловещий II',           emoji:'👻', cat:'Кинематограф', url:bgMusSinister2},
+  {id:'neon',      label:'Неон в допросной',     emoji:'🚓', cat:'Детектив',     url:bgMusNeonInterr},
+  {id:'crime',     label:'Имя, зачёркнутое чернилами',emoji:'🖋️',cat:'Детектив',  url:bgMusCrimeName},
+  {id:'outlaw',    label:'Заброшенная глушь',    emoji:'🏜️', cat:'Детектив',     url:bgMusOutlawAmb},
+  {id:'birds',     label:'Лесные птицы',          emoji:'🐦', cat:'Природа',      url:bgMusBirdsForest},
+  {id:'fireflies', label:'Светлячки',             emoji:'✨', cat:'Природа',      url:bgMusFireflies},
+  {id:'river',     label:'Птицы у реки',          emoji:'🐤', cat:'Природа',      url:bgMusRiverBirds},
+  {id:'creek',     label:'Маленький ручей',       emoji:'💧', cat:'Природа',      url:bgMusCreek},
+  {id:'stream',    label:'Тихий поток (loop)',    emoji:'🌊', cat:'Природа',      url:bgMusStream},
+  {id:'rain',      label:'Лёгкий дождь',          emoji:'🌧️', cat:'Природа',      url:bgMusRain},
+];
+declare global{interface Window{_sqTimer:ReturnType<typeof setTimeout>;_swaipBgAudio?:HTMLAudioElement|null;_swaipBgPostId?:string|null;}}
 
 /* ══ Хук установки PWA ══ */
 function usePWAInstall() {
@@ -913,7 +945,7 @@ interface BookingSlot{time:string;booked:boolean;}
 interface PollOption{id:string;text:string;votes:number;}
 interface Poll{question:string;options:PollOption[];totalVotes:number;}
 interface QuoteSnap{id:string;authorName:string;authorAvatar:string;text:string;ts:string;}
-interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:BookingSlot[];bookingLabel?:string;poll?:Poll;myVote?:string|null;quoteOf?:QuoteSnap;repostOf?:QuoteSnap;coAuthorData?:{hash:string;name:string;avatar:string};isAnonVoting?:boolean;publishAt?:string;expiresAt?:string;location?:{city:string;lat:number;lng:number};}
+interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:BookingSlot[];bookingLabel?:string;poll?:Poll;myVote?:string|null;quoteOf?:QuoteSnap;repostOf?:QuoteSnap;coAuthorData?:{hash:string;name:string;avatar:string};isAnonVoting?:boolean;publishAt?:string;expiresAt?:string;location?:{city:string;lat:number;lng:number};bgMusicUrl?:string;bgMusicLabel?:string;}
 type Track={id:string;title:string;artist:string;url:string;cover?:string;duration?:number};
 const SWAIP_PLAYLIST_KEY='swaip_playlist_v2';
 function loadPlaylist():Track[]{try{const all:Track[]=JSON.parse(localStorage.getItem(SWAIP_PLAYLIST_KEY)||'[]');/* blob: URL действительны только в текущей сессии браузера — фильтруем их при загрузке */return all.filter(t=>t.url&&!t.url.startsWith('blob:'));}catch{return[];}}
@@ -1905,10 +1937,70 @@ function rawToPost(b:any):Post{
     ...(b.publishAt?{publishAt:b.publishAt}:{}),
     ...(b.expiresAt?{expiresAt:b.expiresAt}:{}),
     ...(b.location?{location:b.location}:{}),
+    ...(b.bgMusicUrl?{bgMusicUrl:b.bgMusicUrl,bgMusicLabel:b.bgMusicLabel||''}:{}),
   };
 }
 
+/* Авто-плеер фоновой музыки поста: играет, когда пост в зоне видимости.
+   Глобальный singleton — одновременно играет только одна дорожка. */
+function BgMusicAutoplay({url,postId,label}:{url:string;postId:string;label:string}){
+  const sentinelRef=useRef<HTMLDivElement|null>(null);
+  const audioRef=useRef<HTMLAudioElement|null>(null);
+  const [muted,setMuted]=useState(()=>{try{return localStorage.getItem('swaip_bg_muted')==='1';}catch{return false;}});
+  const [visible,setVisible]=useState(false);
+  const [playing,setPlaying]=useState(false);
+  const [autoplayBlocked,setAutoplayBlocked]=useState(false);
+  /* Создаём audio один раз */
+  useEffect(()=>{
+    const a=new Audio(url);a.loop=true;a.preload='none';a.volume=0.45;audioRef.current=a;
+    return ()=>{a.pause();if(window._swaipBgPostId===postId){window._swaipBgAudio=null;window._swaipBgPostId=null;}audioRef.current=null;};
+  },[url,postId]);
+  /* IntersectionObserver на главный wrapper поста (сосед сентинеля) */
+  useEffect(()=>{
+    const el=sentinelRef.current;if(!el)return;
+    const target=(el.nextElementSibling?.nextElementSibling as HTMLElement|null)||el.parentElement;
+    if(!target)return;
+    const io=new IntersectionObserver(entries=>{
+      const e=entries[0];if(!e)return;
+      setVisible(e.intersectionRatio>=0.4);
+    },{threshold:[0,0.2,0.4,0.6,0.8,1]});
+    io.observe(target);return ()=>io.disconnect();
+  },[]);
+  /* play/pause по visible+muted */
+  useEffect(()=>{
+    const a=audioRef.current;if(!a)return;
+    if(visible&&!muted){
+      // Останавливаем предыдущую глобальную дорожку
+      if(window._swaipBgAudio&&window._swaipBgAudio!==a){try{window._swaipBgAudio.pause();}catch{}}
+      window._swaipBgAudio=a;window._swaipBgPostId=postId;
+      a.play().then(()=>{setPlaying(true);setAutoplayBlocked(false);}).catch(()=>{setAutoplayBlocked(true);setPlaying(false);});
+    }else{
+      try{a.pause();}catch{}
+      setPlaying(false);
+      if(window._swaipBgPostId===postId){window._swaipBgAudio=null;window._swaipBgPostId=null;}
+    }
+  },[visible,muted,postId]);
+  const toggleMute=()=>{const next=!muted;setMuted(next);try{localStorage.setItem('swaip_bg_muted',next?'1':'0');}catch{}};
+  const tryUnblock=()=>{const a=audioRef.current;if(!a)return;a.play().then(()=>{setPlaying(true);setAutoplayBlocked(false);if(window._swaipBgAudio&&window._swaipBgAudio!==a){try{window._swaipBgAudio.pause();}catch{}}window._swaipBgAudio=a;window._swaipBgPostId=postId;}).catch(()=>{});};
+  return (
+    <>
+      <div ref={sentinelRef} aria-hidden style={{width:'100%',height:1,opacity:0,pointerEvents:'none'}}/>
+      <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',background:'rgba(236,72,153,0.08)',borderBottom:'1px solid rgba(236,72,153,0.2)'}}>
+        <span style={{fontSize:11}}>{playing?'🔊':(autoplayBlocked?'🔇':'🎵')}</span>
+        <span style={{flex:1,fontSize:10.5,color:'#ec4899',fontWeight:600,fontFamily:'"Montserrat",sans-serif',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+          {label||'Фоновая музыка'} {playing?'· играет':(visible?'':'· пауза')}
+        </span>
+        {autoplayBlocked&&(
+          <button onClick={tryUnblock} style={{background:'rgba(236,72,153,0.2)',border:'1px solid rgba(236,72,153,0.5)',color:'#ec4899',fontSize:10,padding:'3px 8px',borderRadius:6,cursor:'pointer',fontFamily:'"Montserrat",sans-serif',fontWeight:700}}>▶ Включить звук</button>
+        )}
+        <button onClick={toggleMute} title={muted?'Включить':'Отключить'} style={{background:'none',border:'none',color:muted?'rgba(255,255,255,0.4)':'#ec4899',fontSize:13,cursor:'pointer',padding:'2px 4px',lineHeight:1}}>{muted?'🔕':'🔔'}</button>
+      </div>
+    </>
+  );
+}
+
 function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,isOwner,c,accent,style=1}:{p:Post;name:string;avatarSrc:string;onLike:(id:string)=>void;onComment?:(id:string)=>void;onBook?:(id:string,time?:string)=>void;onUpdate?:(updated:Post)=>void;onNewPost?:(raw:any)=>void;isOwner?:boolean;c:Pal;accent?:string;style?:number}){
+  const bgMusicAutoplayEl=p.bgMusicUrl?<BgMusicAutoplay url={p.bgMusicUrl} postId={p.id} label={p.bgMusicLabel||''}/>:null;
   const ac=accent||'#60a5fa';
   const [lb,setLb]=useState(false);
   const [docViewer,setDocViewer]=useState<{url:string;name:string;mime:string}|null>(null);
@@ -2631,7 +2723,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
 
   /* ── Стиль 1: Классика ── */
   if(style===1) return(
-    <><div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${pinned?ac+`88`:c.border}`,marginBottom:8,boxShadow:pinned?`0 0 0 2px ${ac}22,0 2px 12px ${c.deep}44`:`0 2px 12px ${c.deep}44`}}>
+    <>{bgMusicAutoplayEl}<div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${pinned?ac+`88`:c.border}`,marginBottom:8,boxShadow:pinned?`0 0 0 2px ${ac}22,0 2px 12px ${c.deep}44`:`0 2px 12px ${c.deep}44`}}>
       {pinnedEl}{imgFeed}
       {videoEl}
       <div style={{padding:'10px 12px'}}>
@@ -2682,7 +2774,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
 
   /* ── Стиль 2: Синема — полный кадр ── */
   if(style===2) return(
-    <><div style={{background:c.card,borderRadius:20,overflow:'hidden',marginBottom:12,boxShadow:pinned?`0 0 0 2px ${ac}44,0 6px 28px ${c.deep}88`:`0 6px 28px ${c.deep}88`}}>
+    <>{bgMusicAutoplayEl}<div style={{background:c.card,borderRadius:20,overflow:'hidden',marginBottom:12,boxShadow:pinned?`0 0 0 2px ${ac}44,0 6px 28px ${c.deep}88`:`0 6px 28px ${c.deep}88`}}>
       {pinnedEl}<div style={{position:'relative'}}>
         {p.img&&<div style={{width:'100%',background:c.deep,cursor:'pointer',overflow:'hidden'}} onClick={()=>setLb(true)}>
           <img src={p.img} alt="" style={{width:'100%',height:'auto',maxHeight:270,display:'block',objectFit:'contain'}}
@@ -2740,7 +2832,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
 
   /* ── Стиль 3: Газета — акцентная полоса ── */
   if(style===3) return(
-    <><div style={{borderLeft:`4px solid ${pinned?ac:ac}`,marginBottom:16,paddingLeft:13,paddingRight:4}}>
+    <>{bgMusicAutoplayEl}<div style={{borderLeft:`4px solid ${pinned?ac:ac}`,marginBottom:16,paddingLeft:13,paddingRight:4}}>
       {pinnedEl&&<div style={{marginLeft:-13,marginRight:-4,marginBottom:8}}>{pinnedEl}</div>}
       <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:5}}>
         <div style={{width:20,height:20,borderRadius:'50%',overflow:'hidden',flexShrink:0,opacity:0.85}}>
@@ -2783,7 +2875,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
 
   /* ── Стиль 4: Неон — тёмный с подсветкой ── */
   if(style===4) return(
-    <><div style={{background:'#07070f',borderRadius:14,overflow:'hidden',marginBottom:10,
+    <>{bgMusicAutoplayEl}<div style={{background:'#07070f',borderRadius:14,overflow:'hidden',marginBottom:10,
       border:`1px solid ${pinned?ac:ac+'66'}`,boxShadow:pinned?`0 0 0 2px ${ac}44,0 0 20px ${ac}33`:`0 0 20px ${ac}22,inset 0 0 30px ${ac}04`}}>
       {pinnedEl}{imgFeed&&<div style={{position:'relative'}}>
         {imgFeed}
@@ -2840,7 +2932,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
 
   /* ── Стиль 5: Чат — пузырь ── */
   if(style===5) return(
-    <><div style={{marginBottom:14,display:'flex',flexDirection:'column',alignItems:'flex-start',paddingLeft:2}}>
+    <>{bgMusicAutoplayEl}<div style={{marginBottom:14,display:'flex',flexDirection:'column',alignItems:'flex-start',paddingLeft:2}}>
       <div style={{display:'flex',alignItems:'flex-end',gap:8,maxWidth:'90%'}}>
         <div style={{width:36,height:36,borderRadius:'50%',overflow:'hidden',flexShrink:0,border:`2px solid ${ac}44`,alignSelf:'flex-end'}}>
           <img src={avatarSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
@@ -2889,7 +2981,7 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
 
   /* ── Стиль 6: Компакт — горизонталь ── */
   return(
-    <><div style={{background:c.card,borderRadius:12,overflow:'hidden',marginBottom:7,border:`1px solid ${c.border}`,
+    <>{bgMusicAutoplayEl}<div style={{background:c.card,borderRadius:12,overflow:'hidden',marginBottom:7,border:`1px solid ${c.border}`,
       display:'flex',flexDirection:'column'}}>
       <div style={{display:'flex',minHeight:p.img?96:undefined}}>
       {p.img&&<div style={{width:96,flexShrink:0,overflow:'hidden',alignSelf:'stretch',display:'flex',alignItems:'center',background:c.deep,cursor:'pointer'}} onClick={()=>setLb(true)}>
@@ -8640,6 +8732,18 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const [showGeo,setShowGeo]=useState(false);
   const [postGeo,setPostGeo]=useState<{city:string;lat:number;lng:number}|null>(null);
   const [geoLoading,setGeoLoading]=useState(false);
+  /* Фоновая музыка поста */
+  const [showBgMusic,setShowBgMusic]=useState(false);
+  const [postBgMusic,setPostBgMusic]=useState<BgMusicPreset|null>(null);
+  const bgMusPreviewRef=useRef<HTMLAudioElement|null>(null);
+  const [bgMusPreviewId,setBgMusPreviewId]=useState<string|null>(null);
+  const previewBgMusic=(p:BgMusicPreset)=>{
+    if(bgMusPreviewRef.current){bgMusPreviewRef.current.pause();bgMusPreviewRef.current=null;}
+    if(bgMusPreviewId===p.id){setBgMusPreviewId(null);return;}
+    const a=new Audio(p.url);a.volume=0.5;a.play().catch(()=>{});bgMusPreviewRef.current=a;setBgMusPreviewId(p.id);
+    a.addEventListener('ended',()=>setBgMusPreviewId(null));
+  };
+  useEffect(()=>()=>{if(bgMusPreviewRef.current){bgMusPreviewRef.current.pause();bgMusPreviewRef.current=null;}},[]);
   /* Карусель / галерея */
   const [showCarousel,setShowCarousel]=useState(false);
   const [postImages,setPostImages]=useState<{file:File;url:string}[]>([]);
@@ -8834,7 +8938,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const stopSelfieRec=()=>{selfieRecRef.current?.stop();setSelfieRec(false);};
   const discardSelfie=()=>{selfieStreamRef.current?.getTracks().forEach(t=>t.stop());selfieStreamRef.current=null;if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);};
 
-  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPlaylistTrack(null);setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);setPostIsAnonVoting(false);setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');setShowGeo(false);setPostGeo(null);postImages.forEach(x=>URL.revokeObjectURL(x.url));setPostImages([]);setShowCarousel(false);setShowLinkPreview(false);setLinkUrl('');setLinkPreview(null);setShowQuestion(false);setPostQuestion('');setShowQuiz(false);setQuizCorrect(0);setShowChallenge(false);setChallengeTitle('');setChallengeDeadline('');setChallengeHashtag('');setShowHashtags(false);setPostHashtags([]);setHashtagInput('');setShowMentions(false);setMentionQ('');setMentionRes([]);setPostMentions([]);setShowActivity(false);setActivityType('movie');setActivityTitle('');setPostDisableComments(false);setPostDisableRepost(false);setPostEnableTTS(false);setPostEnableStats(false);setShowAddMenu(false);};
+  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPlaylistTrack(null);setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);setPostIsAnonVoting(false);setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');setShowGeo(false);setPostGeo(null);postImages.forEach(x=>URL.revokeObjectURL(x.url));setPostImages([]);setShowCarousel(false);setShowLinkPreview(false);setLinkUrl('');setLinkPreview(null);setShowQuestion(false);setPostQuestion('');setShowQuiz(false);setQuizCorrect(0);setShowChallenge(false);setChallengeTitle('');setChallengeDeadline('');setChallengeHashtag('');setShowHashtags(false);setPostHashtags([]);setHashtagInput('');setShowMentions(false);setMentionQ('');setMentionRes([]);setPostMentions([]);setShowActivity(false);setActivityType('movie');setActivityTitle('');setPostDisableComments(false);setPostDisableRepost(false);setPostEnableTTS(false);setPostEnableStats(false);setShowAddMenu(false);setShowBgMusic(false);setPostBgMusic(null);if(bgMusPreviewRef.current){bgMusPreviewRef.current.pause();bgMusPreviewRef.current=null;}setBgMusPreviewId(null);};
 
   const handlePost=async()=>{
     const validPoll=postHasPoll&&pollQuestion.trim()&&pollOptions.filter(o=>o.trim()).length>=2;
@@ -8880,11 +8984,12 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
         ...(postEnableTTS?{enableTTS:true}:{}),
         ...(postEnableStats?{enableStats:true}:{}),
       };
-      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||(playlistTrack?.url)||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra};
+      const bgMusicExtra=postBgMusic?{bgMusicUrl:postBgMusic.url,bgMusicLabel:`${postBgMusic.emoji} ${postBgMusic.label}`}:{};
+      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||(playlistTrack?.url)||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra,...bgMusicExtra};
       try{
         const r=await fetch(`${window.location.origin}/api/broadcasts`,{
           method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},
-          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...((musUrl||playlistTrack?.url)?{audioUrl:musUrl||playlistTrack!.url}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra,...coAuthorExtra,...anonExtra,...timerExtra,...geoExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra}),
+          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...((musUrl||playlistTrack?.url)?{audioUrl:musUrl||playlistTrack!.url}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra,...coAuthorExtra,...anonExtra,...timerExtra,...geoExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra,...bgMusicExtra}),
         });
         if(r.ok){const created=await r.json().catch(()=>null);setOpen(false);reset();onPostCreated({...postData,...created});return;}
       }catch{}
@@ -9053,6 +9158,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
               {id:'stats',    emo:'📈', lbl:'Детальная статистика', clr:'#a3e635', on:postEnableStats,    toggle:()=>setPostEnableStats(s=>!s)},
               {id:'nocomm',   emo:'🚫', lbl:'Запретить комментарии',clr:'#f87171', on:postDisableComments,toggle:()=>setPostDisableComments(s=>!s)},
               {id:'norepost', emo:'♻️', lbl:'Запретить репост',     clr:'#f87171', on:postDisableRepost,  toggle:()=>setPostDisableRepost(s=>!s)},
+              {id:'bgmusic',  emo:'🎵', lbl:'Фоновая музыка',       clr:'#ec4899', on:showBgMusic||!!postBgMusic, toggle:()=>setShowBgMusic(s=>!s)},
             ];
             const onCount=ADDONS.filter(a=>a.on).length;
             return (
@@ -9563,6 +9669,42 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Фоновая музыка ── */}
+          {(showBgMusic||postBgMusic)&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(236,72,153,0.35)',background:'rgba(236,72,153,0.05)',overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',borderBottom:'1px solid rgba(236,72,153,0.18)'}}>
+                <span style={{fontSize:14}}>🎵</span>
+                <span style={{flex:1,fontSize:12,color:'#ec4899',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Фоновая музыка{postBgMusic?` · ${postBgMusic.label}`:''}</span>
+                <button onClick={()=>{if(bgMusPreviewRef.current){bgMusPreviewRef.current.pause();bgMusPreviewRef.current=null;}setBgMusPreviewId(null);setPostBgMusic(null);setShowBgMusic(false);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:10,display:'flex',flexDirection:'column',gap:10}}>
+                <div style={{fontSize:10.5,color:'rgba(255,255,255,0.55)',fontFamily:'"Montserrat",sans-serif',lineHeight:1.4}}>
+                  Музыка автоматически включится у читателя, когда пост попадёт в зону видимости. Нажмите ▶ для предпрослушивания.
+                </div>
+                {(['Кинематограф','Детектив','Природа'] as const).map(cat=>(
+                  <div key={cat}>
+                    <div style={{fontSize:10,color:'rgba(255,255,255,0.45)',fontWeight:700,letterSpacing:0.5,textTransform:'uppercase',marginBottom:6,fontFamily:'"Montserrat",sans-serif'}}>{cat}</div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:6}}>
+                      {BG_MUSIC_PRESETS.filter(p=>p.cat===cat).map(p=>{
+                        const sel=postBgMusic?.id===p.id;
+                        const playing=bgMusPreviewId===p.id;
+                        return (
+                          <div key={p.id} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 9px',borderRadius:9,border:`1px solid ${sel?'#ec4899':'rgba(255,255,255,0.1)'}`,background:sel?'rgba(236,72,153,0.12)':'rgba(255,255,255,0.025)'}}>
+                            <button onClick={()=>previewBgMusic(p)} style={{width:24,height:24,borderRadius:'50%',border:'none',background:playing?'#ec4899':'rgba(255,255,255,0.12)',color:'#fff',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{playing?'■':'▶'}</button>
+                            <div onClick={()=>setPostBgMusic(p)} style={{flex:1,cursor:'pointer',minWidth:0}}>
+                              <div style={{fontSize:11,color:sel?'#ec4899':'#fff',fontWeight:600,fontFamily:'"Montserrat",sans-serif',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.emoji} {p.label}</div>
+                            </div>
+                            {sel&&<span style={{fontSize:11,color:'#ec4899'}}>✓</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
