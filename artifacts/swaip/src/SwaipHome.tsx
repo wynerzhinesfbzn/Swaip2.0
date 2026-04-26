@@ -8320,7 +8320,10 @@ function MusicPlayerSheet({
 
   const bg1='#0f0f1a';
   const bg2='#13131f';
-  const glowStyle=(active:boolean)=>active?`0 0 18px ${accent}99`:'none';
+  const safeAccent=(typeof accent==='string'&&accent.startsWith('#')&&accent.length>=7)?accent:'#a855f7';
+  accent=safeAccent;
+  const accentRgb=safeAccent.replace('#','').match(/.{2}/g)?.map(x=>parseInt(x,16)).join(',')||'168,85,247';
+  const glowStyle=(active:boolean)=>active?`0 0 18px ${safeAccent}99`:'none';
 
   const TrackRow=({t,i}:{t:Track;i:number})=>{
     const active=i===musicIdx;
@@ -8342,7 +8345,7 @@ function MusicPlayerSheet({
     if(playerStyle===1)return(
       <motion.div key={t.id} whileTap={{scale:0.98}}
         style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',marginBottom:4,
-          borderRadius:12,background:active?`rgba(${accent.replace('#','').match(/.{2}/g)?.map(x=>parseInt(x,16)).join(',')},0.12)`:'rgba(255,255,255,0.04)',
+          borderRadius:12,background:active?`rgba(${accentRgb},0.12)`:'rgba(255,255,255,0.04)',
           border:`1px solid ${active?accent+'66':'rgba(255,255,255,0.06)'}`,cursor:'pointer',transition:'all 0.2s',
           boxShadow:glowStyle(active)}}>
         <div onClick={()=>playing?onPause():onPlay(i)}
