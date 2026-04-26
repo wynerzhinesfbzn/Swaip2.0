@@ -304,7 +304,7 @@ router.get("/broadcasts/:id", async (req, res) => {
 router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"]), async (req, res) => {
   try {
     const userHash = (req as any).userHash as string;
-    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots, poll, quoteOf, repostOf, parentId, coAuthorHash, coAuthorData, isAnonVoting, publishAt, expiresAt, location } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[]; poll?: any; quoteOf?: any; repostOf?: any; parentId?: number; coAuthorHash?: string; coAuthorData?: any; isAnonVoting?: boolean; publishAt?: string; expiresAt?: string; location?: {city:string;lat:number;lng:number} };
+    const { content, authorMode, audioUrl, imageUrl, videoUrl, docUrls, hasBooking, bookingLabel, bookingSlots, poll, quoteOf, repostOf, parentId, coAuthorHash, coAuthorData, isAnonVoting, publishAt, expiresAt, location, bgMusicUrl, bgMusicLabel } = req.body as { content?: string; authorMode: string; audioUrl?: string; imageUrl?: string; videoUrl?: string; docUrls?: Array<{url:string;name:string;size:number;mime:string}>; hasBooking?: boolean; bookingLabel?: string; bookingSlots?: unknown[]; poll?: any; quoteOf?: any; repostOf?: any; parentId?: number; coAuthorHash?: string; coAuthorData?: any; isAnonVoting?: boolean; publishAt?: string; expiresAt?: string; location?: {city:string;lat:number;lng:number}; bgMusicUrl?: string; bgMusicLabel?: string };
     const hasDocUrls = docUrls && docUrls.length > 0;
     if (!content?.trim() && !audioUrl && !imageUrl && !videoUrl && !hasDocUrls && !hasBooking && !poll && !repostOf) { res.status(400).json({ error: 'content required' }); return; }
     if (!['pro', 'scene', 'krug', 'ether'].includes(authorMode)) { res.status(400).json({ error: 'invalid mode' }); return; }
@@ -319,6 +319,7 @@ router.post("/broadcasts", requireSession, contentFilter("broadcast", ["content"
     if (publishAt) { metaObj.publishAt = publishAt; }
     if (expiresAt) { metaObj.expiresAt = expiresAt; }
     if (location?.city) { metaObj.location = location; }
+    if (typeof bgMusicUrl === 'string' && bgMusicUrl.trim()) { metaObj.bgMusicUrl = bgMusicUrl.trim(); metaObj.bgMusicLabel = (typeof bgMusicLabel === 'string' ? bgMusicLabel : '').trim(); }
 
     const rows = await db.insert(broadcastsTable).values({
       authorHash: userHash,

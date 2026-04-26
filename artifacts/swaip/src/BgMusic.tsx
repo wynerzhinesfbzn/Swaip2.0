@@ -33,7 +33,32 @@ export const BG_MUSIC_PRESETS: BgMusicPreset[] = [
   {id:'rain',      label:'Лёгкий дождь',           emoji:'🌧️', cat:'Природа',      url:bgMusRain},
 ];
 
-declare global { interface Window { _swaipBgAudio?: HTMLAudioElement|null; _swaipBgPostId?: string|null } }
+declare global { interface Window {
+  _swaipBgAudio?: HTMLAudioElement|null;
+  _swaipBgPostId?: string|null;
+  _swaipBgUserGesture?: boolean;
+  _swaipBgPendingRetry?: Set<() => void>;
+} }
+
+/* ══ Глобальный «разблокировщик автоплея»:
+   при первом любом клике/тапе/нажатии клавиши — отмечаем что user-gesture был,
+   и просим всех заблокированных плееров повторить попытку. ══ */
+function ensureBgGestureListener() {
+  if (typeof window === 'undefined' || window._swaipBgUserGesture !== undefined) return;
+  window._swaipBgUserGesture = false;
+  window._swaipBgPendingRetry = new Set();
+  const onGesture = () => {
+    window._swaipBgUserGesture = true;
+    const set = window._swaipBgPendingRetry;
+    if (set) { set.forEach(fn => { try { fn(); } catch {} }); set.clear(); }
+    window.removeEventListener('pointerdown', onGesture, true);
+    window.removeEventListener('keydown', onGesture, true);
+    window.removeEventListener('touchstart', onGesture, true);
+  };
+  window.addEventListener('pointerdown', onGesture, true);
+  window.addEventListener('keydown', onGesture, true);
+  window.addEventListener('touchstart', onGesture, true);
+}
 
 /* ══ Авто-плеер: при попадании в зону видимости стартует loop, останавливая другие.
    Глобальный singleton — одновременно играет только одна дорожка. ══ */
@@ -47,13 +72,14 @@ export function BgMusicAutoplay({ url, postId, label, attach='sibling' }:{ url:s
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
   useEffect(() => {
+    ensureBgGestureListener();
     const a = new Audio(url); a.loop = true; a.preload = 'none'; a.volume = 0.45;
     audioRef.current = a;
     return () => {
       try { a.pause(); } catch {}
       if (window._swaipBgPostId === postId) { window._swaipBgAudio = null; window._swaipBgPostId = null; }
       audioRef.current = null;
-      claimToken.current++; // invalidate any pending play().then()
+      claimToken.current++;
     };
   }, [url, postId]);
 
@@ -92,6 +118,22 @@ export function BgMusicAutoplay({ url, postId, label, attach='sibling' }:{ url:s
         if (myToken !== claimToken.current) return;
         // На rejection: глобальный singleton НЕ трогаем (ничего не паузили заранее).
         setAutoplayBlocked(true); setPlaying(false);
+        // Если user-gesture ещё не было — подпишемся на первый клик/тап и попробуем снова.
+        if (typeof window !== 'undefined' && window._swaipBgPendingRetry && !window._swaipBgUserGesture) {
+          const retry = () => {
+            const cur = audioRef.current; if (!cur) return;
+            // Только если этот пост всё ещё видим и не замьючен
+            if (!visible || muted) return;
+            const rt = ++claimToken.current;
+            cur.play().then(() => {
+              if (rt !== claimToken.current) return;
+              if (window._swaipBgAudio && window._swaipBgAudio !== cur) { try { window._swaipBgAudio.pause(); } catch {} }
+              window._swaipBgAudio = cur; window._swaipBgPostId = postId;
+              setPlaying(true); setAutoplayBlocked(false);
+            }).catch(() => {});
+          };
+          window._swaipBgPendingRetry.add(retry);
+        }
       });
     } else {
       claimToken.current++; // отменяем «in-flight» play promise
