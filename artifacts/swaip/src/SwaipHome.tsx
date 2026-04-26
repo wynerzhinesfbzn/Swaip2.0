@@ -8640,6 +8640,8 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const [showGeo,setShowGeo]=useState(false);
   const [postGeo,setPostGeo]=useState<{city:string;lat:number;lng:number}|null>(null);
   const [geoLoading,setGeoLoading]=useState(false);
+  /* Меню «Добавить в пост» */
+  const [showAddMenu,setShowAddMenu]=useState(false);
   const getGeo=async()=>{
     setGeoLoading(true);
     try{
@@ -8939,21 +8941,78 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
             </div>
           )}
 
-          {/* ── Кнопка «Записаться» ── */}
-          <div style={{borderRadius:12,border:`1px solid ${postHasBooking?'rgba(16,185,129,0.4)':'rgba(255,255,255,0.08)'}`,
-            background:postHasBooking?'rgba(16,185,129,0.06)':'rgba(255,255,255,0.03)',overflow:'hidden',transition:'all 0.25s'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}}
-              onClick={()=>setPostHasBooking(s=>!s)}>
-              <div style={{width:36,height:22,borderRadius:11,background:postHasBooking?'#10b981':'rgba(255,255,255,0.12)',
-                position:'relative',transition:'all 0.2s',flexShrink:0}}>
-                <div style={{position:'absolute',top:2,width:18,height:18,borderRadius:'50%',background:'#fff',
-                  transition:'left 0.2s',left:postHasBooking?16:2}}/>
+          {/* ══ Меню «➕ Добавить в пост» ══ */}
+          {(() => {
+            const ADDONS=[
+              {id:'booking',  emo:'📅', lbl:'Кнопка «Записаться»', clr:'#34d399', on:postHasBooking,    toggle:()=>setPostHasBooking(s=>!s)},
+              {id:'poll',     emo:'📊', lbl:'Опрос',                clr:'#a5b4fc', on:postHasPoll,        toggle:()=>setPostHasPoll(s=>!s)},
+              {id:'coauthor', emo:'🤝', lbl:'Коллаборативный пост', clr:'#a5b4fc', on:showCoAuthor,       toggle:()=>setShowCoAuthor(s=>!s)},
+              {id:'anon',     emo:'🕵️', lbl:'Анонимное голосование',clr:'#c4b5fd', on:postIsAnonVoting,   toggle:()=>setPostIsAnonVoting(s=>!s), need:'poll' as const},
+              {id:'timer',    emo:'⏰', lbl:'Таймер публикации',    clr:'#fbbf24', on:showTimer,          toggle:()=>setShowTimer(s=>!s)},
+              {id:'geo',      emo:'📍', lbl:'Геолокация поста',     clr:'#4ade80', on:showGeo,            toggle:()=>setShowGeo(s=>!s)},
+            ];
+            const onCount=ADDONS.filter(a=>a.on).length;
+            return (
+              <div style={{borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.025)',overflow:'hidden'}}>
+                <div onClick={()=>setShowAddMenu(s=>!s)}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer'}}>
+                  <div style={{width:28,height:28,borderRadius:'50%',background:'rgba(99,102,241,0.18)',
+                    border:'1px solid rgba(99,102,241,0.4)',display:'flex',alignItems:'center',justifyContent:'center',
+                    flexShrink:0,fontSize:15,color:'#a5b4fc',fontWeight:700,
+                    transform:showAddMenu?'rotate(45deg)':'rotate(0)',transition:'transform 0.2s'}}>+</div>
+                  <span style={{flex:1,fontSize:13,color:'#fff',fontWeight:600,fontFamily:'"Montserrat",sans-serif'}}>
+                    Добавить в пост
+                  </span>
+                  {onCount>0&&(
+                    <span style={{fontSize:11,fontWeight:700,color:'#a5b4fc',background:'rgba(99,102,241,0.15)',
+                      borderRadius:10,padding:'2px 8px'}}>{onCount}</span>
+                  )}
+                  <span style={{fontSize:11,color:'rgba(255,255,255,0.35)',transform:showAddMenu?'rotate(180deg)':'rotate(0)',transition:'transform 0.2s'}}>▾</span>
+                </div>
+                <AnimatePresence>
+                  {showAddMenu&&(
+                    <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}}
+                      style={{overflow:'hidden',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                      <div style={{padding:'8px',display:'flex',flexDirection:'column',gap:4}}>
+                        {ADDONS.map(a=>{
+                          const disabled=a.need==='poll'&&!postHasPoll;
+                          return (
+                            <button key={a.id} disabled={disabled}
+                              onClick={()=>{a.toggle();}}
+                              style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:8,
+                                background:a.on?`${a.clr}1a`:'transparent',
+                                border:`1px solid ${a.on?a.clr+'55':'transparent'}`,
+                                cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.35:1,
+                                color:'#fff',width:'100%',textAlign:'left',transition:'all 0.18s'}}>
+                              <span style={{fontSize:16,flexShrink:0}}>{a.emo}</span>
+                              <span style={{flex:1,fontSize:13,color:a.on?a.clr:'rgba(255,255,255,0.78)',
+                                fontWeight:a.on?700:500,fontFamily:'"Montserrat",sans-serif'}}>{a.lbl}</span>
+                              <span style={{fontSize:14,color:a.on?a.clr:'rgba(255,255,255,0.25)',fontWeight:700}}>
+                                {a.on?'✓':'+'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <span style={{fontSize:12,color:postHasBooking?'#34d399':'rgba(255,255,255,0.4)',fontWeight:postHasBooking?700:500,fontFamily:'"Montserrat",sans-serif'}}>
-                📅 Добавить кнопку «Записаться»
-              </span>
-            </div>
-            {postHasBooking&&(
+            );
+          })()}
+
+          {/* ── Кнопка «Записаться» ── */}
+          {postHasBooking&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(16,185,129,0.4)',
+              background:'rgba(16,185,129,0.06)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>📅</span>
+                <span style={{flex:1,fontSize:12,color:'#34d399',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>
+                  Кнопка «Записаться»
+                </span>
+                <button onClick={()=>setPostHasBooking(false)} style={{background:'none',border:'none',
+                  color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
+              </div>
               <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:10}}>
                 {/* Название кнопки */}
                 <input value={postBookingLabel} onChange={e=>setPostBookingLabel(e.target.value)}
@@ -9011,24 +9070,18 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ── Опрос ── */}
-          <div style={{borderRadius:12,border:`1px solid ${postHasPoll?'rgba(99,102,241,0.4)':'rgba(255,255,255,0.08)'}`,
-            background:postHasPoll?'rgba(99,102,241,0.06)':'rgba(255,255,255,0.03)',overflow:'hidden',transition:'all 0.25s'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}}
-              onClick={()=>setPostHasPoll(s=>!s)}>
-              <div style={{width:36,height:22,borderRadius:11,background:postHasPoll?'#6366f1':'rgba(255,255,255,0.12)',
-                position:'relative',transition:'all 0.2s',flexShrink:0}}>
-                <div style={{position:'absolute',top:2,width:18,height:18,borderRadius:'50%',background:'#fff',
-                  transition:'left 0.2s',left:postHasPoll?16:2}}/>
+          {postHasPoll&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(99,102,241,0.4)',
+              background:'rgba(99,102,241,0.06)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>📊</span>
+                <span style={{flex:1,fontSize:12,color:'#a5b4fc',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Опрос</span>
+                <button onClick={()=>{setPostHasPoll(false);setPostIsAnonVoting(false);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
               </div>
-              <span style={{fontSize:12,color:postHasPoll?'#a5b4fc':'rgba(255,255,255,0.4)',fontWeight:postHasPoll?700:500,fontFamily:'"Montserrat",sans-serif'}}>
-                📊 Добавить опрос
-              </span>
-            </div>
-            {postHasPoll&&(
               <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
                 <input value={pollQuestion} onChange={e=>setPollQuestion(e.target.value)}
                   placeholder="Вопрос для опроса…"
@@ -9055,19 +9108,18 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                   </button>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ── Коллаборативный пост ── */}
-          <div style={{borderRadius:12,border:`1px solid ${showCoAuthor?'rgba(99,102,241,0.4)':'rgba(255,255,255,0.08)'}`,background:showCoAuthor?'rgba(99,102,241,0.06)':'rgba(255,255,255,0.03)',overflow:'hidden',transition:'all 0.25s'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}} onClick={()=>setShowCoAuthor(s=>!s)}>
-              <div style={{width:36,height:22,borderRadius:11,background:showCoAuthor?'#6366f1':'rgba(255,255,255,0.12)',position:'relative',transition:'all 0.2s',flexShrink:0}}>
-                <div style={{position:'absolute',top:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'left 0.2s',left:showCoAuthor?16:2}}/>
+          {showCoAuthor&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(99,102,241,0.4)',background:'rgba(99,102,241,0.06)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🤝</span>
+                <span style={{flex:1,fontSize:12,color:'#a5b4fc',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Коллаборативный пост</span>
+                {postCoAuthor&&<span style={{fontSize:10,color:'#a5b4fc',fontWeight:800}}>{postCoAuthor.name}</span>}
+                <button onClick={()=>{setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
               </div>
-              <span style={{fontSize:12,color:showCoAuthor?'#a5b4fc':'rgba(255,255,255,0.4)',fontWeight:showCoAuthor?700:500,fontFamily:'"Montserrat",sans-serif'}}>🤝 Коллаборативный пост</span>
-              {postCoAuthor&&<span style={{fontSize:10,color:'#a5b4fc',fontWeight:800,marginLeft:'auto'}}>{postCoAuthor.name}</span>}
-            </div>
-            {showCoAuthor&&(
               <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
                 {postCoAuthor?(
                   <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(99,102,241,0.1)',borderRadius:10,padding:'8px 10px'}}>
@@ -9104,30 +9156,28 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                   </>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ── Анонимное голосование ── */}
-          {postHasPoll&&(
-            <div style={{borderRadius:12,border:`1px solid ${postIsAnonVoting?'rgba(139,92,246,0.4)':'rgba(255,255,255,0.08)'}`,background:postIsAnonVoting?'rgba(139,92,246,0.06)':'rgba(255,255,255,0.03)',transition:'all 0.25s'}}>
-              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}} onClick={()=>setPostIsAnonVoting(s=>!s)}>
-                <div style={{width:36,height:22,borderRadius:11,background:postIsAnonVoting?'#7c3aed':'rgba(255,255,255,0.12)',position:'relative',transition:'all 0.2s',flexShrink:0}}>
-                  <div style={{position:'absolute',top:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'left 0.2s',left:postIsAnonVoting?16:2}}/>
-                </div>
-                <span style={{fontSize:12,color:postIsAnonVoting?'#c4b5fd':'rgba(255,255,255,0.4)',fontWeight:postIsAnonVoting?700:500,fontFamily:'"Montserrat",sans-serif'}}>🕵️ Анонимное голосование</span>
+          {postHasPoll&&postIsAnonVoting&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(139,92,246,0.4)',background:'rgba(139,92,246,0.06)',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🕵️</span>
+                <span style={{flex:1,fontSize:12,color:'#c4b5fd',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Анонимное голосование</span>
+                <button onClick={()=>setPostIsAnonVoting(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
               </div>
             </div>
           )}
 
           {/* ── Таймер публикации ── */}
-          <div style={{borderRadius:12,border:`1px solid ${showTimer?'rgba(251,191,36,0.4)':'rgba(255,255,255,0.08)'}`,background:showTimer?'rgba(251,191,36,0.05)':'rgba(255,255,255,0.03)',overflow:'hidden',transition:'all 0.25s'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}} onClick={()=>setShowTimer(s=>!s)}>
-              <div style={{width:36,height:22,borderRadius:11,background:showTimer?'#d97706':'rgba(255,255,255,0.12)',position:'relative',transition:'all 0.2s',flexShrink:0}}>
-                <div style={{position:'absolute',top:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'left 0.2s',left:showTimer?16:2}}/>
+          {showTimer&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(251,191,36,0.4)',background:'rgba(251,191,36,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>⏰</span>
+                <span style={{flex:1,fontSize:12,color:'#fbbf24',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Таймер публикации</span>
+                <button onClick={()=>{setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
               </div>
-              <span style={{fontSize:12,color:showTimer?'#fbbf24':'rgba(255,255,255,0.4)',fontWeight:showTimer?700:500,fontFamily:'"Montserrat",sans-serif'}}>⏰ Таймер публикации</span>
-            </div>
-            {showTimer&&(
               <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:10}}>
                 <div>
                   <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:4,fontWeight:600}}>📅 Запланировать на (необязательно):</div>
@@ -9147,19 +9197,18 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                   </button>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ── Геолокация ── */}
-          <div style={{borderRadius:12,border:`1px solid ${showGeo?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.08)'}`,background:showGeo?'rgba(34,197,94,0.05)':'rgba(255,255,255,0.03)',transition:'all 0.25s'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}} onClick={()=>setShowGeo(s=>!s)}>
-              <div style={{width:36,height:22,borderRadius:11,background:showGeo?'#16a34a':'rgba(255,255,255,0.12)',position:'relative',transition:'all 0.2s',flexShrink:0}}>
-                <div style={{position:'absolute',top:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'left 0.2s',left:showGeo?16:2}}/>
+          {showGeo&&(
+            <div style={{borderRadius:12,border:'1px solid rgba(34,197,94,0.4)',background:'rgba(34,197,94,0.05)',transition:'all 0.25s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>📍</span>
+                <span style={{flex:1,fontSize:12,color:'#4ade80',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Геолокация поста</span>
+                {postGeo&&<span style={{fontSize:10,color:'#4ade80',fontWeight:800}}>{postGeo.city}</span>}
+                <button onClick={()=>{setShowGeo(false);setPostGeo(null);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
               </div>
-              <span style={{fontSize:12,color:showGeo?'#4ade80':'rgba(255,255,255,0.4)',fontWeight:showGeo?700:500,fontFamily:'"Montserrat",sans-serif'}}>📍 Геолокация поста</span>
-              {postGeo&&<span style={{fontSize:10,color:'#4ade80',fontWeight:800,marginLeft:'auto'}}>{postGeo.city}</span>}
-            </div>
-            {showGeo&&(
               <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
                 {postGeo?(
                   <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(34,197,94,0.08)',borderRadius:10,padding:'8px 10px'}}>
@@ -9177,8 +9226,8 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                   </motion.button>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Нижняя панель */}
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
