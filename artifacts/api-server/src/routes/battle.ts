@@ -62,8 +62,10 @@ router.get("/battle/incoming", requireSession, async (req, res) => {
   if (!pending) { res.json({ battle: null }); return; }
 
   /* Resolve challenger name */
-  const acc = await db.select({ name: accountsTable.proName, avatar: accountsTable.proAvatar })
-    .from(accountsTable).where(eq(accountsTable.hash, pending.challengerHash)).limit(1);
+  const acc = await db.select({
+    name: sql<string>`${accountsTable.data}->>'pro_displayName'`,
+    avatar: sql<string>`${accountsTable.data}->>'pro_avatarUrl'`,
+  }).from(accountsTable).where(eq(accountsTable.hash, pending.challengerHash)).limit(1);
   const challenger = acc[0] ? { name: acc[0].name || 'Пользователь', avatar: acc[0].avatar || '' } : { name: 'Пользователь', avatar: '' };
   res.json({ battle: { ...pending, challenger } });
 });
@@ -102,7 +104,7 @@ router.post("/battle/challenge", requireSession, async (req, res) => {
 /* GET /api/battle/:id — poll battle state */
 router.get("/battle/:id", requireSession, async (req, res) => {
   const me = (req as any).userHash as string;
-  const b = battles.get(req.params.id);
+  const b = battles.get(req.params['id'] as string);
   if (!b) { res.status(404).json({ error: "Battle not found" }); return; }
   if (b.challengerHash !== me && b.opponentHash !== me) {
     res.status(403).json({ error: "Not your battle" }); return;
@@ -113,8 +115,11 @@ router.get("/battle/:id", requireSession, async (req, res) => {
 
   /* Resolve names */
   const hashes = [b.challengerHash, b.opponentHash];
-  const accs = await db.select({ hash: accountsTable.hash, name: accountsTable.proName, avatar: accountsTable.proAvatar })
-    .from(accountsTable).where(sql`${accountsTable.hash} = ANY(${hashes})`);
+  const accs = await db.select({
+    hash: accountsTable.hash,
+    name: sql<string>`${accountsTable.data}->>'pro_displayName'`,
+    avatar: sql<string>`${accountsTable.data}->>'pro_avatarUrl'`,
+  }).from(accountsTable).where(sql`${accountsTable.hash} = ANY(${hashes})`);
   const nameMap = Object.fromEntries(accs.map(a => [a.hash, { name: a.name || 'Пользователь', avatar: a.avatar || '' }]));
 
   res.json({
@@ -128,7 +133,7 @@ router.get("/battle/:id", requireSession, async (req, res) => {
 /* POST /api/battle/:id/accept */
 router.post("/battle/:id/accept", requireSession, async (req, res) => {
   const me = (req as any).userHash as string;
-  const b = battles.get(req.params.id);
+  const b = battles.get(req.params['id'] as string);
   if (!b || b.opponentHash !== me || b.status !== "pending") {
     res.status(400).json({ error: "Cannot accept" }); return;
   }
@@ -140,7 +145,7 @@ router.post("/battle/:id/accept", requireSession, async (req, res) => {
 /* POST /api/battle/:id/decline */
 router.post("/battle/:id/decline", requireSession, async (req, res) => {
   const me = (req as any).userHash as string;
-  const b = battles.get(req.params.id);
+  const b = battles.get(req.params['id'] as string);
   if (!b || b.opponentHash !== me) { res.status(400).json({ error: "Cannot decline" }); return; }
   b.status = "declined";
   res.json({ ok: true });
@@ -149,7 +154,7 @@ router.post("/battle/:id/decline", requireSession, async (req, res) => {
 /* POST /api/battle/:id/swipe */
 router.post("/battle/:id/swipe", requireSession, async (req, res) => {
   const me = (req as any).userHash as string;
-  const b = battles.get(req.params.id);
+  const b = battles.get(req.params['id'] as string);
   if (!b || b.status !== "active") { res.status(400).json({ error: "Battle not active" }); return; }
   if (b.challengerHash !== me && b.opponentHash !== me) {
     res.status(403).json({ error: "Not your battle" }); return;

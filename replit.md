@@ -130,6 +130,11 @@ pnpm --filter @workspace/api-spec run codegen
 
 ## TypeScript — статус
 
+Исправления после клонирования (2026-04-26):
+- `routes/battle.ts` — заменены несуществующие колонки `accountsTable.proName/proAvatar` на SQL-выражения `data->>'pro_displayName'` и `data->>'pro_avatarUrl'`; `req.params['id'] as string`.
+- `routes/broadcasts.ts` (DELETE /broadcasts/:id) — убран сломанный поиск по `accountsTable.sessionToken`; используется `userHash` из `requireSession`.
+- `pnpm --filter @workspace/api-server run typecheck` проходит без ошибок.
+
 Все 17 ошибок TS исправлены (2025-04-22):
 - `objectStorage.ts` — приведение типа `response.json() as {signed_url: string}`
 - `audioUpload.ts` — исправлена деструктуризация `[meta]` вместо `[[meta]]`

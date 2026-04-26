@@ -669,11 +669,7 @@ router.delete("/broadcasts/:id", requireSession, async (req, res) => {
   try {
     const id = parseInt(req.params['id'] as string);
     if (isNaN(id)) { res.status(400).json({ error: 'invalid id' }); return; }
-    const token = getSessionToken(req);
-    const sessionRows = await db.select().from(accountsTable)
-      .where(eq(accountsTable.sessionToken, token!)).limit(1);
-    if (!sessionRows.length) { res.status(401).json({ error: 'unauthorized' }); return; }
-    const userHash = sessionRows[0].hash;
+    const userHash = (req as any).userHash as string;
     const rows = await db.select().from(broadcastsTable).where(eq(broadcastsTable.id, id)).limit(1);
     if (!rows.length) { res.status(404).json({ error: 'not found' }); return; }
     if (rows[0].authorHash !== userHash) { res.status(403).json({ error: 'forbidden' }); return; }
