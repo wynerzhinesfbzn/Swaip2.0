@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { checkContent, collectPostText } from './contentFilter';
 import { BgMusicAutoplay, BgMusicPicker, type BgMusicPreset } from './BgMusic';
+import { PostExtrasComposer, PostExtrasRenderer, hasAnyExtras, type PostExtras } from './PostExtras';
 
 /* ══════════════════════════════════════════════════════
    ТИПЫ
@@ -39,6 +40,8 @@ interface ChannelPost {
   hasBooking?: boolean;
   bookingSlots?: {time:string;booked:boolean}[];
   bookingLabel?: string;
+  /* extras (универсальный «+ Добавить в пост») */
+  extras?: PostExtras;
 }
 
 interface SwaipChannel {
@@ -203,6 +206,8 @@ interface GroupPost {
   /* bg music */
   bgMusicUrl?: string;
   bgMusicLabel?: string;
+  /* extras (универсальный «+ Добавить в пост») */
+  extras?: PostExtras;
 }
 
 type GroupRole = 'founder'|'moderator'|'vip'|'activist'|'member';
@@ -1140,6 +1145,11 @@ function PostCard({post,ch,c,accent,tick,onReact,onVote,onOpenCapsule,onPin,onDe
       {post.text&&<p style={{margin:'0 14px 10px',fontSize:15,lineHeight:1.65,
         color:'rgba(255,255,255,0.9)',whiteSpace:'pre-wrap'}}>{post.text}</p>}
 
+      {/* ➕ Extras (карусель/опрос/квиз/вопрос/челлендж/ссылка/активность/букинг) */}
+      {post.extras&&<div style={{padding:'0 14px 8px'}}>
+        <PostExtrasRenderer extras={post.extras} c={c} accent={accent}/>
+      </div>}
+
       {/* Фото */}
       {post.imageUrl&&<img src={post.imageUrl} alt="" style={{width:'100%',objectFit:'cover',marginBottom:2}}/>}
 
@@ -1537,6 +1547,9 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
   const musicRef=useRef<HTMLInputElement>(null);
   const clearMusic=()=>{setMusicFile(null);setMusicName('');setMusicError('');if(musicRef.current)musicRef.current.value='';};
 
+  /* ── Extras (универсальный «Добавить в пост») ── */
+  const [extras,setExtras]=useState<PostExtras>({});
+
   const POST_TYPES:[ChannelPost['type'],string,string][]=[
     ['text','✍️','Текст'],['photo','📸','Фото'],['video','🎬','Видео'],
     ['audio','🎵','Аудио'],['poll','📊','Опрос'],
@@ -1627,6 +1640,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
       if(type==='capsule'&&opensAt)Object.assign(base,{opensAt:new Date(opensAt).getTime(),capsuleOpened:false});
       if(type==='episode')Object.assign(base,{seriesName,episodeNum});
       if(hasBooking){Object.assign(base,{hasBooking:true,bookingLabel:bookingLabel||'Записаться',bookingSlots:bookingSlots});}
+      if(hasAnyExtras(extras)) base.extras=extras;
       onPublish(base);
     }finally{setPublishing(false);}
   };
@@ -2017,6 +2031,9 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
             🔒 Эксклюзивный пост (только для подписчиков)
           </span>
         </div>
+
+        {/* ── ➕ Добавить в пост (универсальные секции) ── */}
+        <PostExtrasComposer extras={extras} onChange={setExtras} c={c} accent={accent}/>
 
       </div>
     </motion.div>
@@ -3093,6 +3110,11 @@ function GroupPostCard({post,group,c,accent,isExpanded,onToggleExpand,onLike,onV
         {post.text&&<p style={{margin:'0 0 10px',fontSize:14,color:c.mid,lineHeight:1.5}}>{post.text}</p>}
         {post.imageUrl&&<img src={post.imageUrl} alt="" style={{width:'100%',borderRadius:10,marginBottom:10,objectFit:'cover',maxHeight:240}}/>}
 
+        {/* ➕ Extras (карусель/опрос/квиз/вопрос/челлендж/ссылка/активность/букинг) */}
+        {post.extras&&<div style={{marginBottom:10}}>
+          <PostExtrasRenderer extras={post.extras} c={c} accent={meta.color}/>
+        </div>}
+
         {/* POLL */}
         {post.type==='poll'&&post.pollOptions&&(
           <div style={{marginBottom:10}}>
@@ -3297,6 +3319,8 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
   /* bg music */
   const [showBgMusic,setShowBgMusic]=useState(false);
   const [postBgMusic,setPostBgMusic]=useState<BgMusicPreset|null>(null);
+  /* extras */
+  const [extras,setExtras]=useState<PostExtras>({});
 
   const meta=GROUP_POST_META[postType];
 
@@ -3316,6 +3340,7 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
     if(postType==='capsule') base={...base,text:'',capsuleOpensAt:Date.now()+capsuleH*3600000};
     if(postType==='collab') base={...base,text:'',collabParts:[{author:userName,text:collabText}]};
     if(postBgMusic) base={...base,bgMusicUrl:postBgMusic.url,bgMusicLabel:`${postBgMusic.emoji} ${postBgMusic.label}`};
+    if(hasAnyExtras(extras)) base={...base,extras};
     onPost(base);
   };
 
@@ -3487,6 +3512,9 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
               </div>
             )}
           </div>
+
+          {/* ── ➕ Добавить в пост (универсальные секции) ── */}
+          <PostExtrasComposer extras={extras} onChange={setExtras} c={c} accent={meta.color}/>
 
           {/* Submit */}
           {groupContentError&&(
