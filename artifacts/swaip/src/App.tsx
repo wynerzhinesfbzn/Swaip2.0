@@ -5,6 +5,7 @@ import SwaipHome from './SwaipHome';
 import { ed25519 } from '@noble/curves/ed25519';
 import bgImage from "@assets/kuku-img_(7)_1775319807326.png";
 import bgCompass from "@assets/kuku-img_(7)_1775321655252.png";
+import heroSwaip from "@assets/image_(65)_1777224756965.jpg";
 import { useCallSignaling } from './useCallSignaling';
 import type { CallType, UseCallSignalingReturn } from './useCallSignaling';
 import { getTranslations, type T } from './i18n';
@@ -973,108 +974,95 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
       </AnimatePresence>
 
       <div style={{ position:'relative', height:'100%', aspectRatio:'575/1024', flexShrink:0, overflow:'hidden',
-        background:'radial-gradient(ellipse at 50% 22%, #0b2562 0%, #04102e 38%, #02061a 72%, #010410 100%)' }}>
+        background:'radial-gradient(ellipse at 50% 32%, #0a1130 0%, #050a22 36%, #020514 70%, #00030c 100%)' }}>
 
-        {/* Тонкая сетка как на главной */}
-        <div style={{ position:'absolute', inset:0, opacity:0.18, pointerEvents:'none',
-          backgroundImage:'linear-gradient(rgba(0,200,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.18) 1px, transparent 1px)',
-          backgroundSize:'42px 42px',
-          maskImage:'radial-gradient(ellipse at 50% 30%, #000 30%, transparent 75%)',
-          WebkitMaskImage:'radial-gradient(ellipse at 50% 30%, #000 30%, transparent 75%)' }} />
+        {/* Космические искры/частицы */}
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.85,
+          backgroundImage:`
+            radial-gradient(1.4px 1.4px at 12% 18%, rgba(255,220,180,0.95), transparent 60%),
+            radial-gradient(1px 1px at 22% 42%, rgba(180,225,255,0.9), transparent 60%),
+            radial-gradient(1.6px 1.6px at 38% 12%, rgba(255,235,200,0.95), transparent 60%),
+            radial-gradient(1px 1px at 52% 28%, rgba(180,225,255,0.85), transparent 60%),
+            radial-gradient(1.2px 1.2px at 68% 36%, rgba(255,210,160,0.95), transparent 60%),
+            radial-gradient(1px 1px at 82% 18%, rgba(170,220,255,0.85), transparent 60%),
+            radial-gradient(1.4px 1.4px at 92% 44%, rgba(255,225,180,0.9), transparent 60%),
+            radial-gradient(1px 1px at 8% 62%, rgba(170,220,255,0.8), transparent 60%),
+            radial-gradient(1.2px 1.2px at 28% 72%, rgba(255,215,170,0.85), transparent 60%),
+            radial-gradient(1px 1px at 48% 82%, rgba(180,225,255,0.75), transparent 60%),
+            radial-gradient(1.6px 1.6px at 72% 76%, rgba(255,225,180,0.9), transparent 60%),
+            radial-gradient(1px 1px at 88% 90%, rgba(180,225,255,0.8), transparent 60%)
+          ` }} />
 
-        {/* Декоративные «карточки» как намёк на главную ленту */}
-        <div style={{ position:'absolute', top:'8%', left:'8%', width:'30%', height:'12%',
-          borderRadius:14, background:'linear-gradient(135deg,rgba(0,80,200,0.28),rgba(0,30,90,0.18))',
-          border:'1px solid rgba(0,200,255,0.22)', backdropFilter:'blur(8px)',
-          boxShadow:'0 0 18px rgba(0,160,255,0.18)', transform:'rotate(-6deg)' }} />
-        <div style={{ position:'absolute', top:'10%', right:'7%', width:'34%', height:'14%',
-          borderRadius:14, background:'linear-gradient(135deg,rgba(0,40,140,0.32),rgba(0,20,70,0.2))',
-          border:'1px solid rgba(0,200,255,0.22)', backdropFilter:'blur(8px)',
-          boxShadow:'0 0 18px rgba(0,160,255,0.18)', transform:'rotate(5deg)' }} />
-        <div style={{ position:'absolute', bottom:'30%', left:'6%', width:'28%', height:'10%',
-          borderRadius:14, background:'linear-gradient(135deg,rgba(0,80,200,0.22),rgba(0,30,90,0.14))',
-          border:'1px solid rgba(0,200,255,0.18)', backdropFilter:'blur(8px)',
-          boxShadow:'0 0 16px rgba(0,160,255,0.16)', transform:'rotate(4deg)' }} />
-        <div style={{ position:'absolute', bottom:'32%', right:'6%', width:'30%', height:'11%',
-          borderRadius:14, background:'linear-gradient(135deg,rgba(0,60,180,0.26),rgba(0,20,80,0.16))',
-          border:'1px solid rgba(0,200,255,0.2)', backdropFilter:'blur(8px)',
-          boxShadow:'0 0 16px rgba(0,160,255,0.16)', transform:'rotate(-5deg)' }} />
+        {/* Световые «лучи» / линзовые блики */}
+        <div style={{ position:'absolute', top:'10%', left:'-15%', width:'140%', height:2,
+          background:'linear-gradient(90deg, transparent 0%, rgba(255,210,170,0.55) 50%, transparent 100%)',
+          transform:'rotate(-22deg)', filter:'blur(1.5px)', opacity:0.8 }} />
+        <div style={{ position:'absolute', top:'24%', left:'-15%', width:'140%', height:1,
+          background:'linear-gradient(90deg, transparent 0%, rgba(180,225,255,0.5) 50%, transparent 100%)',
+          transform:'rotate(-18deg)', filter:'blur(1px)', opacity:0.7 }} />
+        <div style={{ position:'absolute', top:'58%', left:'-15%', width:'140%', height:1,
+          background:'linear-gradient(90deg, transparent 0%, rgba(255,210,170,0.45) 50%, transparent 100%)',
+          transform:'rotate(-15deg)', filter:'blur(1px)', opacity:0.7 }} />
 
-        {/* Центральное свечение */}
-        <div style={{ position:'absolute', top:'18%', left:'50%', transform:'translateX(-50%)',
-          width:'90%', height:'46%', borderRadius:'50%', pointerEvents:'none',
-          background:'radial-gradient(circle, rgba(0,180,255,0.32) 0%, rgba(0,120,255,0.12) 35%, transparent 70%)',
-          filter:'blur(8px)' }} />
+        {/* Тёплое центральное свечение позади героя */}
+        <div style={{ position:'absolute', top:'14%', left:'50%', transform:'translateX(-50%)',
+          width:'90%', height:'52%', borderRadius:'50%', pointerEvents:'none',
+          background:'radial-gradient(circle, rgba(255,180,90,0.22) 0%, rgba(0,140,255,0.12) 45%, transparent 75%)',
+          filter:'blur(10px)' }} />
 
-        {/* Wordmark SWAIP — «нарисован краской», но строгий */}
-        <div style={{ position:'absolute', top:'26%', left:'50%', transform:'translate(-50%,0)',
-          textAlign:'center', pointerEvents:'none', width:'88%' }}>
-          <svg viewBox="0 0 720 220" width="100%" preserveAspectRatio="xMidYMid meet"
-            style={{ display:'block', margin:'0 auto', filter:'drop-shadow(0 0 22px rgba(0,200,255,0.55))' }}>
-            <defs>
-              <linearGradient id="swaipPaint" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%"   stopColor="#bff1ff" />
-                <stop offset="40%"  stopColor="#3cc4ff" />
-                <stop offset="100%" stopColor="#0b5fd6" />
-              </linearGradient>
-              <filter id="paintRough" x="-5%" y="-5%" width="110%" height="110%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="noise"/>
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" />
-              </filter>
-              <filter id="dripGlow" x="-30%" y="-10%" width="160%" height="140%">
-                <feGaussianBlur stdDeviation="1.4" />
-              </filter>
-            </defs>
-
-            {/* Капли краски снизу букв */}
-            <g fill="#1a8eff" opacity="0.6" filter="url(#dripGlow)">
-              <rect x="190" y="160" width="6" height="34" rx="3" />
-              <rect x="280" y="168" width="5" height="42" rx="2.5" />
-              <rect x="370" y="164" width="6" height="36" rx="3" />
-              <rect x="446" y="160" width="5" height="40" rx="2.5" />
-              <rect x="520" y="166" width="6" height="32" rx="3" />
-            </g>
-
-            {/* Контурный «штрих» позади — мазок кистью */}
-            <text x="50%" y="62%" textAnchor="middle"
-              fontFamily="'Arial Black', 'Helvetica Neue', sans-serif"
-              fontSize="150" fontWeight="900" letterSpacing="2"
-              fill="none" stroke="#003a8e" strokeWidth="9" strokeLinejoin="round"
-              opacity="0.55" filter="url(#paintRough)">SWAIP</text>
-
-            {/* Основной текст — окрашенный «краской» */}
-            <text x="50%" y="62%" textAnchor="middle"
-              fontFamily="'Arial Black', 'Helvetica Neue', sans-serif"
-              fontSize="150" fontWeight="900" letterSpacing="2"
-              fill="url(#swaipPaint)" filter="url(#paintRough)"
-              stroke="#cfeeff" strokeWidth="1.1">SWAIP</text>
-          </svg>
-
-          {/* Тэглайн */}
-          <div style={{ marginTop:18, color:'rgba(190,235,255,0.92)',
-            fontFamily:"'Arial Black','Helvetica Neue',sans-serif",
-            fontWeight:900, fontSize:'clamp(18px,4.6vw,26px)', letterSpacing:'0.18em',
-            textTransform:'uppercase', lineHeight:1.15,
-            textShadow:'0 0 14px rgba(0,180,255,0.65), 0 0 32px rgba(0,120,255,0.35)' }}>
-            1 свайп — 4 жизни
-          </div>
-          <div style={{ marginTop:8, color:'rgba(150,210,255,0.7)',
-            fontFamily:'Arial,sans-serif', fontSize:12, letterSpacing:'0.22em',
-            textTransform:'uppercase' }}>
-            Поток · Про · Сцена · Эфир
-          </div>
+        {/* ─── Герой: мужчина + надпись SWAIP, бубблы и фейк-текст замаскированы ─── */}
+        <div style={{ position:'absolute', top:'7%', left:'50%', transform:'translateX(-50%)',
+          width:'72%', aspectRatio:'1/1.4',
+          filter:'drop-shadow(0 12px 40px rgba(0,140,255,0.35))' }}>
+          {/* Картинка с кропом: видим image x=130..620, y=100..786 */}
+          <div role="img" aria-label="SWAIP"
+            style={{ position:'absolute', inset:0,
+              backgroundImage:`url("${heroSwaip}")`,
+              backgroundRepeat:'no-repeat',
+              backgroundSize:'160% auto',
+              backgroundPosition:'44% 21%',
+              maskImage:'linear-gradient(to bottom, #000 0%, #000 58%, transparent 74%)',
+              WebkitMaskImage:'linear-gradient(to bottom, #000 0%, #000 58%, transparent 74%)' }} />
+          {/* Маска "Друз" (правый верх) */}
+          <div style={{ position:'absolute', top:'-3%', right:'-8%', width:'52%', height:'14%',
+            background:'radial-gradient(ellipse at 65% 45%, #02061a 28%, rgba(2,6,26,0.92) 50%, rgba(2,6,26,0.5) 75%, transparent 100%)',
+            pointerEvents:'none', filter:'blur(4px)' }} />
+          {/* Маска "Цена" (правый средний) */}
+          <div style={{ position:'absolute', top:'28%', right:'-8%', width:'46%', height:'22%',
+            background:'radial-gradient(ellipse at 65% 50%, #02061a 32%, rgba(2,6,26,0.92) 55%, rgba(2,6,26,0.5) 78%, transparent 100%)',
+            pointerEvents:'none', filter:'blur(4px)' }} />
+          {/* Маска "Про" (левый средний) */}
+          <div style={{ position:'absolute', top:'42%', left:'-6%', width:'32%', height:'24%',
+            background:'radial-gradient(ellipse at 50% 50%, #02061a 50%, rgba(2,6,26,0.95) 70%, rgba(2,6,26,0.55) 85%, transparent 100%)',
+            pointerEvents:'none', filter:'blur(5px)' }} />
         </div>
 
-        {/* Плавные пятна-блики */}
-        <div style={{ position:'absolute', top:'6%', left:'-8%', width:180, height:180, borderRadius:'50%',
-          background:'radial-gradient(circle, rgba(0,180,255,0.28), transparent 70%)', filter:'blur(20px)' }} />
-        <div style={{ position:'absolute', bottom:'40%', right:'-10%', width:220, height:220, borderRadius:'50%',
-          background:'radial-gradient(circle, rgba(80,40,200,0.28), transparent 70%)', filter:'blur(24px)' }} />
-
         {/* Нижний градиент-плавный переход к панели управления */}
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'44%',
-          background:'linear-gradient(to bottom,transparent 0%,rgba(2,5,20,0.6) 28%,rgba(2,5,20,0.93) 58%,#020514 100%)',
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'52%',
+          background:'linear-gradient(to bottom,transparent 0%,rgba(2,5,20,0.55) 22%,rgba(2,5,20,0.92) 52%,#020514 100%)',
           pointerEvents:'none' }} />
+
+        {/* ─── Неоновая рамка по всему краю экрана ─── */}
+        <div style={{ position:'absolute', inset:6, borderRadius:22, pointerEvents:'none',
+          border:'1.5px solid rgba(0,210,255,0.55)',
+          boxShadow:'0 0 22px rgba(0,180,255,0.45), inset 0 0 22px rgba(0,180,255,0.22)' }} />
+        <div style={{ position:'absolute', inset:12, borderRadius:18, pointerEvents:'none',
+          border:'1px solid rgba(120,225,255,0.18)' }} />
+        {/* Угловые «скобки» */}
+        {[{t:14,l:14,br:'tl'},{t:14,r:14,br:'tr'},{b:14,l:14,br:'bl'},{b:14,r:14,br:'br'}].map((c,i) => (
+          <div key={i} style={{ position:'absolute',
+            top:c.t, left:c.l, right:c.r, bottom:c.b,
+            width:22, height:22, pointerEvents:'none',
+            borderTop:    c.br==='tl'||c.br==='tr' ? '2px solid rgba(0,230,255,0.85)' : 'none',
+            borderBottom: c.br==='bl'||c.br==='br' ? '2px solid rgba(0,230,255,0.85)' : 'none',
+            borderLeft:   c.br==='tl'||c.br==='bl' ? '2px solid rgba(0,230,255,0.85)' : 'none',
+            borderRight:  c.br==='tr'||c.br==='br' ? '2px solid rgba(0,230,255,0.85)' : 'none',
+            borderTopLeftRadius:     c.br==='tl' ? 6 : 0,
+            borderTopRightRadius:    c.br==='tr' ? 6 : 0,
+            borderBottomLeftRadius:  c.br==='bl' ? 6 : 0,
+            borderBottomRightRadius: c.br==='br' ? 6 : 0,
+            filter:'drop-shadow(0 0 6px rgba(0,210,255,0.7))' }} />
+        ))}
       </div>
 
       <AnimatePresence>
