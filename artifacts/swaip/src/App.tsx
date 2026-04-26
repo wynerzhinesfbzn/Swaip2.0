@@ -1010,32 +1010,17 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
           background:'radial-gradient(circle, rgba(255,180,90,0.22) 0%, rgba(0,140,255,0.12) 45%, transparent 75%)',
           filter:'blur(10px)' }} />
 
-        {/* ─── Герой: мужчина + надпись SWAIP, бубблы и фейк-текст замаскированы ─── */}
-        <div style={{ position:'absolute', top:'7%', left:'50%', transform:'translateX(-50%)',
-          width:'72%', aspectRatio:'1/1.4',
-          filter:'drop-shadow(0 12px 40px rgba(0,140,255,0.35))' }}>
-          {/* Картинка с кропом: видим image x=130..620, y=100..786 */}
-          <div role="img" aria-label="SWAIP"
-            style={{ position:'absolute', inset:0,
-              backgroundImage:`url("${heroSwaip}")`,
-              backgroundRepeat:'no-repeat',
-              backgroundSize:'160% auto',
-              backgroundPosition:'44% 21%',
-              maskImage:'linear-gradient(to bottom, #000 0%, #000 58%, transparent 74%)',
-              WebkitMaskImage:'linear-gradient(to bottom, #000 0%, #000 58%, transparent 74%)' }} />
-          {/* Маска "Друз" (правый верх) */}
-          <div style={{ position:'absolute', top:'-3%', right:'-8%', width:'52%', height:'14%',
-            background:'radial-gradient(ellipse at 65% 45%, #02061a 28%, rgba(2,6,26,0.92) 50%, rgba(2,6,26,0.5) 75%, transparent 100%)',
-            pointerEvents:'none', filter:'blur(4px)' }} />
-          {/* Маска "Цена" (правый средний) */}
-          <div style={{ position:'absolute', top:'28%', right:'-8%', width:'46%', height:'22%',
-            background:'radial-gradient(ellipse at 65% 50%, #02061a 32%, rgba(2,6,26,0.92) 55%, rgba(2,6,26,0.5) 78%, transparent 100%)',
-            pointerEvents:'none', filter:'blur(4px)' }} />
-          {/* Маска "Про" (левый средний) */}
-          <div style={{ position:'absolute', top:'42%', left:'-6%', width:'32%', height:'24%',
-            background:'radial-gradient(ellipse at 50% 50%, #02061a 50%, rgba(2,6,26,0.95) 70%, rgba(2,6,26,0.55) 85%, transparent 100%)',
-            pointerEvents:'none', filter:'blur(5px)' }} />
-        </div>
+        {/* ─── Герой: картинка как есть, обрезана снизу чтобы убрать "1 МЕЕР" и кнопки ─── */}
+        <div role="img" aria-label="SWAIP"
+          style={{ position:'absolute', top:'5%', left:'50%', transform:'translateX(-50%)',
+            width:'94%', aspectRatio:'784/700',
+            backgroundImage:`url("${heroSwaip}")`,
+            backgroundRepeat:'no-repeat',
+            backgroundSize:'100% auto',
+            backgroundPosition:'center top',
+            maskImage:'linear-gradient(to bottom, #000 0%, #000 65%, transparent 88%)',
+            WebkitMaskImage:'linear-gradient(to bottom, #000 0%, #000 65%, transparent 88%)',
+            filter:'drop-shadow(0 12px 40px rgba(0,140,255,0.35))' }} />
 
         {/* Нижний градиент-плавный переход к панели управления */}
         <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'52%',
