@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SwaipVideoPlayer, { SkinSelector, type VideoSkin } from './SwaipVideoPlayer';
+import SwaipMiniAppBuilder from './SwaipMiniAppBuilder';
 
 /* ═══════════════════════════════════════════════════════════
    ТИПЫ
@@ -662,6 +663,7 @@ function BotListView({ bots, loading, onOpen, onCreate, onChat }: {
    ГЛАВНЫЙ КОМПОНЕНТ — BotBuilder
 ═══════════════════════════════════════════════════════════ */
 export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; apiBase: string }) {
+  const [mode, setMode] = useState<'bots'|'mini'>('bots');
   const [bots, setBots] = useState<SwBot[]>([]);
   const [botsLoading, setBotsLoading] = useState(true);
   const [editBot, setEditBot] = useState<SwBot | null>(null);
@@ -923,19 +925,47 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
     );
   }
 
-  /* ── СПИСОК БОТОВ ── */
+  /* ── ХАБ: БОТЫ + МИНИ-АПП ── */
   return (
     <div style={{position:'fixed',inset:0,background:C.deep,display:'flex',flexDirection:'column',zIndex:900,fontFamily:'inherit'}}>
-      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:'12px 16px',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-        <motion.button whileTap={{scale:0.88}} onClick={onClose}
-          style={{width:34,height:34,borderRadius:10,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,fontSize:18,cursor:'pointer',flexShrink:0}}>←</motion.button>
-        <div style={{fontSize:16,fontWeight:800,color:C.light,flex:1}}>🤖 Мои боты</div>
-        <motion.button whileTap={{scale:0.88}} onClick={()=>setShowHelp(true)}
-          style={{width:34,height:34,borderRadius:10,background:AC+'22',border:`1px solid ${AC}44`,color:AC,fontSize:15,fontWeight:900,cursor:'pointer',flexShrink:0}}>?</motion.button>
+      {/* Шапка хаба */}
+      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{padding:'10px 14px',display:'flex',alignItems:'center',gap:10}}>
+          <motion.button whileTap={{scale:0.88}} onClick={onClose}
+            style={{width:34,height:34,borderRadius:10,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,fontSize:18,cursor:'pointer',flexShrink:0}}>←</motion.button>
+          <div style={{fontSize:15,fontWeight:800,color:C.light,flex:1}}>
+            {mode==='bots'?'🤖 Мои боты':'✨ Мини-аппы'}
+          </div>
+          {mode==='bots'&&(
+            <motion.button whileTap={{scale:0.88}} onClick={()=>setShowHelp(true)}
+              style={{width:34,height:34,borderRadius:10,background:AC+'22',border:`1px solid ${AC}44`,color:AC,fontSize:15,fontWeight:900,cursor:'pointer',flexShrink:0}}>?</motion.button>
+          )}
+        </div>
+        {/* Вкладки */}
+        <div style={{display:'flex',borderTop:`1px solid ${C.border}`}}>
+          <button onClick={()=>setMode('bots')}
+            style={{flex:1,padding:'10px 0',background:'none',border:'none',borderBottom:`2px solid ${mode==='bots'?AC:'transparent'}`,color:mode==='bots'?AC:C.sub,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:6,transition:'all 0.15s'}}>
+            🤖 Боты
+          </button>
+          <button onClick={()=>setMode('mini')}
+            style={{flex:1,padding:'10px 0',background:'none',border:'none',borderBottom:`2px solid ${mode==='mini'?'#8b5cf6':'transparent'}`,color:mode==='mini'?'#8b5cf6':C.sub,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:6,transition:'all 0.15s'}}>
+            ✨ Мини-апп
+          </button>
+        </div>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'0 12px 24px'}}>
-        <BotListView bots={bots} loading={botsLoading} onOpen={openEdit} onCreate={createBot} onChat={setChatBot}/>
-      </div>
+
+      {/* Контент */}
+      {mode==='bots'&&(
+        <div style={{flex:1,overflowY:'auto',padding:'0 12px 24px'}}>
+          <BotListView bots={bots} loading={botsLoading} onOpen={openEdit} onCreate={createBot} onChat={setChatBot}/>
+        </div>
+      )}
+      {mode==='mini'&&(
+        <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+          <SwaipMiniAppBuilder apiBase={apiBase}/>
+        </div>
+      )}
+
       <AnimatePresence>
         {showHelp && <HelpModal onClose={()=>setShowHelp(false)}/>}
       </AnimatePresence>

@@ -12,3 +12,4 @@ export * from "./sessions";
 export * from "./stories";
 export * from "./exchange";
 export * from "./bots";
+export * from "./miniApps";

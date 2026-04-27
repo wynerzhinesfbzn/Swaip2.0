@@ -26,6 +26,7 @@ import battleRouter from "./battle.js";
 import gamesRouter from "./games.js";
 import linkPreviewRouter from "./linkPreview";
 import botsRouter from "./bots.js";
+import miniAppsRouter from "./miniApps.js";
 
 const router: IRouter = Router();
 
@@ -56,5 +57,6 @@ router.use(battleRouter);
 router.use(gamesRouter);
 router.use(linkPreviewRouter);
 router.use(botsRouter);
+router.use(miniAppsRouter);
 
 export default router;

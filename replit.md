@@ -64,6 +64,9 @@ artifacts/
       ProMessaging.tsx    ← мессенджер + E2E
       BgMusic.tsx         ← фоновая музыка (singleton-плеер)
       SwpExchange.tsx     ← крипто SWP
+      BotBuilder.tsx      ← конструктор ботов (экраны, BotChat тест, ConnectPicker)
+      SwaipVideoPlayer.tsx← кастомный видеоплеер (5 скинов: swaip/noir/aurora/titanium/crimson)
+      SwaipMiniAppBuilder.tsx ← конструктор мини-аппов (блоки: hero/text/image/video/buttons/price/contacts/divider)
       ChannelTemplates.tsx← шаблоны каналов
       PostExtras.tsx      ← расширения постов (карусель, ссылка, опрос...)
       ChatGames.tsx       ← игры в чате
@@ -275,6 +278,8 @@ fetch(`${window.location.origin}/api/something`, {
 | `gitPush.ts`        | `POST /api/git-push` → push в GitHub (использует GITHUB_TOKEN)  |
 | `health.ts`         | `GET /api/health`                                                |
 | `tts.ts`            | Text-to-speech                                                   |
+| `bots.ts`           | `GET/POST /api/bots`, `PUT/DELETE /api/bots/:id` — конструктор ботов |
+| `miniApps.ts`       | `GET/POST /api/mini-apps`, `PUT/DELETE /api/mini-apps/:id` — конструктор мини-аппов |
 
 ### Как добавить новый роут
 
