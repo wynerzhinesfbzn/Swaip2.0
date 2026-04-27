@@ -7838,56 +7838,47 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     </AnimatePresence>
 
     {/* ═══ НИЖНЯЯ НАВИГАЦИЯ ═══ */}
-    <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:430,zIndex:400,
-      background:isDark?'rgba(8,8,16,0.95)':'rgba(245,245,250,0.95)',backdropFilter:'blur(20px)',
-      borderTop:`1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)'}`,
-      display:'flex',alignItems:'center',justifyContent:'space-around',padding:'10px 0 max(10px,env(safe-area-inset-bottom))'}}>
-      {/* Главная */}
-      <motion.button whileTap={{scale:0.88}} onClick={()=>setNavTab('home')}
-        style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:navTab==='home'?c.accent:c.sub,padding:'4px 14px',minWidth:52}}>
-        <span style={{fontSize:22,lineHeight:1}}>🏠</span>
-        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Главная</span>
-      </motion.button>
-      {/* Сообщения с бейджем */}
-      <motion.button whileTap={{scale:0.88}} onClick={()=>setNavTab('messages')}
-        style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:navTab==='messages'?c.accent:c.sub,padding:'4px 14px',minWidth:52,position:'relative'}}>
-        <span style={{fontSize:22,lineHeight:1}}>💬</span>
-        {unreadCount>0&&(
-          <span style={{position:'absolute',top:0,right:6,minWidth:18,height:18,borderRadius:9,background:'#ef4444',
-            color:'#fff',fontSize:10,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 4px'}}>
-            {unreadCount>99?'99+':unreadCount}
-          </span>
-        )}
-        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Чаты</span>
-      </motion.button>
-      {/* Каналы */}
-      <motion.button whileTap={{scale:0.88}} onClick={()=>setNavTab('channels')}
-        style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:navTab==='channels'?c.accent:c.sub,padding:'4px 14px',minWidth:52,position:'relative'}}>
-        <span style={{fontSize:22,lineHeight:1}}>📡</span>
-        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Каналы</span>
-        {navTab==='channels'&&<motion.div layoutId="nav_indicator"
-          style={{position:'absolute',bottom:-2,left:'50%',transform:'translateX(-50%)',
-            width:20,height:2,borderRadius:1,background:c.accent}}/>}
-      </motion.button>
-      {/* Поиск — встроенный */}
-      <motion.button whileTap={{scale:0.88}} onClick={()=>setShowSearch(v=>!v)}
-        style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:showSearch?c.accent:c.sub,padding:'4px 14px',minWidth:52}}>
-        <span style={{fontSize:22,lineHeight:1}}>🔍</span>
-        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Поиск</span>
-      </motion.button>
-      {/* Браузер */}
-      <motion.button whileTap={{scale:0.88}} onClick={()=>{setNavTab(v=>v==='browser'?'home':'browser');}}
-        style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',border:'none',cursor:'pointer',
-          color:navTab==='browser'?c.accent:c.sub,padding:'4px 14px',minWidth:52}}>
-        <span style={{fontSize:22,lineHeight:1}}>🌐</span>
-        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase'}}>Браузер</span>
-        {navTab==='browser'&&<motion.div layoutId="nav_indicator" style={{position:'absolute',bottom:-2,left:'50%',transform:'translateX(-50%)',width:20,height:2,borderRadius:1,background:c.accent}}/>}
-      </motion.button>
-    </div>
+    {(()=>{
+      const NAV=[
+        {id:'home',   emo:'🏠', label:'Главная',  active:navTab==='home',    fn:()=>setNavTab('home')},
+        {id:'msg',    emo:'💬', label:'Чаты',     active:navTab==='messages', fn:()=>setNavTab('messages'), badge:unreadCount},
+        {id:'chan',   emo:'📡', label:'Каналы',   active:navTab==='channels', fn:()=>setNavTab('channels')},
+        {id:'search', emo:'🔍', label:'Поиск',    active:showSearch,           fn:()=>setShowSearch(v=>!v)},
+        {id:'browser',emo:'🌐', label:'Браузер',  active:navTab==='browser',  fn:()=>setNavTab(v=>v==='browser'?'home':'browser')},
+      ] as const;
+      return(
+        <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:430,zIndex:400,
+          background:isDark?'rgba(8,8,16,0.95)':'rgba(245,245,250,0.95)',backdropFilter:'blur(20px)',
+          borderTop:`1px solid ${isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)'}`,
+          display:'flex',alignItems:'stretch',padding:'0 0 max(6px,env(safe-area-inset-bottom))'}}>
+          {NAV.map(n=>(
+            <motion.button key={n.id} whileTap={{scale:0.85}} onClick={n.fn}
+              style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',gap:3,
+                background:'none',border:'none',cursor:'pointer',position:'relative',padding:'10px 4px 8px',
+                color:n.active?c.accent:c.sub}}>
+              {/* Активный индикатор сверху */}
+              {n.active&&(
+                <motion.div layoutId="nav_pill"
+                  style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',
+                    width:32,height:2.5,borderRadius:2,background:c.accent}}/>
+              )}
+              {/* Бейдж непрочитанных */}
+              {'badge' in n && (n.badge as number)>0&&(
+                <span style={{position:'absolute',top:6,right:'calc(50% - 18px)',minWidth:16,height:16,borderRadius:8,
+                  background:'#ef4444',color:'#fff',fontSize:9,fontWeight:900,
+                  display:'flex',alignItems:'center',justifyContent:'center',padding:'0 3px'}}>
+                  {(n.badge as number)>99?'99+':(n.badge as number)}
+                </span>
+              )}
+              <span style={{fontSize:21,lineHeight:1,transition:'transform 0.15s',
+                transform:n.active?'scale(1.12)':'scale(1)'}}>{n.emo}</span>
+              <span style={{fontSize:9,fontWeight:n.active?800:600,letterSpacing:'0.04em',
+                textTransform:'uppercase',transition:'all 0.15s'}}>{n.label}</span>
+            </motion.button>
+          ))}
+        </div>
+      );
+    })()}
 
     {/* ═══ ОВЕРЛЕЙ ЗВОНКА ═══ */}
     <CallOverlayUI call={call} peerInfo={callPeerInfo} apiBase={apiBase}/>
@@ -9093,22 +9084,31 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                   {showAddMenu&&(
                     <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}}
                       style={{overflow:'hidden',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
-                      <div style={{padding:'8px',display:'flex',flexDirection:'column',gap:4}}>
+                      {/* ── горизонтальная карусель иконок ── */}
+                      <div style={{display:'flex',gap:8,overflowX:'auto',padding:'12px 10px 14px',scrollbarWidth:'none'}}>
                         {ADDONS.map(a=>{
                           const disabled=a.need==='poll'&&!postHasPoll;
                           return (
-                            <button key={a.id} disabled={disabled}
-                              onClick={()=>{a.toggle();}}
-                              style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:8,
-                                background:a.on?`${a.clr}1a`:'transparent',
-                                border:`1px solid ${a.on?a.clr+'55':'transparent'}`,
-                                cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.35:1,
-                                color:'#fff',width:'100%',textAlign:'left',transition:'all 0.18s'}}>
-                              <span style={{fontSize:16,flexShrink:0}}>{a.emo}</span>
-                              <span style={{flex:1,fontSize:13,color:a.on?a.clr:'rgba(255,255,255,0.78)',
-                                fontWeight:a.on?700:500,fontFamily:'"Montserrat",sans-serif'}}>{a.lbl}</span>
-                              <span style={{fontSize:14,color:a.on?a.clr:'rgba(255,255,255,0.25)',fontWeight:700}}>
-                                {a.on?'✓':'+'}
+                            <button key={a.id} disabled={disabled} onClick={()=>{ if(!disabled) a.toggle(); }}
+                              style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:5,
+                                background:'none',border:'none',cursor:disabled?'not-allowed':'pointer',
+                                padding:0,width:60,opacity:disabled?0.35:1}}>
+                              <div style={{width:50,height:50,borderRadius:15,display:'flex',alignItems:'center',
+                                justifyContent:'center',fontSize:21,position:'relative',transition:'all 0.15s',
+                                background:a.on?`${a.clr}22`:'rgba(255,255,255,0.06)',
+                                border:`2px solid ${a.on?a.clr:'rgba(255,255,255,0.1)'}`,
+                                boxShadow:a.on?`0 0 10px ${a.clr}44`:'none'}}>
+                                {a.emo}
+                                {a.on&&(
+                                  <div style={{position:'absolute',top:-4,right:-4,width:15,height:15,borderRadius:'50%',
+                                    background:a.clr,display:'flex',alignItems:'center',justifyContent:'center',
+                                    fontSize:8,fontWeight:900,color:'#000'}}>✓</div>
+                                )}
+                              </div>
+                              <span style={{fontSize:9,fontWeight:700,color:a.on?a.clr:'rgba(255,255,255,0.45)',
+                                textAlign:'center',lineHeight:1.2,maxWidth:58,
+                                display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+                                {a.lbl.split(' /')[0].split(' «')[0]}
                               </span>
                             </button>
                           );
