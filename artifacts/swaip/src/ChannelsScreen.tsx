@@ -847,9 +847,11 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
       )}
 
       {/* ── Бизнес-секции шаблона ── */}
-      {ch.usp&&<ChannelUSPBanner usp={ch.usp} color={ch.vibeColor||accent} c={c}/>}
+      {ch.usp&&<ChannelUSPBanner usp={ch.usp} color={ch.vibeColor||accent} c={c}
+        onUpdate={usp=>onUpdate({usp})}/>}
       {ch.employees&&ch.employees.length>0&&(
-        <ChannelEmployeeRoster employees={ch.employees} color={ch.vibeColor||accent} c={c}/>
+        <ChannelEmployeeRoster employees={ch.employees} color={ch.vibeColor||accent} c={c}
+          onUpdate={emps=>onUpdate({employees:emps})}/>
       )}
       {ch.priceList&&ch.priceList.length>0&&ch.templateId&&(
         <ChannelPriceList
@@ -857,6 +859,7 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
           color={ch.vibeColor||accent}
           c={c}
           type={(CHANNEL_TEMPLATES.find(t=>t.id===ch.templateId)?.type)||'services'}
+          onUpdate={items=>onUpdate({priceList:items})}
         />
       )}
 

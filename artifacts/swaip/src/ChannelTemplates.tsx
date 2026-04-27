@@ -653,208 +653,500 @@ export function TemplatePicker({
   );
 }
 
-/* ══════════ БЛОК СОТРУДНИКОВ В КАНАЛЕ ══════════ */
-export function ChannelEmployeeRoster({
-  employees, color, c,
-}: {
-  employees: ChannelEmployee[]; color: string; c: any;
+/* ══════════ helpers ══════════ */
+function getDates(n = 14): { label: string; short: string; full: string; dow: string }[] {
+  const DAYS = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const MONTHS = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const res = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    const dow = DAYS[d.getDay()];
+    res.push({
+      label: i === 0 ? 'Сегодня' : i === 1 ? 'Завтра' : `${dow} ${d.getDate()}`,
+      short: `${d.getDate()} ${MONTHS[d.getMonth()]}`,
+      full: d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }),
+      dow,
+    });
+  }
+  return res;
+}
+
+/* ══════════ АЛИНА.АС БОТ — подтверждение записи ══════════ */
+function AlinaConfirmModal({ name, time, date, color, c, onClose }: {
+  name: string; time: string; date: string; color: string; c: any; onClose: () => void;
 }) {
-  const [selected, setSelected] = useState<ChannelEmployee | null>(null);
-  const [bookedSlot, setBookedSlot] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
+  React.useEffect(() => {
+    const t1 = setTimeout(() => setStep(1), 600);
+    const t2 = setTimeout(() => setStep(2), 1400);
+    const t3 = setTimeout(() => setStep(3), 2200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  const msgs = [
+    { from: 'bot', text: `Привет! 👋 Я Алина.ас — умный помощник записи.` },
+    { from: 'bot', text: `✅ Ваша запись к **${name}** подтверждена!\n📅 ${date} в ${time}` },
+    { from: 'bot', text: `Напомню вам за 2 часа до визита. Если нужно перенести — просто напишите мне 😊` },
+  ];
 
   return (
-    <div style={{ padding:'14px 16px', borderBottom:`1px solid ${c.border}` }}>
-      <p style={{ margin:'0 0 12px', fontSize:14, fontWeight:900, color:c.light }}>👥 Наша команда</p>
-      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-        {employees.map(e => (
-          <motion.button key={e.id} whileTap={{ scale:0.97 }} onClick={()=>{ setSelected(e); setBookedSlot(null); }}
-            style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:16,
-              background:c.card||'rgba(255,255,255,0.05)', border:`1px solid ${c.border}`,
-              cursor:'pointer', textAlign:'left', width:'100%' }}>
-            <div style={{ width:48, height:48, borderRadius:16, background:`${color}22`,
-              border:`2px solid ${color}55`, display:'flex', alignItems:'center',
-              justifyContent:'center', fontSize:22, flexShrink:0 }}>
-              {e.photoUrl ? <img src={e.photoUrl} alt={e.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:14 }}/> : e.emoji}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 500,
+        display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+        style={{ background: c.bg, borderRadius: '24px 24px 0 0', padding: '24px 20px 40px', maxHeight: '70vh', overflowY: 'auto' }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: `${color}22`,
+            border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🤖</div>
+          <div>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: c.light }}>Алина.ас</p>
+            <p style={{ margin: 0, fontSize: 11, color: '#22c55e', fontWeight: 600 }}>● онлайн · помощник записи</p>
+          </div>
+          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.1)',
+            border: 'none', borderRadius: 10, width: 32, height: 32, cursor: 'pointer', color: c.light, fontSize: 16 }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+          {msgs.slice(0, step + 1).map((m, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              style={{ maxWidth: '85%', padding: '10px 14px', borderRadius: 16, borderBottomLeftRadius: 4,
+                background: `${color}18`, border: `1px solid ${color}30` }}>
+              <p style={{ margin: 0, fontSize: 13, color: c.light, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                {m.text.replace(/\*\*(.*?)\*\*/g, '$1')}
+              </p>
+            </motion.div>
+          ))}
+          {step < 3 && (
+            <div style={{ display: 'flex', gap: 4, padding: '10px 14px' }}>
+              {[0, 1, 2].map(i => (
+                <motion.div key={i} animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                  style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+              ))}
             </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <p style={{ margin:0, fontSize:14, fontWeight:800, color:c.light }}>{e.name}</p>
-              <p style={{ margin:'2px 0 0', fontSize:12, color, fontWeight:600 }}>{e.role}</p>
-              {e.rating && (
-                <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:4 }}>
-                  {[1,2,3,4,5].map(i=>(
-                    <span key={i} style={{ fontSize:10, opacity: i<=Math.round(e.rating!) ? 1 : 0.25 }}>⭐</span>
-                  ))}
-                  <span style={{ fontSize:11, color:'#fbbf24', fontWeight:700, marginLeft:2 }}>{e.rating.toFixed(1)}</span>
-                </div>
-              )}
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4, flexShrink:0 }}>
-              {e.bookingSlots && e.bookingSlots.length > 0 && (
-                <span style={{ fontSize:10, fontWeight:700, color, background:`${color}18`,
-                  borderRadius:8, padding:'3px 7px' }}>📅 Записаться</span>
-              )}
-            </div>
+          )}
+        </div>
+
+        {step >= 3 && (
+          <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onClose}
+            style={{ width: '100%', padding: '14px', borderRadius: 16, border: 'none', cursor: 'pointer',
+              background: `linear-gradient(135deg,${color}cc,${color})`, color: '#000', fontSize: 15, fontWeight: 900, fontFamily: 'inherit' }}>
+            Отлично, спасибо! ✓
           </motion.button>
-        ))}
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ══════════ БЛОК СОТРУДНИКОВ В КАНАЛЕ ══════════ */
+export function ChannelEmployeeRoster({
+  employees, color, c, onUpdate,
+}: {
+  employees: ChannelEmployee[]; color: string; c: any;
+  onUpdate?: (emps: ChannelEmployee[]) => void;
+}) {
+  const [selected, setSelected] = useState<ChannelEmployee | null>(null);
+  const [dateIdx, setDateIdx] = useState(0);
+  const [bookedSlot, setBookedSlot] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<ChannelEmployee[]>([]);
+
+  const dates = getDates(14);
+  const canEdit = !!onUpdate;
+
+  function openEmp(e: ChannelEmployee) {
+    setSelected(e); setDateIdx(0); setBookedSlot(null); setConfirmed(false);
+  }
+
+  function startEdit() { setDraft(employees.map(e => ({ ...e, bookingSlots: [...(e.bookingSlots || [])] }))); setEditing(true); }
+  function saveEdit() { onUpdate?.(draft); setEditing(false); }
+
+  function updDraft(id: string, patch: Partial<ChannelEmployee>) {
+    setDraft(d => d.map(e => e.id === id ? { ...e, ...patch } : e));
+  }
+  function addSlot(id: string, slot: string) {
+    setDraft(d => d.map(e => e.id === id ? { ...e, bookingSlots: [...(e.bookingSlots||[]), slot] } : e));
+  }
+  function removeSlot(id: string, slot: string) {
+    setDraft(d => d.map(e => e.id === id ? { ...e, bookingSlots: (e.bookingSlots||[]).filter(s => s !== slot) } : e));
+  }
+  function addEmployee() {
+    const id = `e${Date.now()}`;
+    setDraft(d => [...d, { id, name: 'Новый мастер', role: 'Специалист', emoji: '👤', rating: 5.0, bio: '', bookingSlots: ['10:00','12:00','14:00'] }]);
+  }
+  function removeEmployee(id: string) { setDraft(d => d.filter(e => e.id !== id)); }
+
+  return (
+    <div style={{ padding: '14px 16px', borderBottom: `1px solid ${c.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: c.light, flex: 1 }}>👥 Наша команда</p>
+        {canEdit && !editing && (
+          <button onClick={startEdit} style={{ background: `${color}18`, border: `1px solid ${color}40`,
+            borderRadius: 10, padding: '4px 10px', fontSize: 12, fontWeight: 700, color, cursor: 'pointer' }}>✏️ Изменить</button>
+        )}
+        {editing && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setEditing(false)} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10, padding: '4px 10px', fontSize: 12, fontWeight: 700, color: c.sub, cursor: 'pointer' }}>Отмена</button>
+            <button onClick={saveEdit} style={{ background: `${color}22`, border: `1px solid ${color}55`,
+              borderRadius: 10, padding: '4px 12px', fontSize: 12, fontWeight: 700, color, cursor: 'pointer' }}>Сохранить ✓</button>
+          </div>
+        )}
       </div>
 
-      {/* Модал сотрудника */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', zIndex:300,
-              display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
-            <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}}
-              transition={{type:'spring',damping:28,stiffness:280}}
-              style={{ background:c.bg, borderRadius:'24px 24px 0 0', padding:'24px 20px 40px',
-                maxHeight:'85vh', overflowY:'auto' }}>
-
-              {/* Кнопка закрытия */}
-              <button onClick={()=>setSelected(null)}
-                style={{ position:'absolute', top:16, right:16, background:'rgba(255,255,255,0.1)',
-                  border:'none', borderRadius:12, width:34, height:34, fontSize:16, cursor:'pointer', color:c.light }}>✕</button>
-
-              {/* Аватар и инфо */}
-              <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
-                <div style={{ width:72, height:72, borderRadius:20, background:`${color}22`,
-                  border:`3px solid ${color}`, display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:34, flexShrink:0 }}>
-                  {selected.photoUrl
-                    ? <img src={selected.photoUrl} alt={selected.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:17 }}/>
-                    : selected.emoji}
+      {/* Режим редактирования */}
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {draft.map(e => (
+            <div key={e.id} style={{ borderRadius: 16, background: c.card || 'rgba(255,255,255,0.05)',
+              border: `1px solid ${c.border}`, padding: '14px' }}>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 14, background: `${color}22`,
+                  border: `2px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{e.emoji}</div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <input value={e.name} onChange={ev => updDraft(e.id, { name: ev.target.value })}
+                    placeholder="Имя мастера" style={{ padding: '6px 10px', borderRadius: 10, border: `1px solid ${color}40`,
+                      background: 'rgba(255,255,255,0.06)', color: c.light, fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }} />
+                  <input value={e.role} onChange={ev => updDraft(e.id, { role: ev.target.value })}
+                    placeholder="Должность" style={{ padding: '6px 10px', borderRadius: 10, border: `1px solid rgba(255,255,255,0.1)`,
+                      background: 'rgba(255,255,255,0.04)', color: c.sub, fontSize: 12, fontFamily: 'inherit' }} />
                 </div>
-                <div style={{ flex:1 }}>
-                  <p style={{ margin:0, fontSize:20, fontWeight:900, color:c.light }}>{selected.name}</p>
-                  <p style={{ margin:'4px 0 0', fontSize:13, color, fontWeight:700 }}>{selected.role}</p>
+                <button onClick={() => removeEmployee(e.id)} style={{ background: 'rgba(239,68,68,0.15)',
+                  border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, width: 32, height: 32,
+                  fontSize: 14, cursor: 'pointer', color: '#ef4444', flexShrink: 0 }}>✕</button>
+              </div>
+              <textarea value={e.bio || ''} onChange={ev => updDraft(e.id, { bio: ev.target.value })}
+                placeholder="О мастере..." rows={2}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: `1px solid rgba(255,255,255,0.08)`,
+                  background: 'rgba(255,255,255,0.03)', color: c.sub, fontSize: 12, resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <p style={{ margin: '10px 0 6px', fontSize: 11, fontWeight: 700, color: c.sub }}>Слоты времени:</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {(e.bookingSlots || []).map(sl => (
+                  <div key={sl} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px',
+                    borderRadius: 10, background: `${color}15`, border: `1px solid ${color}30` }}>
+                    <span style={{ fontSize: 12, color, fontWeight: 700 }}>{sl}</span>
+                    <button onClick={() => removeSlot(e.id, sl)} style={{ background: 'none', border: 'none',
+                      cursor: 'pointer', color: '#ef4444', fontSize: 12, padding: 0, lineHeight: 1 }}>×</button>
+                  </div>
+                ))}
+                <AddSlotInline onAdd={sl => addSlot(e.id, sl)} color={color} c={c} />
+              </div>
+            </div>
+          ))}
+          <button onClick={addEmployee} style={{ padding: '12px', borderRadius: 14, border: `1.5px dashed ${color}50`,
+            background: `${color}08`, color, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Добавить мастера</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {employees.map(e => (
+            <motion.button key={e.id} whileTap={{ scale: 0.97 }} onClick={() => openEmp(e)}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 16,
+                background: c.card || 'rgba(255,255,255,0.05)', border: `1px solid ${c.border}`,
+                cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 16, background: `${color}22`,
+                border: `2px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                {e.photoUrl ? <img src={e.photoUrl} alt={e.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 14 }} /> : e.emoji}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: c.light }}>{e.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color, fontWeight: 600 }}>{e.role}</p>
+                {e.rating && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 4 }}>
+                    {[1,2,3,4,5].map(i => <span key={i} style={{ fontSize: 10, opacity: i <= Math.round(e.rating!) ? 1 : 0.2 }}>⭐</span>)}
+                    <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700, marginLeft: 2 }}>{e.rating.toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+              {e.bookingSlots && e.bookingSlots.length > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}18`,
+                  borderRadius: 8, padding: '3px 7px', flexShrink: 0 }}>📅 Записаться</span>
+              )}
+            </motion.button>
+          ))}
+        </div>
+      )}
+
+      {/* Модал сотрудника с записью */}
+      <AnimatePresence>
+        {selected && !confirmed && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 300,
+              display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              style={{ background: c.bg, borderRadius: '24px 24px 0 0', padding: '24px 20px 40px',
+                maxHeight: '88vh', overflowY: 'auto' }}>
+
+              <button onClick={() => setSelected(null)}
+                style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.1)',
+                  border: 'none', borderRadius: 12, width: 34, height: 34, fontSize: 16, cursor: 'pointer', color: c.light }}>✕</button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <div style={{ width: 72, height: 72, borderRadius: 20, background: `${color}22`,
+                  border: `3px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, flexShrink: 0 }}>
+                  {selected.photoUrl ? <img src={selected.photoUrl} alt={selected.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 17 }} /> : selected.emoji}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: c.light }}>{selected.name}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color, fontWeight: 700 }}>{selected.role}</p>
                   {selected.rating && (
-                    <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:6 }}>
-                      <span style={{ fontSize:16 }}>⭐</span>
-                      <span style={{ fontSize:16, fontWeight:900, color:'#fbbf24' }}>{selected.rating.toFixed(1)}</span>
-                      <span style={{ fontSize:12, color:c.sub }}>рейтинг</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                      <span style={{ fontSize: 16 }}>⭐</span>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: '#fbbf24' }}>{selected.rating.toFixed(1)}</span>
+                      <span style={{ fontSize: 12, color: c.sub }}>рейтинг</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Биография */}
               {selected.bio && (
-                <div style={{ padding:'12px 14px', borderRadius:14, background:c.card||'rgba(255,255,255,0.05)',
-                  border:`1px solid ${c.border}`, marginBottom:16 }}>
-                  <p style={{ margin:0, fontSize:13, color:c.sub, lineHeight:1.5 }}>{selected.bio}</p>
+                <div style={{ padding: '12px 14px', borderRadius: 14, background: c.card || 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${c.border}`, marginBottom: 16 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: c.sub, lineHeight: 1.5 }}>{selected.bio}</p>
                 </div>
               )}
 
-              {/* Слоты записи */}
               {selected.bookingSlots && selected.bookingSlots.length > 0 && (
                 <div>
-                  <p style={{ margin:'0 0 10px', fontSize:14, fontWeight:800, color:c.light }}>📅 Выбери удобное время</p>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                  {/* Выбор даты */}
+                  <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, color: c.light }}>📅 Выберите дату</p>
+                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none', marginBottom: 16 }}>
+                    {dates.map((d, i) => (
+                      <button key={i} onClick={() => { setDateIdx(i); setBookedSlot(null); }}
+                        style={{ flexShrink: 0, padding: '8px 14px', borderRadius: 14, cursor: 'pointer',
+                          border: `2px solid ${dateIdx === i ? color : 'rgba(255,255,255,0.12)'}`,
+                          background: dateIdx === i ? `${color}22` : 'transparent',
+                          color: dateIdx === i ? color : c.light, fontFamily: 'inherit' }}>
+                        <p style={{ margin: 0, fontSize: 11, fontWeight: 700 }}>{d.dow}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 15, fontWeight: 900 }}>{d.label.replace(/[А-Яа-я]+ /,'').trim()}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Выбор времени */}
+                  <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, color: c.light }}>🕐 Выберите время</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                     {selected.bookingSlots.map(slot => {
-                      const isBooked = bookedSlot === slot;
+                      const active = bookedSlot === slot;
                       return (
-                        <motion.button key={slot} whileTap={{ scale:0.94 }} onClick={()=>setBookedSlot(isBooked?null:slot)}
-                          style={{ padding:'10px 16px', borderRadius:12,
-                            border:`2px solid ${isBooked?color:'rgba(255,255,255,0.15)'}`,
-                            background: isBooked?`${color}22`:'transparent',
-                            color: isBooked?color:c.light, fontSize:14, fontWeight:700, cursor:'pointer' }}>
-                          {isBooked?'✓ ':''}{slot}
+                        <motion.button key={slot} whileTap={{ scale: 0.94 }} onClick={() => setBookedSlot(active ? null : slot)}
+                          style={{ padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
+                            border: `2px solid ${active ? color : 'rgba(255,255,255,0.15)'}`,
+                            background: active ? `${color}22` : 'transparent',
+                            color: active ? color : c.light, fontSize: 14, fontWeight: 700 }}>
+                          {active ? '✓ ' : ''}{slot}
                         </motion.button>
                       );
                     })}
                   </div>
-                  {bookedSlot && (
-                    <motion.button initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}
-                      style={{ width:'100%', marginTop:16, padding:'15px', borderRadius:18, border:'none',
-                        background:`linear-gradient(135deg,${color}cc,${color})`, color:'#000',
-                        fontSize:15, fontWeight:900, cursor:'pointer', fontFamily:'inherit' }}>
-                      📅 Записаться на {bookedSlot} к {selected.name}
-                    </motion.button>
-                  )}
+
+                  {/* Кнопка подтверждения */}
+                  <AnimatePresence>
+                    {bookedSlot && (
+                      <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                        onClick={() => setConfirmed(true)}
+                        style={{ width: '100%', padding: '16px', borderRadius: 18, border: 'none', cursor: 'pointer',
+                          background: `linear-gradient(135deg,${color}cc,${color})`, color: '#000',
+                          fontSize: 15, fontWeight: 900, fontFamily: 'inherit' }}>
+                        📅 Записаться — {dates[dateIdx].full} в {bookedSlot}
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Бот Алина.ас — подтверждение */}
+      <AnimatePresence>
+        {selected && confirmed && (
+          <AlinaConfirmModal
+            name={selected.name}
+            time={bookedSlot || ''}
+            date={dates[dateIdx].full}
+            color={color}
+            c={c}
+            onClose={() => { setSelected(null); setConfirmed(false); setBookedSlot(null); }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* маленький компонент добавления слота */
+function AddSlotInline({ onAdd, color, c }: { onAdd: (s: string) => void; color: string; c: any }) {
+  const [val, setVal] = useState('');
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <input value={val} onChange={e => setVal(e.target.value)} placeholder="чч:мм"
+        style={{ width: 56, padding: '4px 8px', borderRadius: 8, border: `1px solid rgba(255,255,255,0.15)`,
+          background: 'rgba(255,255,255,0.05)', color: c.light, fontSize: 12, fontFamily: 'inherit' }} />
+      <button onClick={() => { if (val.match(/^\d{1,2}:\d{2}$/)) { onAdd(val); setVal(''); } }}
+        style={{ padding: '4px 8px', borderRadius: 8, background: `${color}22`, border: `1px solid ${color}40`,
+          color, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+</button>
     </div>
   );
 }
 
 /* ══════════ ПРАЙС-ЛИСТ / МЕНЮ / КАТАЛОГ ══════════ */
 export function ChannelPriceList({
-  items, color, c, type,
+  items, color, c, type, onUpdate,
 }: {
   items: PriceItem[]; color: string; c: any;
   type: TemplateType;
+  onUpdate?: (items: PriceItem[]) => void;
 }) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<PriceItem[]>([]);
 
-  const categories = ['all', ...Array.from(new Set(items.map(i => i.category||'').filter(Boolean)))];
+  const canEdit = !!onUpdate;
+  const categories = ['all', ...Array.from(new Set(items.map(i => i.category || '').filter(Boolean)))];
   const filtered = activeCategory === 'all' ? items : items.filter(i => i.category === activeCategory);
-
   const title = type === 'food' ? '📋 Меню' : type === 'retail' ? '🛒 Каталог' : '💰 Прайс-лист';
 
+  function startEdit() { setDraft(items.map(i => ({ ...i }))); setEditing(true); }
+  function saveEdit() { onUpdate?.(draft); setEditing(false); }
+
+  function updItem(id: string, patch: Partial<PriceItem>) {
+    setDraft(d => d.map(i => i.id === id ? { ...i, ...patch } : i));
+  }
+  function removeItem(id: string) { setDraft(d => d.filter(i => i.id !== id)); }
+  function addItem() {
+    setDraft(d => [...d, { id: `p${Date.now()}`, name: 'Новая позиция', price: '0 ₽', emoji: '🛒', category: d[0]?.category || '' }]);
+  }
+
+  const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
+    padding: '6px 10px', borderRadius: 10, border: `1px solid rgba(255,255,255,0.1)`,
+    background: 'rgba(255,255,255,0.05)', color: c.light, fontSize: 13, fontFamily: 'inherit', ...extra,
+  });
+
   return (
-    <div style={{ padding:'14px 16px' }}>
-      <p style={{ margin:'0 0 12px', fontSize:14, fontWeight:900, color:c.light }}>{title}</p>
-
-      {/* Категории */}
-      {categories.length > 2 && (
-        <div style={{ display:'flex', gap:6, marginBottom:12, overflowX:'auto', paddingBottom:4 }}>
-          {categories.map(cat => (
-            <button key={cat} onClick={()=>setActiveCategory(cat)}
-              style={{ padding:'5px 12px', borderRadius:14, flexShrink:0,
-                border:`1.5px solid ${activeCategory===cat?color:'rgba(255,255,255,0.1)'}`,
-                background: activeCategory===cat?`${color}18`:'transparent',
-                color: activeCategory===cat?color:c.sub, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              {cat === 'all' ? 'Всё' : cat}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Позиции */}
-      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-        {filtered.map(item => (
-          <div key={item.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px',
-            borderRadius:14, background:c.card||'rgba(255,255,255,0.04)',
-            border:`1px solid ${c.border}`, position:'relative', overflow:'hidden' }}>
-            {item.emoji && (
-              <span style={{ fontSize:22, flexShrink:0 }}>{item.emoji}</span>
-            )}
-            <div style={{ flex:1, minWidth:0 }}>
-              <p style={{ margin:0, fontSize:13, fontWeight:700, color:c.light }}>{item.name}</p>
-              {item.description && (
-                <p style={{ margin:'2px 0 0', fontSize:11, color:c.sub, lineHeight:1.3 }}>{item.description}</p>
-              )}
-              {item.unit && (
-                <p style={{ margin:'2px 0 0', fontSize:11, color:c.sub }}>{item.unit}</p>
-              )}
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4, flexShrink:0 }}>
-              <span style={{ fontSize:14, fontWeight:900, color }}>{item.price}</span>
-              {item.inStock !== undefined && (
-                <span style={{ fontSize:10, fontWeight:700,
-                  color: item.inStock?'#22c55e':'#ef4444' }}>
-                  {item.inStock?'● В наличии':'○ Нет'}
-                </span>
-              )}
-            </div>
+    <div style={{ padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: c.light, flex: 1 }}>{title}</p>
+        {canEdit && !editing && (
+          <button onClick={startEdit} style={{ background: `${color}18`, border: `1px solid ${color}40`,
+            borderRadius: 10, padding: '4px 10px', fontSize: 12, fontWeight: 700, color, cursor: 'pointer' }}>✏️ Изменить</button>
+        )}
+        {editing && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setEditing(false)} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10, padding: '4px 10px', fontSize: 12, fontWeight: 700, color: c.sub, cursor: 'pointer' }}>Отмена</button>
+            <button onClick={saveEdit} style={{ background: `${color}22`, border: `1px solid ${color}55`,
+              borderRadius: 10, padding: '4px 12px', fontSize: 12, fontWeight: 700, color, cursor: 'pointer' }}>Сохранить ✓</button>
           </div>
-        ))}
+        )}
       </div>
+
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {draft.map(item => (
+            <div key={item.id} style={{ borderRadius: 14, background: c.card || 'rgba(255,255,255,0.04)',
+              border: `1px solid ${c.border}`, padding: '12px' }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <input value={item.emoji || ''} onChange={e => updItem(item.id, { emoji: e.target.value })}
+                  placeholder="🛒" style={{ ...inp(), width: 48, textAlign: 'center', fontSize: 18 }} />
+                <input value={item.name} onChange={e => updItem(item.id, { name: e.target.value })}
+                  placeholder="Название" style={{ ...inp(), flex: 1 }} />
+                <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(239,68,68,0.15)',
+                  border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, width: 36, height: 36,
+                  fontSize: 14, cursor: 'pointer', color: '#ef4444', flexShrink: 0 }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={item.price} onChange={e => updItem(item.id, { price: e.target.value })}
+                  placeholder="Цена" style={{ ...inp(), width: 100, color, fontWeight: 800 }} />
+                <input value={item.category || ''} onChange={e => updItem(item.id, { category: e.target.value })}
+                  placeholder="Категория" style={{ ...inp(), flex: 1 }} />
+              </div>
+              {item.description !== undefined && (
+                <input value={item.description} onChange={e => updItem(item.id, { description: e.target.value })}
+                  placeholder="Описание (необязательно)" style={{ ...inp({ marginTop: 8, width: '100%', boxSizing: 'border-box' }) }} />
+              )}
+            </div>
+          ))}
+          <button onClick={addItem} style={{ padding: '12px', borderRadius: 14, border: `1.5px dashed ${color}50`,
+            background: `${color}08`, color, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Добавить позицию</button>
+        </div>
+      ) : (
+        <>
+          {categories.length > 2 && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setActiveCategory(cat)}
+                  style={{ padding: '5px 12px', borderRadius: 14, flexShrink: 0, cursor: 'pointer',
+                    border: `1.5px solid ${activeCategory === cat ? color : 'rgba(255,255,255,0.1)'}`,
+                    background: activeCategory === cat ? `${color}18` : 'transparent',
+                    color: activeCategory === cat ? color : c.sub, fontSize: 12, fontWeight: 700 }}>
+                  {cat === 'all' ? 'Всё' : cat}
+                </button>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filtered.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                borderRadius: 14, background: c.card || 'rgba(255,255,255,0.04)', border: `1px solid ${c.border}` }}>
+                {item.emoji && <span style={{ fontSize: 22, flexShrink: 0 }}>{item.emoji}</span>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: c.light }}>{item.name}</p>
+                  {item.description && <p style={{ margin: '2px 0 0', fontSize: 11, color: c.sub, lineHeight: 1.3 }}>{item.description}</p>}
+                  {item.unit && <p style={{ margin: '2px 0 0', fontSize: 11, color: c.sub }}>{item.unit}</p>}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                  <span style={{ fontSize: 14, fontWeight: 900, color }}>{item.price}</span>
+                  {item.inStock !== undefined && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: item.inStock ? '#22c55e' : '#ef4444' }}>
+                      {item.inStock ? '● В наличии' : '○ Нет'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 /* ══════════ USP БАННЕР ══════════ */
-export function ChannelUSPBanner({ usp, color, c }: { usp:string; color:string; c:any }) {
+export function ChannelUSPBanner({ usp, color, c, onUpdate }: {
+  usp: string; color: string; c: any;
+  onUpdate?: (usp: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(usp);
+
   return (
-    <div style={{ padding:'10px 16px', borderBottom:`1px solid ${c.border}` }}>
-      <div style={{ padding:'12px 14px', borderRadius:14, background:`${color}12`,
-        border:`1px solid ${color}35` }}>
-        <p style={{ margin:0, fontSize:12, fontWeight:700, color, lineHeight:1.6 }}>{usp}</p>
-      </div>
+    <div style={{ padding: '10px 16px', borderBottom: `1px solid ${c.border}` }}>
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={3}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 12, border: `1px solid ${color}50`,
+              background: `${color}08`, color, fontSize: 12, fontWeight: 700, resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box', lineHeight: 1.6 }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setEditing(false)} style={{ flex: 1, padding: '8px', borderRadius: 10,
+              border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: c.sub, fontSize: 12, cursor: 'pointer' }}>Отмена</button>
+            <button onClick={() => { onUpdate?.(draft); setEditing(false); }} style={{ flex: 1, padding: '8px', borderRadius: 10,
+              border: `1px solid ${color}55`, background: `${color}22`, color, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Сохранить ✓</button>
+          </div>
+        </div>
+      ) : (
+        <div onClick={() => onUpdate && setEditing(true)}
+          style={{ padding: '12px 14px', borderRadius: 14, background: `${color}12`,
+            border: `1px solid ${color}35`, cursor: onUpdate ? 'pointer' : 'default' }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color, lineHeight: 1.6 }}>{usp}</p>
+          {onUpdate && <p style={{ margin: '4px 0 0', fontSize: 10, color: `${color}80` }}>✏️ Нажмите для редактирования</p>}
+        </div>
+      )}
     </div>
   );
 }
