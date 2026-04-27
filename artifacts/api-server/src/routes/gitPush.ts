@@ -20,40 +20,64 @@ router.post("/git-push", async (req, res) => {
     });
   }
 
-  const message = (req.body?.message as string | undefined)?.trim()
+  const commitMsg = (req.body?.message as string | undefined)?.trim()
     || `chore: update ${new Date().toISOString()}`;
 
   const env = { ...process.env, GITHUB_TOKEN: token };
-  const opts = { cwd: PROJECT_ROOT, env };
+  const opts = { cwd: PROJECT_ROOT, env, timeout: 60000 };
 
   try {
+    /* 1. Настроить git remote с токеном */
     const setupHelper = path.join(SCRIPTS_DIR, "setup-git-auth.sh");
     await execAsync(`bash "${setupHelper}"`, opts);
 
-    const { stdout: statusOut } = await execAsync("git status --porcelain", opts);
-    const hasChanges = statusOut.trim().length > 0;
+    /* 2. Проверить статус без индекса (git diff не трогает index.lock) */
+    let hasUncommitted = false;
+    let commitOutput = "(nothing to commit — pushed existing commits)";
 
-    let commitOutput = "";
-    if (hasChanges) {
-      await execAsync("git add -A", opts);
-      const { stdout: commitOut } = await execAsync(
-        `git commit -m "${message.replace(/"/g, '\\"')}"`,
-        opts
-      );
-      commitOutput = commitOut.trim();
+    try {
+      /* git diff HEAD -- работает без index.lock */
+      const { stdout: diffOut } = await execAsync("git diff HEAD --name-only", opts);
+      /* Незакоммиченные новые файлы */
+      const { stdout: lsFiles } = await execAsync("git ls-files --others --exclude-standard", opts);
+      hasUncommitted = (diffOut.trim().length > 0) || (lsFiles.trim().length > 0);
+    } catch {
+      /* Если и это не работает — продолжаем, просто пушим то что есть */
     }
 
-    const { stdout: pushOut } = await execAsync("git push origin main", opts);
+    /* 3. Если есть незакоммиченные изменения — пробуем закоммитить */
+    if (hasUncommitted) {
+      try {
+        await execAsync("git add -A", opts);
+        const { stdout: co } = await execAsync(
+          `git commit -m "${commitMsg.replace(/"/g, '\\"')}"`,
+          opts
+        );
+        commitOutput = co.trim();
+      } catch (commitErr: any) {
+        /* Если commit провалился из-за lock — просто пушим существующие коммиты */
+        commitOutput = `commit skipped (${commitErr?.stderr?.split('\n')[0] || 'lock conflict'})`;
+      }
+    }
+
+    /* 4. Push — не требует index.lock */
+    const { stdout: pushOut, stderr: pushErr } = await execAsync(
+      "git push origin main",
+      opts
+    );
+
+    /* git push пишет в stderr даже при успехе */
+    const pushMsg = (pushOut + pushErr).trim() || "Already up to date.";
 
     return res.json({
       success: true,
-      hasChanges,
-      commit: commitOutput || "(nothing to commit)",
-      push: pushOut.trim() || "Already up to date.",
+      hasUncommitted,
+      commit: commitOutput,
+      push: pushMsg,
     });
   } catch (err: any) {
-    const message = err?.stderr || err?.stdout || err?.message || "Unknown error";
-    return res.status(500).json({ success: false, error: message });
+    const errMsg = err?.stderr || err?.stdout || err?.message || "Unknown error";
+    return res.status(500).json({ success: false, error: errMsg });
   }
 });
 
