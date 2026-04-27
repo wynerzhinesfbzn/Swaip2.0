@@ -1257,6 +1257,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
   const [bkPhone,setBkPhone]=useState('');
   const [bkStatus,setBkStatus]=useState<'idle'|'sending'|'done'|'error'>('idle');
   const [bkError,setBkError]=useState('');
+  const [guestTab,setGuestTab]=useState<'feed'|'widgets'>('feed');
   const submitBooking=async(item:PriceItem)=>{
     if(!bkName.trim()||!bkPhone.trim()){setBkError('Заполните имя и телефон');return;}
     setBkStatus('sending');setBkError('');
@@ -1342,6 +1343,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
   const highlights:any[]=Array.isArray(d.sw_highlights)?d.sw_highlights:[];
   const widgetLabels:Record<string,string>=d.sw_widget_labels_v2||{};
   const widgetPreviews:Record<string,string>=d.sw_widget_previews_v2||{};
+  const profMood:{emoji:string;text:string}=typeof d.pro_mood==='object'&&d.pro_mood!==null?d.pro_mood:{emoji:'',text:''};
   const wLabel=(key:string,fb:string)=>widgetLabels[key]??fb;
   const wPreview=(key:string)=>widgetPreviews[key]??'';
 
@@ -1441,6 +1443,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                       </div>
                       {profNick&&<div style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:12,color:c.sub,fontFamily:'monospace'}}>@{profNick}</span></div>}
                       {(position||company)&&<div style={{fontSize:11,color:c.sub}}>{position}{position&&company?' · ':''}{company}</div>}
+                      {profMood.emoji&&<div style={{display:'inline-flex',alignItems:'center',gap:4,background:`${ac}18`,border:`1px solid ${ac}44`,borderRadius:20,padding:'2px 8px',marginTop:2,width:'fit-content'}}><span style={{fontSize:13}}>{profMood.emoji}</span><span style={{fontSize:11,color:ac,fontWeight:700}}>{profMood.text}</span></div>}
                       <div style={{display:'flex',gap:5,marginTop:4}}>
                         {guestBtns.map(btn=>(
                           <motion.button key={btn.lbl} whileTap={{scale:0.93}} onClick={btn.fn} style={{width:54,height:48,borderRadius:10,background:'rgba(160,160,200,0.1)',border:`1px solid ${c.border}`,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,flexShrink:0}}>
@@ -1481,6 +1484,15 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                     {(position||company)&&<div style={{fontSize:11,color:c.sub,marginTop:3}}>{position}{position&&company?' · ':''}{company}</div>}
                     <div style={{marginTop:8,fontSize:13,color:bio?c.mid:c.sub,lineHeight:1.5,padding:'0 12px'}}>{bio||''}</div>
                     {website&&<a href={website.startsWith('http')?website:`https://${website}`} target="_blank" rel="noreferrer" style={{display:'block',marginTop:6,fontSize:12,color:'#6060cc',textDecoration:'none'}}>🌐 {website.replace(/^https?:\/\//,'')}</a>}
+                    {profMood.emoji&&<div style={{display:'flex',justifyContent:'center',marginTop:8}}><div style={{display:'inline-flex',alignItems:'center',gap:4,background:`${ac}18`,border:`1px solid ${ac}44`,borderRadius:20,padding:'3px 10px'}}><span style={{fontSize:15}}>{profMood.emoji}</span><span style={{fontSize:12,color:ac,fontWeight:700}}>{profMood.text}</span></div></div>}
+                  </div>
+                  <div style={{display:'flex',margin:'12px 16px 0',borderRadius:12,background:c.cardAlt,border:`1px solid ${c.border}`,overflow:'hidden'}}>
+                    {[{n:'Посты',v:posts.length},{n:'Друзья',v:0},{n:'Подписки',v:0}].map((s,i)=>(
+                      <div key={s.n} style={{flex:1,textAlign:'center',padding:'10px 0',borderRight:i<2?`1px solid ${c.border}`:'none'}}>
+                        <div style={{fontSize:17,fontWeight:900,color:c.light}}>{s.v}</div>
+                        <div style={{fontSize:9,color:c.sub,marginTop:1,letterSpacing:'0.04em'}}>{s.n}</div>
+                      </div>
+                    ))}
                   </div>
                   <div style={{display:'flex',gap:8,padding:'12px 16px 0'}}>
                     <motion.button whileTap={{scale:0.96}} onClick={()=>onMessage(hash,name)} style={{flex:1,padding:'11px 0',borderRadius:12,background:ac,border:'none',color:'#fff',fontWeight:800,fontSize:13,cursor:'pointer'}}>✏️ Написать</motion.button>
@@ -1504,6 +1516,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                       <span style={{fontSize:22,fontWeight:900,color:c.light,letterSpacing:'-0.04em',lineHeight:1.1,display:'block'}}>{name}</span>
                       {profNick&&<div style={{marginTop:2}}><span style={{fontSize:10,color:`${ac}bb`,fontFamily:'monospace',letterSpacing:'0.1em'}}>@{profNick}</span></div>}
                       {(position||company)&&<div style={{fontSize:11,color:c.sub,marginTop:2,letterSpacing:'0.03em'}}>{position}{position&&company?' / ':''}{company}</div>}
+                      {profMood.emoji&&<div style={{display:'inline-flex',alignItems:'center',gap:4,background:`${ac}18`,border:`1px solid ${ac}44`,borderRadius:20,padding:'2px 8px',marginTop:4,width:'fit-content'}}><span style={{fontSize:13}}>{profMood.emoji}</span><span style={{fontSize:11,color:ac,fontWeight:700}}>{profMood.text}</span></div>}
                       <div style={{fontSize:12,color:bio?c.mid:c.sub,marginTop:5,lineHeight:1.4}}>{bio||''}</div>
                       {website&&<a href={website.startsWith('http')?website:`https://${website}`} target="_blank" rel="noreferrer" style={{display:'block',marginTop:4,fontSize:11,color:'#6060cc',textDecoration:'none'}}>🌐 {website.replace(/^https?:\/\//,'')}</a>}
                     </div>
@@ -1536,6 +1549,12 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                     <div style={{flex:1,paddingTop:30,minWidth:0}}>
                       <span style={{fontSize:16,fontWeight:900,color:ac,textShadow:`0 0 12px ${ac}88`,letterSpacing:'-0.01em'}}>{name}</span>
                       {profNick&&<div style={{marginTop:1}}><span style={{fontSize:10,color:`${ac}88`,fontFamily:'monospace'}}>@{profNick}</span></div>}
+                      {profMood.emoji&&<div style={{marginTop:5,display:'inline-flex',alignItems:'center',gap:4,background:`${ac}18`,border:`1px solid ${ac}44`,borderRadius:20,padding:'2px 8px'}}><span style={{fontSize:12}}>{profMood.emoji}</span><span style={{fontSize:10,color:ac,fontWeight:700}}>{profMood.text}</span></div>}
+                      <div style={{display:'flex',gap:4,marginTop:6,flexWrap:'wrap'}}>
+                        {[{l:'ПОСТОВ',v:posts.length},{l:'FRIENDS',v:0}].map(s=>(
+                          <div key={s.l} style={{padding:'2px 7px',borderRadius:3,border:`1px solid ${ac}44`,background:`${ac}11`,fontSize:9,fontWeight:900,color:ac,letterSpacing:'0.1em'}}>{s.v} {s.l}</div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div style={{fontSize:12,color:'rgba(200,210,255,0.7)',lineHeight:1.5,margin:'0 0 10px',fontFamily:'monospace'}}>{bio||''}</div>
@@ -1561,6 +1580,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                   <div><span style={{fontSize:18,fontWeight:900,color:c.light,letterSpacing:'-0.03em'}}>{name}</span></div>
                   {profNick&&<div style={{marginTop:2}}><span style={{fontSize:11,color:c.sub,fontFamily:'monospace'}}>@{profNick}</span></div>}
                   {(position||company)&&<div style={{fontSize:11,color:c.sub,marginTop:3}}>{position}{position&&company?' · ':''}{company}</div>}
+                  {profMood.emoji&&<div style={{display:'flex',justifyContent:'center',marginTop:8}}><div style={{display:'inline-flex',alignItems:'center',gap:4,background:`${ac}18`,border:`1px solid ${ac}44`,borderRadius:20,padding:'2px 8px'}}><span style={{fontSize:13}}>{profMood.emoji}</span><span style={{fontSize:11,color:ac,fontWeight:700}}>{profMood.text}</span></div></div>}
                   <div style={{marginTop:8,fontSize:13,color:bio?c.mid:c.sub,lineHeight:1.5,padding:'0 20px'}}>{bio||''}</div>
                   {website&&<a href={website.startsWith('http')?website:`https://${website}`} target="_blank" rel="noreferrer" style={{display:'block',marginTop:6,fontSize:12,color:'#6060cc',textDecoration:'none'}}>🌐 {website.replace(/^https?:\/\//,'')}</a>}
                   <div style={{display:'flex',justifyContent:'center',gap:28,marginTop:16}}>
@@ -1589,6 +1609,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                       </div>
                       {profNick&&<div style={{marginTop:1}}><span style={{fontSize:10,color:c.sub,fontFamily:'monospace'}}>@{profNick}</span></div>}
                       <div style={{fontSize:11,color:bio?c.mid:c.sub,marginTop:2,lineHeight:1.3,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2 as any,WebkitBoxOrient:'vertical' as any}}>{bio||''}</div>
+                      {profMood.emoji&&<div style={{marginTop:4,display:'inline-flex',alignItems:'center',gap:4,background:`${ac}18`,border:`1px solid ${ac}44`,borderRadius:20,padding:'2px 7px'}}><span style={{fontSize:11}}>{profMood.emoji}</span><span style={{fontSize:10,color:ac,fontWeight:700}}>{profMood.text}</span></div>}
                     </div>
                   </div>
                   <div style={{display:'flex',gap:5,marginTop:8}}>
@@ -1700,12 +1721,139 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
               );
             })()}
 
-            {/* ── Лента с фоном feedBg как у хозяина ── */}
-            <div style={{padding:'10px 10px 80px',background:feedBg||c.deep,backgroundAttachment:'fixed',minHeight:300}}>
-              {posts.length>0
-                ?posts.map(p=><PostCard key={p.id} p={p} name={name} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} onBook={handleBook} onUpdate={upd=>setPosts(prev=>prev.map(q=>q.id===upd.id?upd:q))} onNewPost={raw=>{const b=raw as any;const np:Post={id:String(b.id||`p_${Date.now()}`),text:b.content||'',img:b.imageUrl||undefined,videoUrl:b.videoUrl||undefined,audioUrl:b.audioUrl||undefined,likes:0,liked:false,comments:0,ts:'только что',...(b.quoteOf?{quoteOf:b.quoteOf}:{}),...(b.repostOf?{repostOf:b.repostOf}:{})};setPosts(prev=>[np,...prev]);}} isOwner={true} c={c} accent={ac} style={pcs||1}/>)
-                :<div style={{textAlign:'center',color:c.sub,fontSize:13,paddingTop:60,opacity:0.7}}>Публикаций пока нет</div>}
+            {/* ── Табы Лента | Виджеты (как у хозяина) ── */}
+            <div style={{flexShrink:0,display:'flex',background:c.card,borderBottom:`1px solid ${c.border}`}}>
+              {([['feed','Лента'],['widgets','Виджеты']] as [string,string][]).map(([k,lbl])=>{
+                const active=guestTab===k;
+                return <button key={k} onClick={()=>setGuestTab(k as 'feed'|'widgets')}
+                  style={{flex:1,padding:'9px 0',border:'none',background:'none',cursor:'pointer',
+                    fontWeight:active?900:500,fontSize:12,color:active?c.light:c.sub,
+                    borderBottom:active?`2.5px solid ${ac}`:'2.5px solid transparent',transition:'all 0.15s'}}>{lbl}</button>;
+              })}
             </div>
+
+            {/* ── Лента ── */}
+            {guestTab==='feed'&&(
+              <div style={{padding:'10px 10px 80px',background:feedBg||c.deep,backgroundAttachment:'fixed',minHeight:300}}>
+                {posts.length>0
+                  ?posts.map(p=><PostCard key={p.id} p={p} name={name} avatarSrc={avatarSrc} onLike={toggleLike} onComment={id=>setCommentPostId(id)} onBook={handleBook} onUpdate={upd=>setPosts(prev=>prev.map(q=>q.id===upd.id?upd:q))} onNewPost={raw=>{const b=raw as any;const np:Post={id:String(b.id||`p_${Date.now()}`),text:b.content||'',img:b.imageUrl||undefined,videoUrl:b.videoUrl||undefined,audioUrl:b.audioUrl||undefined,likes:0,liked:false,comments:0,ts:'только что',...(b.quoteOf?{quoteOf:b.quoteOf}:{}),...(b.repostOf?{repostOf:b.repostOf}:{})};setPosts(prev=>[np,...prev]);}} isOwner={true} c={c} accent={ac} style={pcs||1}/>)
+                  :<div style={{textAlign:'center',color:c.sub,fontSize:13,paddingTop:60,opacity:0.7}}>Публикаций пока нет</div>}
+              </div>
+            )}
+
+            {/* ── Виджеты (как у хозяина, только без кнопок редактирования) ── */}
+            {guestTab==='widgets'&&(
+              <div style={{padding:'12px 12px 80px',background:feedBg||c.deep,backgroundAttachment:'fixed',minHeight:300}}>
+                <div style={{fontSize:9,fontWeight:800,color:c.sub,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Блоки профиля</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:16}}>
+                  {WIDGET_LIST.map(w=><WidgetSquare key={w.key} icon={w.icon} label={wLabel(w.key,w.label)} count={w.count} c={c} previewUrl={wPreview(w.key)} onPreviewChange={()=>{}} onClick={()=>setWidgetModal(w.key)}/>)}
+                </div>
+                {/* Работы */}
+                {works.length>0&&(<div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>🎨 Работы</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                    {works.map((w:any)=>(
+                      <div key={w.id} style={{borderRadius:14,overflow:'hidden',background:c.card,border:`1px solid ${c.border}`}}>
+                        {w.imageUrl?<img src={w.imageUrl} alt={w.title} style={{width:'100%',aspectRatio:'1/1',objectFit:'cover',display:'block'}}/>
+                          :<div style={{width:'100%',aspectRatio:'1/1',background:c.cardAlt,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>🎨</div>}
+                        <div style={{padding:8}}>
+                          <div style={{fontSize:12,fontWeight:800,color:c.light}}>{w.title}</div>
+                          {w.desc&&<div style={{fontSize:10,color:c.sub,marginTop:2,lineHeight:1.4}}>{w.desc.slice(0,60)}{w.desc.length>60?'…':''}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>)}
+                {/* Прайс */}
+                {priceItems.length>0&&(<div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>💰 Услуги и цены</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {priceItems.map((item:any)=>(
+                      <div key={item.id} style={{borderRadius:14,overflow:'hidden',background:c.card,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',gap:0}}>
+                        {item.photo&&<img src={item.photo} alt={item.name} style={{width:80,height:80,objectFit:'cover',flexShrink:0}}/>}
+                        <div style={{padding:'10px 12px',flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:800,color:c.light}}>{item.name}</div>
+                          {item.desc&&<div style={{fontSize:11,color:c.sub,marginTop:2,lineHeight:1.4}}>{item.desc}</div>}
+                          <div style={{fontSize:15,fontWeight:900,color:ac,marginTop:4}}>{item.price}{item.unit?` / ${item.unit}`:''}</div>
+                        </div>
+                        <motion.button whileTap={{scale:0.95}} onClick={()=>{setBookingItem(item);setBkName('');setBkPhone('');setBkStatus('idle');setBkError('');setWidgetModal('booking');}} style={{flexShrink:0,margin:10,padding:'8px 14px',borderRadius:10,background:ac,border:'none',color:'#fff',fontWeight:800,fontSize:11,cursor:'pointer'}}>Записаться</motion.button>
+                      </div>
+                    ))}
+                  </div>
+                </div>)}
+                {/* Отзывы */}
+                {reviews.length>0&&(<div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>⭐ Отзывы</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {reviews.map((r:any)=>(
+                      <div key={r.id} style={{borderRadius:14,overflow:'hidden',background:c.card,border:`1px solid ${c.border}`}}>
+                        {r.imageUrl&&<img src={r.imageUrl} alt="" style={{width:'100%',display:'block',objectFit:'contain',maxHeight:260}}/>}
+                        {r.caption&&<div style={{padding:'10px 12px',fontSize:13,color:c.mid,lineHeight:1.5}}>{r.caption}</div>}
+                        {r.date&&<div style={{padding:'0 12px 10px',fontSize:10,color:c.sub}}>{r.date}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>)}
+                {/* Сертификаты */}
+                {certs.length>0&&(<div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>📜 Сертификаты</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {certs.map((cert:any)=>(
+                      <div key={cert.id} style={{borderRadius:14,overflow:'hidden',background:c.card,border:`1px solid ${c.border}`}}>
+                        {cert.imageUrl&&<img src={cert.imageUrl} alt={cert.title} style={{width:'100%',display:'block',objectFit:'contain',maxHeight:220}}/>}
+                        {cert.title&&<div style={{padding:'10px 12px',fontSize:13,fontWeight:700,color:c.light}}>{cert.title}</div>}
+                        {cert.desc&&<div style={{padding:'0 12px 10px',fontSize:11,color:c.sub,lineHeight:1.4}}>{cert.desc}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>)}
+                {/* Кейсы */}
+                {cases.length>0&&(<div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>📁 Кейсы</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {cases.map((cs:any)=>(
+                      <div key={cs.id} style={{borderRadius:14,background:c.card,border:`1px solid ${c.border}`,padding:'12px 14px'}}>
+                        <div style={{fontSize:13,fontWeight:800,color:c.light,marginBottom:4}}>{cs.title}</div>
+                        {cs.desc&&<div style={{fontSize:12,color:c.mid,lineHeight:1.5}}>{cs.desc}</div>}
+                        {cs.result&&<div style={{marginTop:6,fontSize:11,color:ac,fontWeight:700}}>Результат: {cs.result}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>)}
+                {/* FAQ */}
+                {faqs.length>0&&(<div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>❓ FAQ</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    {faqs.map((f:any)=>(
+                      <div key={f.id} style={{borderRadius:12,background:c.card,border:`1px solid ${c.border}`,padding:'10px 14px'}}>
+                        <div style={{fontSize:13,fontWeight:700,color:c.light,marginBottom:4}}>Q: {f.question}</div>
+                        <div style={{fontSize:12,color:c.mid,lineHeight:1.5}}>A: {f.answer}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>)}
+                {/* Ссылки */}
+                {links.length>0&&(<div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>🔗 Ссылки</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    {links.map((lnk:any,i:number)=>(
+                      <a key={i} href={lnk.url?.startsWith('http')?lnk.url:`https://${lnk.url}`} target="_blank" rel="noreferrer"
+                        style={{borderRadius:12,background:c.card,border:`1px solid ${c.border}`,padding:'10px 14px',display:'flex',alignItems:'center',gap:10,textDecoration:'none'}}>
+                        {lnk.icon&&<span style={{fontSize:20}}>{lnk.icon}</span>}
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:700,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lnk.label||lnk.url}</div>
+                          {lnk.url&&<div style={{fontSize:10,color:c.sub,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lnk.url}</div>}
+                        </div>
+                        <span style={{fontSize:12,color:c.sub,flexShrink:0}}>↗</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>)}
+                {works.length===0&&priceItems.length===0&&reviews.length===0&&certs.length===0&&cases.length===0&&faqs.length===0&&links.length===0&&(
+                  <div style={{textAlign:'center',color:c.sub,fontSize:13,paddingTop:40,opacity:0.7}}>Виджеты не заполнены</div>
+                )}
+              </div>
+            )}
           </>
         )}
 
