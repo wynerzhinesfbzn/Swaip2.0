@@ -10601,7 +10601,7 @@ function MeetingsScreen({apiBase,userHash,onBack}:{apiBase:string;userHash:strin
       <AnimatePresence>
         {showSearch&&(
           <motion.div key="unified-search" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.15}}
-            style={{position:'fixed',inset:0,zIndex:300}}>
+            style={{position:'fixed',inset:0,zIndex:1200}}>
             <UnifiedSearchScreen
               apiBase={apiBase}
               c={c as any}
