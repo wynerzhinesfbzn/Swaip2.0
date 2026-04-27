@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef,useCallback} from 'react';
+import {createPortal} from 'react-dom';
 import {motion,AnimatePresence} from 'framer-motion';
 import {SERVICE_CATEGORIES} from './ChannelsScreen';
 
@@ -169,8 +170,8 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
   const displayChannels=catResults.channels.filter(()=>tab==='channels');
   const displayGroups=catResults.groups.filter(()=>tab==='groups');
 
-  return(
-    <div style={{position:'fixed',inset:0,background:c.deep,display:'flex',flexDirection:'column',zIndex:1200,fontFamily:'inherit'}}>
+  return createPortal(
+    <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:c.deep,display:'flex',flexDirection:'column',zIndex:99999,fontFamily:'inherit'}}>
       {/* ── Шапка ─────────────────────────────────────────── */}
       <div style={{background:c.surface,borderBottom:`1px solid ${c.border}`,padding:'10px 12px 0',flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
@@ -399,7 +400,8 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
             onViewOwner={()=>{setOpenGroup(null);onViewProfile(openGroup._owner.hash,{name:openGroup._owner.name,avatar:openGroup._owner.avatar||av(openGroup._owner.hash.slice(0,14)||'u',80),handle:openGroup._owner.nick||'',bio:''});}}/>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body
   );
 }
 
