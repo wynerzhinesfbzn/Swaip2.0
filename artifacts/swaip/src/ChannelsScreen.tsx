@@ -176,6 +176,9 @@ function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.
           postCount:ch.posts.length,rubrics:ch.rubrics,energyLevel:ch.energyLevel,
           isVerified:ch.isVerified,pulse:ch.pulse,authorName:ch.authorName,
           templateId:ch.templateId,usp:ch.usp,createdAt:ch.createdAt,
+          posts:ch.posts.slice(-20),
+          employees:ch.employees||[],
+          priceList:ch.priceList||[],
         }));
         try{localStorage.setItem(SYNC_KEY,JSON.stringify(summary));}catch{}
       }
@@ -195,6 +198,9 @@ function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.
           postCount:ch.posts.length,rubrics:ch.rubrics,energyLevel:ch.energyLevel,
           isVerified:ch.isVerified,pulse:ch.pulse,authorName:ch.authorName,
           templateId:ch.templateId,usp:ch.usp,createdAt:ch.createdAt,
+          posts:ch.posts.slice(-20),
+          employees:ch.employees||[],
+          priceList:ch.priceList||[],
         }));
         localStorage.setItem(SYNC_KEY,JSON.stringify(summary));
       }catch{}
@@ -289,6 +295,7 @@ function useGroupsStore(userHash:string):[SwaipGroup[],React.Dispatch<React.SetS
           memberCount:g.members.length,postCount:g.posts.length,
           isPrivate:g.isPrivate,wordOfDay:g.wordOfDay,todayMood:g.todayMood,
           streak:g.streak,createdAt:g.createdAt,
+          ...(g.isPrivate?{}:{posts:g.posts.slice(-15)}),
         }));
         try{localStorage.setItem(SYNC_KEY,JSON.stringify(summary));}catch{}
       }
@@ -306,6 +313,7 @@ function useGroupsStore(userHash:string):[SwaipGroup[],React.Dispatch<React.SetS
           memberCount:g.members.length,postCount:g.posts.length,
           isPrivate:g.isPrivate,wordOfDay:g.wordOfDay,todayMood:g.todayMood,
           streak:g.streak,createdAt:g.createdAt,
+          ...(g.isPrivate?{}:{posts:g.posts.slice(-15)}),
         }));
         localStorage.setItem(SYNC_KEY,JSON.stringify(summary));
       }catch{}

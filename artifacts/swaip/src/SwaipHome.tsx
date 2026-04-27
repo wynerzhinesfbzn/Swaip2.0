@@ -1258,6 +1258,8 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
   const [bkStatus,setBkStatus]=useState<'idle'|'sending'|'done'|'error'>('idle');
   const [bkError,setBkError]=useState('');
   const [guestTab,setGuestTab]=useState<'feed'|'widgets'>('feed');
+  const [openGuestChannel,setOpenGuestChannel]=useState<any|null>(null);
+  const [openGuestGroup,setOpenGuestGroup]=useState<any|null>(null);
   const submitBooking=async(item:PriceItem)=>{
     if(!bkName.trim()||!bkPhone.trim()){setBkError('Заполните имя и телефон');return;}
     setBkStatus('sending');setBkError('');
@@ -1643,7 +1645,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
               </div>
             )}
 
-            {/* ── Каналы хозяина ── */}
+            {/* ── Каналы хозяина (полный список, кликабельный) ── */}
             {(()=>{
               const guestChannels:any[]=Array.isArray(d.sw_channels)?d.sw_channels:[];
               if(!guestChannels.length)return null;
@@ -1652,69 +1654,109 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                   <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
                     <span style={{fontSize:16}}>📡</span>
                     <span style={{fontSize:14,fontWeight:900,color:c.light}}>Каналы</span>
-                    <span style={{fontSize:12,color:c.sub,marginLeft:'auto'}}>{guestChannels.length}</span>
+                    <span style={{fontSize:11,color:c.sub,marginLeft:'auto',background:c.cardAlt,borderRadius:20,padding:'1px 8px',border:`1px solid ${c.border}`}}>{guestChannels.length}</span>
                   </div>
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
                     {guestChannels.map((ch:any)=>(
-                      <div key={ch.id} style={{borderRadius:14,overflow:'hidden',background:c.cardAlt,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
-                        <div style={{width:44,height:44,borderRadius:'50%',flexShrink:0,
-                          background:ch.coverGradient||`linear-gradient(135deg,${ac}44,#0a0a14)`,
-                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,
-                          border:'2px solid rgba(255,255,255,0.12)',overflow:'hidden'}}>
-                          {ch.coverPhotoUrl||ch.avatarPhotoUrl
-                            ?<img src={ch.avatarPhotoUrl||ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                            :<span>{ch.vibe||'📡'}</span>}
+                      <motion.div key={ch.id} whileTap={{scale:0.98}} onClick={()=>setOpenGuestChannel(ch)}
+                        style={{borderRadius:16,overflow:'hidden',background:c.cardAlt,border:`1px solid ${c.border}`,cursor:'pointer',
+                          boxShadow:`0 2px 12px rgba(0,0,0,0.25)`}}>
+                        {/* Мини-шапка канала */}
+                        <div style={{height:56,background:ch.coverGradient||`linear-gradient(135deg,${ac}44,#0a0a14)`,position:'relative',overflow:'hidden'}}>
+                          {ch.coverPhotoUrl&&<img src={ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',opacity:0.7}}/>}
+                          <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 30%,rgba(0,0,0,0.6))'}}/>
                         </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:'flex',alignItems:'center',gap:5}}>
-                            <span style={{fontSize:13,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ch.name}</span>
-                            {ch.isVerified&&<span style={{fontSize:10,color:'#60a5fa'}}>✓</span>}
+                        <div style={{display:'flex',alignItems:'center',gap:10,padding:'6px 12px 10px',marginTop:-20,position:'relative'}}>
+                          <div style={{width:40,height:40,borderRadius:10,flexShrink:0,
+                            background:ch.coverGradient||`linear-gradient(135deg,${ac}44,#0a0a14)`,
+                            border:`2px solid ${c.card}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,overflow:'hidden'}}>
+                            {ch.avatarPhotoUrl?<img src={ch.avatarPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span>{ch.vibe||'📡'}</span>}
                           </div>
-                          {ch.description&&<div style={{fontSize:11,color:c.sub,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ch.description}</div>}
-                          <div style={{display:'flex',gap:10,marginTop:3}}>
-                            <span style={{fontSize:10,color:c.sub}}>👥 {ch.subscribers||0} подписчиков</span>
-                            <span style={{fontSize:10,color:c.sub}}>📝 {ch.postCount||0} постов</span>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:'flex',alignItems:'center',gap:5}}>
+                              <span style={{fontSize:13,fontWeight:900,color:c.light}}>{ch.name}</span>
+                              {ch.isVerified&&<span style={{fontSize:10,color:'#60a5fa',fontWeight:700}}>✓</span>}
+                            </div>
+                            <div style={{display:'flex',gap:8,marginTop:1}}>
+                              <span style={{fontSize:10,color:c.sub}}>👥 {ch.subscribers||0}</span>
+                              <span style={{fontSize:10,color:c.sub}}>📝 {ch.postCount||0}</span>
+                              {ch.tags?.length>0&&<span style={{fontSize:9,color:ac,fontWeight:700}}>#{ch.tags[0]}</span>}
+                            </div>
                           </div>
+                          <span style={{fontSize:12,color:c.sub,flexShrink:0}}>›</span>
                         </div>
-                        {ch.tags?.length>0&&<div style={{flexShrink:0,fontSize:9,color:ac,background:ac+'18',padding:'3px 8px',borderRadius:20,fontWeight:700,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ch.tags[0]}</div>}
-                      </div>
+                        {ch.description&&<div style={{padding:'0 12px 8px',fontSize:12,color:c.mid,lineHeight:1.4}}>{ch.description}</div>}
+                        {/* Превью последних постов */}
+                        {Array.isArray(ch.posts)&&ch.posts.length>0&&(
+                          <div style={{borderTop:`1px solid ${c.border}`,padding:'8px 12px',display:'flex',flexDirection:'column',gap:6}}>
+                            {ch.posts.slice(-3).reverse().map((p:any)=>(
+                              <div key={p.id} style={{fontSize:12,color:c.mid,lineHeight:1.4,display:'-webkit-box',WebkitLineClamp:2 as any,WebkitBoxOrient:'vertical' as any,overflow:'hidden'}}>
+                                {p.imageUrl&&<span style={{marginRight:4}}>🖼</span>}
+                                {p.text||''}
+                              </div>
+                            ))}
+                            <div style={{fontSize:10,color:ac,fontWeight:700,marginTop:2}}>Читать всё →</div>
+                          </div>
+                        )}
+                      </motion.div>
                     ))}
                   </div>
                 </div>
               );
             })()}
 
-            {/* ── Группы хозяина ── */}
+            {/* ── Группы хозяина (полный список, кликабельный) ── */}
             {(()=>{
               const guestGroups:any[]=Array.isArray(d.sw_groups)?d.sw_groups:[];
-              const publicGroups=guestGroups.filter((g:any)=>!g.isPrivate);
-              if(!publicGroups.length)return null;
+              if(!guestGroups.length)return null;
               return(
                 <div style={{background:c.card,borderBottom:`1px solid ${c.border}`,padding:'14px 12px 10px'}}>
                   <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
                     <span style={{fontSize:16}}>👥</span>
                     <span style={{fontSize:14,fontWeight:900,color:c.light}}>Группы</span>
-                    <span style={{fontSize:12,color:c.sub,marginLeft:'auto'}}>{publicGroups.length}</span>
+                    <span style={{fontSize:11,color:c.sub,marginLeft:'auto',background:c.cardAlt,borderRadius:20,padding:'1px 8px',border:`1px solid ${c.border}`}}>{guestGroups.length}</span>
                   </div>
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                    {publicGroups.map((g:any)=>(
-                      <div key={g.id} style={{borderRadius:14,overflow:'hidden',background:g.gradient||c.cardAlt,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
-                        <div style={{width:44,height:44,borderRadius:12,flexShrink:0,
-                          background:`linear-gradient(135deg,${g.color||ac}44,${g.color||ac}22)`,
-                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,
-                          border:`2px solid ${g.color||ac}44`}}>
-                          <span>{g.emoji||'👥'}</span>
-                        </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <span style={{fontSize:13,fontWeight:800,color:'rgba(255,255,255,0.92)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>{g.name}</span>
-                          {g.description&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.description}</div>}
-                          <div style={{display:'flex',gap:10,marginTop:3}}>
-                            <span style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>👥 {g.memberCount||0} участников</span>
-                            {g.streak>0&&<span style={{fontSize:10,color:'#f97316'}}>🔥 {g.streak} дней</span>}
+                    {guestGroups.map((g:any)=>(
+                      <motion.div key={g.id} whileTap={{scale:0.98}} onClick={()=>!g.isPrivate&&setOpenGuestGroup(g)}
+                        style={{borderRadius:16,overflow:'hidden',border:`1px solid ${g.color?g.color+'44':c.border}`,cursor:g.isPrivate?'default':'pointer',
+                          background:g.gradient||c.cardAlt,boxShadow:`0 2px 12px rgba(0,0,0,0.2)`}}>
+                        <div style={{padding:'10px 12px'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:10}}>
+                            <div style={{width:44,height:44,borderRadius:12,flexShrink:0,
+                              background:`linear-gradient(135deg,${g.color||ac}44,${g.color||ac}22)`,
+                              display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,
+                              border:`2px solid ${g.color||ac}44`}}>
+                              <span>{g.emoji||'👥'}</span>
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                                <span style={{fontSize:13,fontWeight:900,color:'rgba(255,255,255,0.92)'}}>{g.name}</span>
+                                {g.isPrivate&&<span style={{fontSize:9,color:c.sub,background:'rgba(255,255,255,0.08)',borderRadius:20,padding:'1px 6px'}}>🔒 Закрытая</span>}
+                              </div>
+                              {g.description&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.description}</div>}
+                              <div style={{display:'flex',gap:8,marginTop:3}}>
+                                <span style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>👥 {g.memberCount||0}</span>
+                                {g.streak>0&&<span style={{fontSize:10,color:'#f97316'}}>🔥 {g.streak} дн.</span>}
+                                {g.todayMood&&<span style={{fontSize:12}}>{g.todayMood}</span>}
+                                {g.wordOfDay&&<span style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>💬 «{g.wordOfDay}»</span>}
+                              </div>
+                            </div>
+                            {!g.isPrivate&&<span style={{fontSize:12,color:'rgba(255,255,255,0.3)',flexShrink:0}}>›</span>}
                           </div>
                         </div>
-                        {g.todayMood&&<div style={{flexShrink:0,fontSize:20}}>{g.todayMood}</div>}
-                      </div>
+                        {/* Превью последних постов (только публичные) */}
+                        {!g.isPrivate&&Array.isArray(g.posts)&&g.posts.length>0&&(
+                          <div style={{borderTop:`1px solid rgba(255,255,255,0.08)`,padding:'8px 12px',display:'flex',flexDirection:'column',gap:5}}>
+                            {g.posts.slice(-2).reverse().map((p:any)=>(
+                              <div key={p.id} style={{fontSize:12,color:'rgba(255,255,255,0.6)',lineHeight:1.4,display:'-webkit-box',WebkitLineClamp:2 as any,WebkitBoxOrient:'vertical' as any,overflow:'hidden'}}>
+                                <span style={{color:'rgba(255,255,255,0.35)',marginRight:4}}>{p.authorName?.split(' ')[0]||'Участник'}:</span>{p.text}
+                              </div>
+                            ))}
+                            <div style={{fontSize:10,color:g.color||ac,fontWeight:700,marginTop:2}}>Открыть группу →</div>
+                          </div>
+                        )}
+                      </motion.div>
                     ))}
                   </div>
                 </div>
@@ -1856,6 +1898,234 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
             )}
           </>
         )}
+
+        {/* ── Полный просмотр канала (гость) ── */}
+        <AnimatePresence>
+          {openGuestChannel&&(
+            <motion.div key="gch" initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',damping:30,stiffness:260}}
+              style={{position:'absolute',inset:0,background:c.deep,display:'flex',flexDirection:'column',zIndex:50,overflowY:'auto'}}>
+              {/* Шапка с обложкой */}
+              <div style={{position:'relative',flexShrink:0}}>
+                <div style={{height:140,background:openGuestChannel.coverGradient||`linear-gradient(135deg,${ac}44,#0a0a14)`,overflow:'hidden'}}>
+                  {openGuestChannel.coverPhotoUrl&&<img src={openGuestChannel.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+                  <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(0,0,0,0.2),rgba(0,0,0,0.7))'}}/>
+                </div>
+                <motion.button whileTap={{scale:0.9}} onClick={()=>setOpenGuestChannel(null)}
+                  style={{position:'absolute',top:12,left:12,width:36,height:36,borderRadius:12,background:'rgba(0,0,0,0.5)',
+                    border:'1px solid rgba(255,255,255,0.2)',color:'#fff',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(8px)'}}>←</motion.button>
+                <div style={{padding:'0 14px 14px',marginTop:-40,position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'flex-end',gap:12}}>
+                    <div style={{width:64,height:64,borderRadius:14,flexShrink:0,overflow:'hidden',
+                      background:openGuestChannel.coverGradient||`linear-gradient(135deg,${ac}44,#0a0a14)`,
+                      border:`3px solid ${c.deep}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26}}>
+                      {openGuestChannel.avatarPhotoUrl?<img src={openGuestChannel.avatarPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span>{openGuestChannel.vibe||'📡'}</span>}
+                    </div>
+                    <div style={{flex:1,minWidth:0,paddingBottom:4}}>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        <span style={{fontSize:16,fontWeight:900,color:'#fff'}}>{openGuestChannel.name}</span>
+                        {openGuestChannel.isVerified&&<span style={{fontSize:11,color:'#60a5fa',fontWeight:700}}>✓</span>}
+                      </div>
+                      {openGuestChannel.handle&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',fontFamily:'monospace'}}>@{openGuestChannel.handle}</div>}
+                    </div>
+                  </div>
+                  {openGuestChannel.description&&<div style={{marginTop:10,fontSize:13,color:'rgba(255,255,255,0.75)',lineHeight:1.5}}>{openGuestChannel.description}</div>}
+                  {/* Статистика */}
+                  <div style={{display:'flex',gap:14,marginTop:10}}>
+                    <div style={{textAlign:'center'}}>
+                      <div style={{fontSize:15,fontWeight:900,color:'#fff'}}>{openGuestChannel.subscribers||0}</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',letterSpacing:'0.06em'}}>ПОДПИСЧИКИ</div>
+                    </div>
+                    <div style={{textAlign:'center'}}>
+                      <div style={{fontSize:15,fontWeight:900,color:'#fff'}}>{openGuestChannel.postCount||0}</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',letterSpacing:'0.06em'}}>ПОСТОВ</div>
+                    </div>
+                    {openGuestChannel.energyLevel>0&&<div style={{textAlign:'center'}}>
+                      <div style={{fontSize:15,fontWeight:900,color:ac}}>{openGuestChannel.energyLevel}%</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',letterSpacing:'0.06em'}}>ЭНЕРГИЯ</div>
+                    </div>}
+                  </div>
+                  {/* Теги */}
+                  {openGuestChannel.tags?.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:8}}>
+                    {openGuestChannel.tags.map((t:string)=>(
+                      <span key={t} style={{fontSize:10,color:ac,background:ac+'18',border:`1px solid ${ac}33`,borderRadius:20,padding:'2px 8px',fontWeight:700}}>#{t}</span>
+                    ))}
+                  </div>}
+                  {/* USP */}
+                  {openGuestChannel.usp&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:12,background:ac+'18',border:`1px solid ${ac}33`,fontSize:12,color:'rgba(255,255,255,0.8)',lineHeight:1.5,fontStyle:'italic'}}>✨ {openGuestChannel.usp}</div>}
+                </div>
+              </div>
+              {/* Сотрудники */}
+              {openGuestChannel.employees?.length>0&&(
+                <div style={{padding:'12px 14px',borderTop:`1px solid ${c.border}`,flexShrink:0}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>👤 Команда</div>
+                  <div style={{display:'flex',gap:10,overflowX:'auto',scrollbarWidth:'none',paddingBottom:4}}>
+                    {openGuestChannel.employees.map((emp:any,i:number)=>(
+                      <div key={i} style={{flexShrink:0,textAlign:'center',minWidth:60}}>
+                        <div style={{width:44,height:44,borderRadius:'50%',background:ac+'33',border:`2px solid ${ac}55`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,margin:'0 auto 4px',overflow:'hidden'}}>
+                          {emp.photo?<img src={emp.photo} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span>👤</span>}
+                        </div>
+                        <div style={{fontSize:10,fontWeight:700,color:c.light,maxWidth:60,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.name}</div>
+                        {emp.role&&<div style={{fontSize:8,color:c.sub}}>{emp.role}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Прайс-лист */}
+              {openGuestChannel.priceList?.length>0&&(
+                <div style={{padding:'12px 14px',borderTop:`1px solid ${c.border}`,flexShrink:0}}>
+                  <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:8}}>💰 Услуги</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {openGuestChannel.priceList.map((item:any,i:number)=>(
+                      <div key={i} style={{borderRadius:12,background:c.card,border:`1px solid ${c.border}`,padding:'10px 12px',display:'flex',alignItems:'center',gap:10}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:700,color:c.light}}>{item.name}</div>
+                          {item.desc&&<div style={{fontSize:11,color:c.sub,marginTop:2}}>{item.desc}</div>}
+                        </div>
+                        {item.price&&<div style={{fontSize:14,fontWeight:900,color:ac,flexShrink:0}}>{item.price}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Посты канала */}
+              <div style={{padding:'12px 14px 80px',borderTop:`1px solid ${c.border}`}}>
+                <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:10}}>📝 Публикации</div>
+                {Array.isArray(openGuestChannel.posts)&&openGuestChannel.posts.length>0?(
+                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                    {[...openGuestChannel.posts].reverse().map((p:any)=>(
+                      <div key={p.id} style={{borderRadius:16,overflow:'hidden',background:c.card,border:`1px solid ${c.border}`}}>
+                        {/* Шапка поста */}
+                        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px 6px'}}>
+                          <div style={{width:28,height:28,borderRadius:8,overflow:'hidden',flexShrink:0,
+                            background:openGuestChannel.coverGradient||ac+'44',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>
+                            {openGuestChannel.avatarPhotoUrl?<img src={openGuestChannel.avatarPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span>{openGuestChannel.vibe||'📡'}</span>}
+                          </div>
+                          <div>
+                            <div style={{fontSize:11,fontWeight:800,color:c.light}}>{openGuestChannel.name}</div>
+                            <div style={{fontSize:9,color:c.sub}}>{new Date(p.createdAt).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}</div>
+                          </div>
+                          {p.isPinned&&<span style={{marginLeft:'auto',fontSize:10,color:ac}}>📌</span>}
+                          {p.rubric&&<span style={{marginLeft:'auto',fontSize:9,color:ac,background:ac+'18',padding:'1px 6px',borderRadius:20}}>{p.rubric}</span>}
+                        </div>
+                        {/* Контент */}
+                        {p.imageUrl&&<img src={p.imageUrl} alt="" style={{width:'100%',maxHeight:320,objectFit:'cover',display:'block'}}/>}
+                        {p.text&&<div style={{padding:'6px 12px',fontSize:13,color:c.mid,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.text}</div>}
+                        {/* Poll */}
+                        {p.pollQuestion&&(
+                          <div style={{padding:'6px 12px 10px'}}>
+                            <div style={{fontSize:13,fontWeight:700,color:c.light,marginBottom:6}}>📊 {p.pollQuestion}</div>
+                            {p.pollOptions?.map((opt:any,i:number)=>(
+                              <div key={i} style={{marginBottom:4,borderRadius:8,background:c.cardAlt,border:`1px solid ${c.border}`,padding:'6px 10px',fontSize:12,color:c.mid}}>
+                                {opt.text} · {opt.votes} гол.
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Реакции */}
+                        {p.reactions&&(Object.values(p.reactions) as number[]).some(v=>v>0)&&(
+                          <div style={{display:'flex',gap:8,padding:'4px 12px 10px'}}>
+                            {[['🔥',p.reactions.fire],['🚀',p.reactions.rocket],['💎',p.reactions.gem],['❤️',p.reactions.heart],['🤔',p.reactions.think]].filter(([,v])=>Number(v)>0).map(([e,v])=>(
+                              <span key={String(e)} style={{fontSize:11,color:c.sub,background:c.cardAlt,borderRadius:20,padding:'2px 7px'}}>{e} {v}</span>
+                            ))}
+                            {p.views>0&&<span style={{fontSize:10,color:c.sub,marginLeft:'auto'}}>👁 {p.views}</span>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ):(
+                  <div style={{textAlign:'center',color:c.sub,fontSize:13,paddingTop:40,opacity:0.7}}>Публикаций пока нет</div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Полный просмотр группы (гость) ── */}
+        <AnimatePresence>
+          {openGuestGroup&&(
+            <motion.div key="ggrp" initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',damping:30,stiffness:260}}
+              style={{position:'absolute',inset:0,background:c.deep,display:'flex',flexDirection:'column',zIndex:50,overflowY:'auto'}}>
+              {/* Шапка группы */}
+              <div style={{flexShrink:0,position:'relative'}}>
+                <div style={{height:120,background:openGuestGroup.gradient||`linear-gradient(135deg,${openGuestGroup.color||ac}44,#0a0a14)`,overflow:'hidden'}}>
+                  <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 20%,rgba(0,0,0,0.75))'}}/>
+                  <motion.button whileTap={{scale:0.9}} onClick={()=>setOpenGuestGroup(null)}
+                    style={{position:'absolute',top:12,left:12,width:36,height:36,borderRadius:12,background:'rgba(0,0,0,0.5)',
+                      border:'1px solid rgba(255,255,255,0.2)',color:'#fff',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(8px)'}}>←</motion.button>
+                </div>
+                <div style={{padding:'0 14px 14px',marginTop:-40,position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'flex-end',gap:12}}>
+                    <div style={{width:60,height:60,borderRadius:16,flexShrink:0,
+                      background:`linear-gradient(135deg,${openGuestGroup.color||ac}44,${openGuestGroup.color||ac}22)`,
+                      border:`3px solid ${c.deep}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>
+                      <span>{openGuestGroup.emoji||'👥'}</span>
+                    </div>
+                    <div style={{flex:1,paddingBottom:4}}>
+                      <span style={{fontSize:16,fontWeight:900,color:'#fff'}}>{openGuestGroup.name}</span>
+                      {openGuestGroup.handle&&<div style={{fontSize:11,color:'rgba(255,255,255,0.4)',fontFamily:'monospace'}}>@{openGuestGroup.handle}</div>}
+                    </div>
+                  </div>
+                  {openGuestGroup.description&&<div style={{marginTop:8,fontSize:13,color:'rgba(255,255,255,0.7)',lineHeight:1.5}}>{openGuestGroup.description}</div>}
+                  <div style={{display:'flex',gap:14,marginTop:10}}>
+                    <div style={{textAlign:'center'}}>
+                      <div style={{fontSize:15,fontWeight:900,color:'#fff'}}>{openGuestGroup.memberCount||0}</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',letterSpacing:'0.06em'}}>УЧАСТНИКИ</div>
+                    </div>
+                    {openGuestGroup.streak>0&&<div style={{textAlign:'center'}}>
+                      <div style={{fontSize:15,fontWeight:900,color:'#f97316'}}>🔥 {openGuestGroup.streak}</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',letterSpacing:'0.06em'}}>ДНЕЙ СТРИК</div>
+                    </div>}
+                    {openGuestGroup.todayMood&&<div style={{textAlign:'center'}}>
+                      <div style={{fontSize:22}}>{openGuestGroup.todayMood}</div>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',letterSpacing:'0.06em'}}>НАСТРОЕНИЕ</div>
+                    </div>}
+                  </div>
+                  {openGuestGroup.wordOfDay&&<div style={{marginTop:10,padding:'8px 12px',borderRadius:12,background:`${openGuestGroup.color||ac}18`,border:`1px solid ${openGuestGroup.color||ac}33`,fontSize:12,color:'rgba(255,255,255,0.8)'}}>💬 Слово дня: <strong>{openGuestGroup.wordOfDay}</strong></div>}
+                </div>
+              </div>
+              {/* Посты группы */}
+              <div style={{padding:'12px 14px 80px',borderTop:`1px solid ${c.border}`}}>
+                <div style={{fontSize:11,fontWeight:800,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:10}}>🗨 Обсуждения</div>
+                {Array.isArray(openGuestGroup.posts)&&openGuestGroup.posts.length>0?(
+                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                    {[...openGuestGroup.posts].reverse().map((p:any)=>(
+                      <div key={p.id} style={{borderRadius:16,overflow:'hidden',background:c.card,border:`1px solid ${c.border}`}}>
+                        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px 6px'}}>
+                          <div style={{width:28,height:28,borderRadius:'50%',overflow:'hidden',flexShrink:0,background:openGuestGroup.color||ac+'44',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>
+                            {p.authorAvatar?<img src={p.authorAvatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span>👤</span>}
+                          </div>
+                          <div>
+                            <div style={{fontSize:11,fontWeight:700,color:c.light}}>{p.isAnon?'Анонимно':p.authorName}</div>
+                            <div style={{fontSize:9,color:c.sub}}>{new Date(p.createdAt).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}</div>
+                          </div>
+                          {p.type&&p.type!=='text'&&<span style={{marginLeft:'auto',fontSize:9,color:c.sub,background:c.cardAlt,borderRadius:20,padding:'1px 6px'}}>{p.type}</span>}
+                        </div>
+                        {p.imageUrl&&<img src={p.imageUrl} alt="" style={{width:'100%',maxHeight:280,objectFit:'cover',display:'block'}}/>}
+                        {p.text&&<div style={{padding:'4px 12px 8px',fontSize:13,color:c.mid,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.text}</div>}
+                        {p.pollQuestion&&(
+                          <div style={{padding:'4px 12px 10px'}}>
+                            <div style={{fontSize:13,fontWeight:700,color:c.light,marginBottom:5}}>📊 {p.pollQuestion}</div>
+                            {p.pollOptions?.map((opt:any,i:number)=>(
+                              <div key={i} style={{marginBottom:4,borderRadius:8,background:c.cardAlt,padding:'5px 10px',fontSize:12,color:c.mid}}>{opt.text} · {opt.votes} гол.</div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{display:'flex',gap:12,padding:'4px 12px 8px'}}>
+                          {p.likes>0&&<span style={{fontSize:11,color:c.sub}}>❤️ {p.likes}</span>}
+                          {p.comments?.length>0&&<span style={{fontSize:11,color:c.sub}}>💬 {p.comments.length}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ):(
+                  <div style={{textAlign:'center',color:c.sub,fontSize:13,paddingTop:40,opacity:0.7}}>Публикаций пока нет</div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── CommentsSheet для постов гостевого профиля ── */}
         <AnimatePresence>
