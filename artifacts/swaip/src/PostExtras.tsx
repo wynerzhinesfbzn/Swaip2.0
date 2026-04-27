@@ -61,6 +61,25 @@ export function PostExtrasComposer({
     fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   };
 
+  /* Дефолтные значения при первом открытии секции */
+  const DEFAULTS: Partial<Record<keyof PostExtras, any>> = {
+    booking:   { label: 'Записаться', slots: [] },
+    poll:      { question: '', options: ['', ''] },
+    quiz:      { question: '', options: ['', ''], correctIdx: 0 },
+    question:  { text: '' },
+    challenge: { text: '', deadlineH: 24 },
+    link:      { url: '', title: '', description: '' },
+  };
+
+  const toggleSection = (key: keyof PostExtras) => {
+    const opening = expanded !== key;
+    setExpanded(opening ? key : null);
+    /* Автоматически инициализируем секцию дефолтом при первом открытии */
+    if (opening && !extras[key] && DEFAULTS[key] !== undefined) {
+      upd({ [key]: DEFAULTS[key] });
+    }
+  };
+
   const SECTIONS: Array<{ key: keyof PostExtras; emoji: string; label: string; color: string }> = [
     { key:'carousel',  emoji:'🖼️', label:'Карусель / галерея',     color:'#3b82f6' },
     { key:'booking',   emoji:'📅', label:'Кнопка «Записаться»',    color:'#22c55e' },
@@ -72,6 +91,8 @@ export function PostExtrasComposer({
     { key:'activity',  emoji:'🎬', label:'Активность',             color:'#ec4899' },
   ];
 
+  const activeCount = SECTIONS.filter(s => !!extras[s.key]).length;
+
   return (
     <div style={{ marginTop: 14, border: `1px solid ${c.border}`, borderRadius: 14, overflow: 'hidden', background: c.cardAlt || 'rgba(255,255,255,0.03)' }}>
       <button type="button" onClick={() => setOpen(o => !o)}
@@ -80,6 +101,7 @@ export function PostExtrasComposer({
         <div style={{ width: 28, height: 28, borderRadius: '50%', background: `${accent}33`,
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>+</div>
         <span style={{ flex: 1, textAlign: 'left' }}>Добавить в пост</span>
+        {activeCount > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: accent, background: `${accent}22`, borderRadius: 10, padding: '2px 8px' }}>{activeCount}</span>}
         <span style={{ fontSize: 11, color: c.sub }}>{open ? '▴' : '▾'}</span>
       </button>
       {open && (
@@ -89,12 +111,12 @@ export function PostExtrasComposer({
             const isOpen = expanded === s.key;
             return (
               <div key={s.key} style={{ borderTop: `1px solid ${c.border}` }}>
-                <button type="button" onClick={() => setExpanded(isOpen ? null : s.key)}
+                <button type="button" onClick={() => toggleSection(s.key)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px',
                     background: 'transparent', border: 'none', cursor: 'pointer', color: c.light, fontSize: 13, fontWeight: 600 }}>
                   <span style={{ fontSize: 16 }}>{s.emoji}</span>
-                  <span style={{ flex: 1, textAlign: 'left', color: on ? s.color : c.light }}>{s.label}</span>
-                  <span style={{ fontSize: 18, color: on ? s.color : c.sub, fontWeight: 700, lineHeight: 1 }}>{on ? '✓' : '+'}</span>
+                  <span style={{ flex: 1, textAlign: 'left', color: on ? s.color : c.light, fontWeight: on ? 700 : 600 }}>{s.label}</span>
+                  <span style={{ fontSize: on ? 14 : 18, color: on ? s.color : c.sub, fontWeight: 700, lineHeight: 1 }}>{on ? '✓' : '+'}</span>
                 </button>
                 {isOpen && (
                   <div style={{ padding: '4px 4px 12px' }}>

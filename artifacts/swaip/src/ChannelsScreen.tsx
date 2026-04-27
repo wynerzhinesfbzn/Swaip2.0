@@ -1659,7 +1659,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
   /* ── Публикация ── */
   const handlePublish=async()=>{
     if(publishing)return;
-    if(type==='text'&&!text.trim()&&!imgFile&&!hasBooking)return;
+    if(type==='text'&&!text.trim()&&!imgFile&&!hasBooking&&!hasAnyExtras(extras))return;
     if(type==='poll'&&(!pollQ.trim()||pollOpts.filter(o=>o.trim()).length<2))return;
     const fr=checkContent(collectPostText(text,pollQ,...pollOpts));
     if(!fr.ok){setContentError(fr.reason||'Публикация заблокирована.');return;}
@@ -1700,7 +1700,7 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
 
   const fmtSize=(b:number)=>b>=1048576?`${(b/1048576).toFixed(1)} МБ`:b>=1024?`${(b/1024).toFixed(0)} КБ`:`${b} Б`;
   const canPublish=!publishing&&!imgLoading&&!vidLoading&&!musicLoading&&
-    (type!=='text'||!!text.trim()||!!imgFile||hasBooking)&&
+    (type!=='text'||!!text.trim()||!!imgFile||hasBooking||hasAnyExtras(extras))&&
     (type!=='poll'||(!!pollQ.trim()&&pollOpts.filter(o=>o.trim()).length>=2))&&
     (type!=='video'||!!vidFile||!!vidPrev)&&
     (type!=='audio'||!!musicFile||!!voiceBlob);
@@ -3662,14 +3662,15 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
   };
 
   const canSubmit=(()=>{
-    if(postType==='poll') return pollQ.trim()&&pollOpts.filter(o=>o.trim()).length>=2;
-    if(postType==='event') return eventTitle.trim();
+    const anyExtras=hasAnyExtras(extras);
+    if(postType==='poll') return (pollQ.trim()&&pollOpts.filter(o=>o.trim()).length>=2)||anyExtras;
+    if(postType==='event') return eventTitle.trim()||anyExtras;
     if(postType==='capsule') return text.trim();
     if(postType==='collab') return collabText.trim();
     if(postType==='roulette') return text.trim();
-    if(postType==='brainstorm') return text.trim();
-    if(postType==='challenge') return text.trim();
-    return text.trim();
+    if(postType==='brainstorm') return text.trim()||anyExtras;
+    if(postType==='challenge') return text.trim()||anyExtras;
+    return text.trim()||anyExtras;
   })();
 
   return (
