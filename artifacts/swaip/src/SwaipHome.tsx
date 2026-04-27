@@ -3811,6 +3811,30 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[userHash,propToken]);
 
+  /* Авто-синк каналов/групп на сервер при изменении в localStorage */
+  useEffect(()=>{
+    const tok=propToken||getSessionToken()||'';
+    if(!userHash||!tok)return;
+    const PREFIX_RE=/^(pro_|classic_|scene_|krug_|sw_|priv_)/;
+    const pushSnap=()=>{
+      const d:Record<string,unknown>={};
+      try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(!PREFIX_RE.test(k))continue;try{const r=localStorage.getItem(k);if(r!==null)d[k]=JSON.parse(r);}catch{}}}catch{}
+      fetch(`${window.location.origin}/api/account`,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json','x-session-token':tok},body:JSON.stringify({data:d})}).catch(()=>{});
+    };
+    const onStorage=(e:StorageEvent)=>{
+      if(e.key==='sw_channels'||e.key==='sw_groups')pushSnap();
+    };
+    const onSwEvent=()=>pushSnap();
+    window.addEventListener('storage',onStorage);
+    window.addEventListener('sw:channels-updated',onSwEvent);
+    window.addEventListener('sw:groups-updated',onSwEvent);
+    return()=>{
+      window.removeEventListener('storage',onStorage);
+      window.removeEventListener('sw:channels-updated',onSwEvent);
+      window.removeEventListener('sw:groups-updated',onSwEvent);
+    };
+  },[userHash,propToken]);
+
   /* Загрузка баланса монет */
   useEffect(()=>{
     const token=getSessionToken();

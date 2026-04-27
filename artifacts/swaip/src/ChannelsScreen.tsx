@@ -226,6 +226,7 @@ function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.
           priceList:ch.priceList||[],
         }));
         localStorage.setItem(SYNC_KEY,JSON.stringify(summary));
+        try{window.dispatchEvent(new CustomEvent('sw:channels-updated'));}catch{}
       }catch{}
       return next;
     });
@@ -339,6 +340,7 @@ function useGroupsStore(userHash:string):[SwaipGroup[],React.Dispatch<React.SetS
           ...(g.isPrivate?{}:{posts:g.posts.slice(-15)}),
         }));
         localStorage.setItem(SYNC_KEY,JSON.stringify(summary));
+        try{window.dispatchEvent(new CustomEvent('sw:groups-updated'));}catch{}
       }catch{}
       return next;
     });

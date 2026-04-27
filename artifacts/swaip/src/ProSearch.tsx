@@ -91,22 +91,59 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
 
   useEffect(()=>{doSearchPeople(peopleQ);},[peopleQ]);
 
-  /* ─── Поиск каналов/групп ─────────────────────────────── */
+  /* ─── Поиск каналов/групп (сервер + локальные) ───────── */
   const doSearchChannels=useCallback(debounce(async(q:string,cat:string|null)=>{
-    const keywords:string[]=[];
-    if(q.trim())keywords.push(q.trim());
-    if(cat){
-      const catObj=SERVICE_CATEGORIES.find(c=>c.id===cat);
-      if(catObj&&catObj.keywords.length)keywords.push(...catObj.keywords.slice(0,8));
-    }
-    if(!keywords.length){setCatResults({channels:[],groups:[]});return;}
+    const words:string[]=q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const catObj=cat?SERVICE_CATEGORIES.find(s=>s.id===cat):null;
+    const catKw=catObj?.keywords||[];
+    const allKw=[...words,...(cat&&!q.trim()?catKw.slice(0,8):[])];
+    if(!allKw.length){setCatResults({channels:[],groups:[]});return;}
     setCatLoading(true);
     try{
-      const r=await fetch(`${apiBase}/api/channels-search?q=${encodeURIComponent(keywords.join(' '))}`);
-      const d=await r.json();
-      setCatResults({channels:d.channels||[],groups:d.groups||[]});
+      /* ── Локальный поиск в localStorage ── */
+      const localChannels:ChannelResult[]=[];
+      const localGroups:GroupResult[]=[];
+      try{
+        const rawCh=localStorage.getItem('sw_channels');
+        if(rawCh){
+          const lch=JSON.parse(rawCh) as any[];
+          for(const ch of lch){
+            const hay=[ch.name,ch.description,ch.handle,...(ch.tags||[])].join(' ').toLowerCase();
+            const matches=allKw.some(k=>hay.includes(k));
+            if(matches)localChannels.push({...ch,_owner:{hash:'__local__',name:'Мой канал',avatar:'',nick:''}});
+          }
+        }
+        const rawGr=localStorage.getItem('sw_groups');
+        if(rawGr){
+          const lgr=JSON.parse(rawGr) as any[];
+          for(const g of lgr){
+            if(g.isPrivate)continue;
+            const hay=[g.name,g.description,g.handle,g.category].join(' ').toLowerCase();
+            const matches=allKw.some(k=>hay.includes(k));
+            if(matches)localGroups.push({...g,_owner:{hash:'__local__',name:'Моя группа',avatar:'',nick:''}});
+          }
+        }
+      }catch{}
+      /* ── Серверный поиск ── */
+      const serverKw=[...words,...(catKw.slice(0,6))];
+      let serverChannels:ChannelResult[]=[];
+      let serverGroups:GroupResult[]=[];
+      if(serverKw.length){
+        const r=await fetch(`${apiBase}/api/channels-search?q=${encodeURIComponent(serverKw.join(' '))}`);
+        const d=await r.json();
+        serverChannels=d.channels||[];
+        serverGroups=d.groups||[];
+      }
+      /* ── Объединяем, дедупликация по id ── */
+      const seenCh=new Set(localChannels.map(c=>c.id));
+      const seenGr=new Set(localGroups.map(g=>g.id));
+      const merged={
+        channels:[...localChannels,...serverChannels.filter(c=>!seenCh.has(c.id))],
+        groups:[...localGroups,...serverGroups.filter(g=>!seenGr.has(g.id))],
+      };
+      setCatResults(merged);
     }catch{}finally{setCatLoading(false);}
-  },350),[apiBase]);
+  },300),[apiBase]);
 
   useEffect(()=>{
     if(tab==='channels'||tab==='groups') doSearchChannels(chQ,selectedCat);
@@ -142,7 +179,7 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
             <input
               value={tab==='people'?peopleQ:chQ}
               onChange={e=>tab==='people'?setPeopleQ(e.target.value):setChQ(e.target.value)}
-              placeholder={tab==='people'?'Поиск людей по имени или нику…':'Поиск каналов и групп…'}
+              placeholder={tab==='people'?'Имя, фамилия или @ник…':tab==='channels'?'Название канала, тег, услуга…':'Название группы или тематика…'}
               autoFocus
               style={{width:'100%',boxSizing:'border-box',padding:'9px 12px 9px 34px',
                 background:c.cardAlt,border:`1px solid ${c.borderB}`,borderRadius:10,
@@ -278,11 +315,23 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
               )}
               {/* Список каналов */}
               <div style={{padding:'0 12px 20px'}}>
+                {!selectedCat&&!chQ&&(
+                  <div style={{textAlign:'center',padding:'30px 20px',color:c.sub,fontSize:13,lineHeight:1.7}}>
+                    <div style={{fontSize:28,marginBottom:8}}>📡</div>
+                    <div style={{fontWeight:700,color:c.mid,marginBottom:4}}>Найдите нужный канал</div>
+                    <div>Введите название, тег или выберите категорию выше</div>
+                  </div>
+                )}
                 {(selectedCat||chQ)&&!catLoading&&catResults.channels.length===0&&(
-                  <div style={{textAlign:'center',padding:'40px 20px',color:c.sub,fontSize:13}}>Каналов в этой категории пока нет</div>
+                  <div style={{textAlign:'center',padding:'30px 20px',color:c.sub,fontSize:13,lineHeight:1.7}}>
+                    <div style={{fontSize:28,marginBottom:8}}>🔍</div>
+                    {chQ
+                      ?<><div style={{fontWeight:700,color:c.mid,marginBottom:4}}>Ничего не найдено по «{chQ}»</div><div>Попробуйте другое слово или выберите категорию</div></>
+                      :<><div style={{fontWeight:700,color:c.mid,marginBottom:4}}>В этой категории пока нет каналов</div><div>Попробуйте другую категорию или введите название</div></>}
+                  </div>
                 )}
                 {catResults.channels.map(ch=>(
-                  <ChannelCard key={ch.id} ch={ch} c={c} ac={ac} onClick={()=>setOpenChannel(ch)} onViewOwner={()=>onViewProfile(ch._owner.hash,{name:ch._owner.name,avatar:ch._owner.avatar||av(ch._owner.hash.slice(0,14)||'u',80),handle:ch._owner.nick||'',bio:''})}/>
+                  <ChannelCard key={ch.id} ch={ch} c={c} ac={ac} onClick={()=>setOpenChannel(ch)} onViewOwner={()=>{if(ch._owner.hash!=='__local__')onViewProfile(ch._owner.hash,{name:ch._owner.name,avatar:ch._owner.avatar||av(ch._owner.hash.slice(0,14)||'u',80),handle:ch._owner.nick||'',bio:''});}}/>
                 ))}
               </div>
             </motion.div>
@@ -307,11 +356,23 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
                 </div>
               )}
               <div style={{padding:'0 12px 20px'}}>
+                {!selectedCat&&!chQ&&(
+                  <div style={{textAlign:'center',padding:'30px 20px',color:c.sub,fontSize:13,lineHeight:1.7}}>
+                    <div style={{fontSize:28,marginBottom:8}}>👥</div>
+                    <div style={{fontWeight:700,color:c.mid,marginBottom:4}}>Найдите свою группу</div>
+                    <div>Введите название или выберите категорию выше</div>
+                  </div>
+                )}
                 {(selectedCat||chQ)&&!catLoading&&catResults.groups.length===0&&(
-                  <div style={{textAlign:'center',padding:'40px 20px',color:c.sub,fontSize:13}}>Групп в этой категории пока нет</div>
+                  <div style={{textAlign:'center',padding:'30px 20px',color:c.sub,fontSize:13,lineHeight:1.7}}>
+                    <div style={{fontSize:28,marginBottom:8}}>🔍</div>
+                    {chQ
+                      ?<><div style={{fontWeight:700,color:c.mid,marginBottom:4}}>Ничего не найдено по «{chQ}»</div><div>Попробуйте другое слово или выберите категорию</div></>
+                      :<><div style={{fontWeight:700,color:c.mid,marginBottom:4}}>Групп в этой категории пока нет</div><div>Попробуйте другую категорию или введите название</div></>}
+                  </div>
                 )}
                 {catResults.groups.map(g=>(
-                  <GroupCard key={g.id} g={g} c={c} ac={ac} onClick={()=>setOpenGroup(g)} onViewOwner={()=>onViewProfile(g._owner.hash,{name:g._owner.name,avatar:g._owner.avatar||av(g._owner.hash.slice(0,14)||'u',80),handle:g._owner.nick||'',bio:''})}/>
+                  <GroupCard key={g.id} g={g} c={c} ac={ac} onClick={()=>setOpenGroup(g)} onViewOwner={()=>{if(g._owner.hash!=='__local__')onViewProfile(g._owner.hash,{name:g._owner.name,avatar:g._owner.avatar||av(g._owner.hash.slice(0,14)||'u',80),handle:g._owner.nick||'',bio:''});}}/>
                 ))}
               </div>
             </motion.div>
