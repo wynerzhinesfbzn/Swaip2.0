@@ -5775,10 +5775,10 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 {(profPosition||profCompany)&&(<div style={{fontSize:11,color:c.sub}}>{profPosition}{profPosition&&profCompany?' · ':''}{profCompany}</div>)}
                 {profMood.emoji&&(
                   <motion.div initial={{scale:0.7,opacity:0}} animate={{scale:1,opacity:1}} transition={{type:'spring',stiffness:400,damping:18}}
-                    style={{display:'inline-flex',alignItems:'center',gap:4,background:`${accent}18`,border:`1px solid ${accent}44`,borderRadius:20,padding:'2px 8px',marginTop:2,cursor:'pointer',width:'fit-content'}}
+                    style={{display:'inline-flex',alignItems:'center',gap:4,background:`${c.accent}18`,border:`1px solid ${c.accent}44`,borderRadius:20,padding:'2px 8px',marginTop:2,cursor:'pointer',width:'fit-content'}}
                     onClick={()=>setShowMoodPicker(v=>!v)}>
                     <motion.span animate={{rotate:[0,10,-10,0]}} transition={{repeat:Infinity,duration:3,ease:'easeInOut'}} style={{fontSize:14}}>{profMood.emoji}</motion.span>
-                    <span style={{fontSize:11,color:accent,fontWeight:700}}>{profMood.text}</span>
+                    <span style={{fontSize:11,color:c.accent,fontWeight:700}}>{profMood.text}</span>
                   </motion.div>
                 )}
                 {!profMood.emoji&&(
@@ -5805,9 +5805,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                   {MOOD_OPTIONS.map(m=>(
                     <motion.button key={m.emoji} whileTap={{scale:0.87}} onClick={()=>{setProfMood({emoji:m.emoji,text:m.text});setShowMoodPicker(false);}}
                       style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:20,cursor:'pointer',
-                        background:profMood.emoji===m.emoji?`${accent}25`:c.cardAlt,
-                        border:`1px solid ${profMood.emoji===m.emoji?accent+'77':c.borderB}`,
-                        fontSize:12,fontWeight:700,color:profMood.emoji===m.emoji?accent:c.mid}}>
+                        background:profMood.emoji===m.emoji?`${c.accent}25`:c.cardAlt,
+                        border:`1px solid ${profMood.emoji===m.emoji?c.accent+'77':c.borderB}`,
+                        fontSize:12,fontWeight:700,color:profMood.emoji===m.emoji?c.accent:c.mid}}>
                       <span style={{fontSize:15}}>{m.emoji}</span> {m.text}
                     </motion.button>
                   ))}
