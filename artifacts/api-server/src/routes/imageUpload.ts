@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { objectStorageClient } from "../lib/objectStorage";
 import { logger } from "../lib/logger";
+import { getSessionToken, resolveSession } from "../lib/sessionAuth.js";
 
 const router = Router();
 
@@ -148,6 +149,8 @@ router.get("/image/:filename", async (req: Request, res: Response) => {
    GET  /api/video/:filename — отдача видео
 ───────────────────────────────────────────────────────── */
 router.post("/video-upload", async (req: Request, res: Response) => {
+  const userHash = await resolveSession(getSessionToken(req));
+  if (!userHash) return res.status(401).json({ error: "Unauthorized" });
   try {
     const buf: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
     if (buf.length > 200 * 1024 * 1024) { res.status(413).json({ error: "File too large (max 200MB)" }); return; }
