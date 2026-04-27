@@ -627,7 +627,7 @@ export function PostExtrasLinkPreview({ link, c, accent }:{
           <p style={{ margin:'2px 0 0', fontSize:11, color:accent }}>{host}</p>
         )}
       </div>
-    </a>
+    </Tag>
   );
 }
 
