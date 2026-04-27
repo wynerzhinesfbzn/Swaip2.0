@@ -49,6 +49,15 @@ interface ChannelPost {
   extras?: PostExtras;
 }
 
+/* Ссылка-приглашение для закрытых каналов/групп */
+interface ChannelInviteLink {
+  id: string;
+  code: string;
+  label: string;
+  clicks: number;
+  createdAt: number;
+}
+
 interface SwaipChannel {
   id: string;
   name: string;
@@ -72,6 +81,9 @@ interface SwaipChannel {
   pulse: string;
   authorName: string;
   authorAvatar?: string;
+  /* публичность */
+  isPublic?: boolean;
+  inviteLinks?: ChannelInviteLink[];
   /* бизнес-шаблон */
   templateId?: string;
   usp?: string;
@@ -199,6 +211,7 @@ function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.
           postCount:ch.posts.length,rubrics:ch.rubrics,energyLevel:ch.energyLevel,
           isVerified:ch.isVerified,pulse:ch.pulse,authorName:ch.authorName,
           templateId:ch.templateId,usp:ch.usp,createdAt:ch.createdAt,
+          isPublic:ch.isPublic!==false,
           posts:ch.posts.slice(-20),
           employees:ch.employees||[],
           priceList:ch.priceList||[],
@@ -221,6 +234,7 @@ function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.
           postCount:ch.posts.length,rubrics:ch.rubrics,energyLevel:ch.energyLevel,
           isVerified:ch.isVerified,pulse:ch.pulse,authorName:ch.authorName,
           templateId:ch.templateId,usp:ch.usp,createdAt:ch.createdAt,
+          isPublic:ch.isPublic!==false,
           posts:ch.posts.slice(-20),
           employees:ch.employees||[],
           priceList:ch.priceList||[],
@@ -300,6 +314,7 @@ interface SwaipGroup {
   todayMood: string;
   streak: number;
   isPrivate: boolean;
+  inviteLinks?: ChannelInviteLink[];
 }
 
 /* ══════════════════════════════════════════════════════
@@ -586,6 +601,7 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
               <GroupPage group={openGr} c={c} accent={accent} isDark={isDark}
                 userName={userName} userAvatar={userAvatar||''}
                 onBack={()=>setOpenGroupId(null)}
+                onUpdate={(patch)=>setGroups(prev=>prev.map(g=>g.id===openGr.id?{...g,...patch}:g))}
                 onAddPost={(post)=>addGroupPost(openGr.id,post)}
                 onLike={(pid)=>likeGroupPost(openGr.id,pid)}
                 onComment={(pid,text,anon)=>addComment(openGr.id,pid,text,anon)}
@@ -756,6 +772,146 @@ function FeedPostPreview({post,ch,c,accent,onOpen}:{post:ChannelPost;ch:SwaipCha
         {score>0&&<span style={{fontSize:11,color:ch.vibeColor,fontWeight:700}}>⚡ {score}пт</span>}
       </div>
     </motion.div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   ПАНЕЛЬ УПРАВЛЕНИЯ ССЫЛКАМИ-ПРИГЛАШЕНИЯМИ
+══════════════════════════════════════════════════════ */
+function ChannelInvitePanel({ch,c,accent,onUpdate}:{
+  ch:SwaipChannel;c:any;accent:string;
+  onUpdate:(patch:Partial<SwaipChannel>)=>void;
+}){
+  const {userName}=useAccountStore();
+  const isOwner=ch.authorName===userName;
+  const [creating,setCreating]=useState(false);
+  const [newLabel,setNewLabel]=useState('');
+  const [showCreate,setShowCreate]=useState(false);
+
+  if(!isOwner)return null;
+
+  const links:ChannelInviteLink[]=ch.inviteLinks||[];
+
+  const createLink=async()=>{
+    if(creating)return;
+    setCreating(true);
+    try{
+      const r=await fetch(`${window.location.origin}/api/channel-invites`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-session-token':_getTok()},
+        body:JSON.stringify({channelId:ch.id,channelName:ch.name,isGroup:false,label:newLabel.trim()||'Ссылка'})
+      });
+      if(r.ok){
+        const d=await r.json();
+        if(d.code){
+          const newLink:ChannelInviteLink={id:uid(),code:d.code,label:newLabel.trim()||'Ссылка',clicks:0,createdAt:Date.now()};
+          onUpdate({inviteLinks:[...links,newLink]});
+          setNewLabel('');setShowCreate(false);
+        }
+      }
+    }catch{}finally{setCreating(false);}
+  };
+
+  const deleteLink=async(code:string)=>{
+    try{
+      await fetch(`${window.location.origin}/api/channel-invites/${code}`,{
+        method:'DELETE',headers:{'x-session-token':_getTok()}});
+    }catch{}
+    onUpdate({inviteLinks:links.filter(l=>l.code!==code)});
+  };
+
+  const copyLink=(code:string)=>{
+    navigator.clipboard.writeText(`${window.location.origin}/invite/${code}`).catch(()=>{});
+  };
+
+  return (
+    <div style={{margin:'0 0 2px',padding:'16px',background:c.card,borderRadius:16,border:`1px solid ${c.border}`}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:16}}>{ch.isPublic?'🌐':'🔒'}</span>
+          <div>
+            <p style={{margin:0,fontSize:13,fontWeight:800,color:c.light}}>
+              {ch.isPublic?'Публичный канал':'Закрытый канал'}
+            </p>
+            {ch.isPublic&&ch.handle&&(
+              <p style={{margin:0,fontSize:11,color:accent}}>swaip.app/c/{ch.handle}</p>
+            )}
+          </div>
+        </div>
+        {ch.isPublic&&(
+          <motion.button whileTap={{scale:0.9}}
+            onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/c/${ch.handle}`).catch(()=>{})}
+            style={{padding:'6px 12px',borderRadius:20,border:`1px solid ${accent}`,
+              background:`${accent}18`,cursor:'pointer',fontSize:11,fontWeight:700,color:accent}}>
+            📋 Копировать
+          </motion.button>
+        )}
+      </div>
+
+      {/* Ссылки-приглашения (для закрытых, и по желанию для публичных) */}
+      {(!ch.isPublic||links.length>0)&&(
+        <>
+          <p style={{margin:'0 0 8px',fontSize:11,color:c.sub,fontWeight:700}}>
+            ССЫЛКИ-ПРИГЛАШЕНИЯ {links.length>0&&<span style={{color:accent}}>({links.length})</span>}
+          </p>
+          {links.length===0&&(
+            <p style={{margin:'0 0 8px',fontSize:12,color:c.sub,fontStyle:'italic'}}>
+              Нет активных ссылок
+            </p>
+          )}
+          {links.map(lnk=>(
+            <div key={lnk.code} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',
+              borderBottom:`1px solid ${c.border}`}}>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{margin:0,fontSize:13,fontWeight:700,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                  {lnk.label}
+                </p>
+                <p style={{margin:0,fontSize:10,color:c.sub}}>
+                  👆 {lnk.clicks} переходов · {new Date(lnk.createdAt).toLocaleDateString('ru-RU')}
+                </p>
+              </div>
+              <motion.button whileTap={{scale:0.9}} onClick={()=>copyLink(lnk.code)}
+                style={{padding:'5px 10px',borderRadius:20,border:`1px solid ${accent}`,
+                  background:`${accent}15`,cursor:'pointer',fontSize:11,color:accent,fontWeight:700}}>
+                📋
+              </motion.button>
+              <motion.button whileTap={{scale:0.9}} onClick={()=>deleteLink(lnk.code)}
+                style={{padding:'5px 10px',borderRadius:20,border:'1px solid rgba(239,68,68,0.3)',
+                  background:'rgba(239,68,68,0.1)',cursor:'pointer',fontSize:11,color:'#ef4444',fontWeight:700}}>
+                ✕
+              </motion.button>
+            </div>
+          ))}
+
+          {/* Создать новую ссылку */}
+          {showCreate?(
+            <div style={{display:'flex',gap:6,marginTop:10}}>
+              <input value={newLabel} onChange={e=>setNewLabel(e.target.value)}
+                placeholder="Название ссылки..."
+                onKeyDown={e=>e.key==='Enter'&&createLink()}
+                style={{flex:1,padding:'8px 12px',borderRadius:10,background:c.bg,
+                  border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
+              <motion.button whileTap={{scale:0.9}} onClick={createLink}
+                style={{padding:'8px 14px',borderRadius:10,border:'none',cursor:'pointer',
+                  background:accent,color:'#fff',fontSize:13,fontWeight:700,flexShrink:0}}>
+                {creating?'…':'Создать'}
+              </motion.button>
+              <motion.button whileTap={{scale:0.9}} onClick={()=>setShowCreate(false)}
+                style={{padding:'8px 12px',borderRadius:10,border:`1px solid ${c.border}`,
+                  cursor:'pointer',background:'transparent',color:c.sub,fontSize:13,fontWeight:700}}>
+                ✕
+              </motion.button>
+            </div>
+          ):(
+            <motion.button whileTap={{scale:0.9}} onClick={()=>setShowCreate(true)}
+              style={{marginTop:10,padding:'8px 14px',borderRadius:20,border:`1px dashed ${accent}`,
+                background:'transparent',cursor:'pointer',fontSize:12,fontWeight:700,color:accent,width:'100%'}}>
+              + Создать ссылку-приглашение
+            </motion.button>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -932,6 +1088,9 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
           )}
         </div>
       )}
+
+      {/* ── 🔗 Управление ссылками (для владельца) ── */}
+      <ChannelInvitePanel ch={ch} c={c} accent={accent} onUpdate={onUpdate}/>
 
       {/* ── Бизнес-секции шаблона ── */}
       {ch.usp&&<ChannelUSPBanner usp={ch.usp} color={ch.vibeColor||accent} c={c}
@@ -2455,6 +2614,8 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
   const [rubrics,setRubrics]=useState<string[]>([]);
   const [customRubric,setCustomRubric]=useState('');
   const [isVerified]=useState(false);
+  const [isPublicCh,setIsPublicCh]=useState(true);
+  const [handleStatus,setHandleStatus]=useState<'idle'|'checking'|'free'|'taken'|'own'>('idle');
   const [coverPhotoUrl,setCoverPhotoUrl]=useState('');
   const [coverPosition,setCoverPosition]=useState('50% 50%');
   const [avatarPhotoUrl,setAvatarPhotoUrl]=useState('');
@@ -2478,6 +2639,23 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
     const catMatch=CHANNEL_CATEGORIES.find(c=>c.id===t.category);
     if(catMatch) setCatId(catMatch.id);
     setStep(0);
+  };
+
+  /* Проверка доступности @handle */
+  const checkHandleTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const checkHandle=(h:string)=>{
+    setHandle(h);
+    if(!isPublicCh){setHandleStatus('idle');return;}
+    if(h.length<3){setHandleStatus('idle');return;}
+    setHandleStatus('checking');
+    if(checkHandleTimer.current)clearTimeout(checkHandleTimer.current);
+    checkHandleTimer.current=setTimeout(async()=>{
+      try{
+        const r=await fetch(`${window.location.origin}/api/channel-handles/check?handle=${encodeURIComponent(h)}`);
+        const d=await r.json();
+        setHandleStatus(d.own?'own':d.available?'free':'taken');
+      }catch{setHandleStatus('idle');}
+    },500);
   };
 
   /* Кроп обложки */
@@ -2515,12 +2693,38 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
     }catch{}finally{setAvatarUploading(false);}
   };
 
-  const handleCreate=()=>{
+  const handleCreate=async()=>{
     if(!name.trim())return;
+    const chId=uid();
+    const finalHandle=(handle.trim()||name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')).slice(0,32);
+
+    /* Регистрируем handle на сервере (для публичных каналов) */
+    if(isPublicCh&&finalHandle.length>=3){
+      try{
+        await fetch(`${window.location.origin}/api/channel-handles/register`,{
+          method:'POST',headers:{'Content-Type':'application/json','x-session-token':_getTok()},
+          body:JSON.stringify({handle:finalHandle,channelId:chId})});
+      }catch{}
+    }
+
+    /* Для закрытых каналов создаём первую ссылку-приглашение */
+    let initInviteLinks:ChannelInviteLink[]=[];
+    if(!isPublicCh){
+      try{
+        const r=await fetch(`${window.location.origin}/api/channel-invites`,{
+          method:'POST',headers:{'Content-Type':'application/json','x-session-token':_getTok()},
+          body:JSON.stringify({channelId:chId,channelName:name.trim(),isGroup:false,label:'Основная ссылка'})});
+        if(r.ok){
+          const d=await r.json();
+          if(d.code)initInviteLinks=[{id:uid(),code:d.code,label:'Основная ссылка',clicks:0,createdAt:Date.now()}];
+        }
+      }catch{}
+    }
+
     const ch:SwaipChannel={
-      id:uid(),
+      id:chId,
       name:name.trim(),
-      handle:handle.trim()||name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''),
+      handle:finalHandle,
       description:desc.trim(),
       vibe:vibe.emoji,vibeColor:vibe.color,
       coverGradient:selectedTemplate?`linear-gradient(135deg,${selectedTemplate.color}22,${selectedTemplate.color}08)`:cover.bg,
@@ -2544,6 +2748,8 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
       keywords:keywords.split(',').map(k=>k.trim()).filter(Boolean),
       employees:employees.length>0?employees:undefined,
       priceList:priceList.length>0?priceList:undefined,
+      isPublic:isPublicCh,
+      inviteLinks:initInviteLinks.length>0?initInviteLinks:undefined,
     };
     onCreate(ch);
   };
@@ -2755,16 +2961,52 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
                 style={{width:'100%',padding:'12px 14px',borderRadius:12,background:c.card,
                   border:`1px solid ${c.border}`,color:c.light,fontSize:15,outline:'none',boxSizing:'border-box'}}/>
             </div>
+            {/* ── Тип канала: открытый / закрытый ── */}
             <div>
-              <p style={{margin:'0 0 6px',fontSize:11,color:c.sub,fontWeight:700}}>АДРЕС КАНАЛА (@handle)</p>
-              <div style={{display:'flex',alignItems:'center',gap:0,background:c.card,
-                border:`1px solid ${c.border}`,borderRadius:12,overflow:'hidden'}}>
-                <span style={{padding:'12px 10px 12px 14px',fontSize:15,color:c.sub,flexShrink:0}}>@</span>
-                <input value={handle} onChange={e=>setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,''))}
-                  placeholder="my_channel"
-                  style={{flex:1,padding:'12px 14px 12px 0',background:'transparent',border:'none',
-                    color:c.light,fontSize:15,outline:'none'}}/>
+              <p style={{margin:'0 0 8px',fontSize:11,color:c.sub,fontWeight:700}}>ТИП КАНАЛА</p>
+              <div style={{display:'flex',gap:8}}>
+                {([['public','🌐 Открытый','Публикуется в поиске, есть @username'],['private','🔒 Закрытый','Только по ссылке-приглашению']] as const).map(([key,label,hint])=>(
+                  <motion.button key={key} whileTap={{scale:0.97}}
+                    onClick={()=>{ setIsPublicCh(key==='public'); if(key==='public')checkHandle(handle); else setHandleStatus('idle'); }}
+                    style={{flex:1,padding:'10px 8px',borderRadius:12,border:`2px solid ${(key==='public'?isPublicCh:!isPublicCh)?accent:c.border}`,
+                      background:(key==='public'?isPublicCh:!isPublicCh)?`${accent}18`:'transparent',
+                      cursor:'pointer',textAlign:'center',transition:'all 0.15s'}}>
+                    <div style={{fontSize:13,fontWeight:800,color:(key==='public'?isPublicCh:!isPublicCh)?accent:c.mid}}>{label}</div>
+                    <div style={{fontSize:10,color:c.sub,marginTop:2}}>{hint}</div>
+                  </motion.button>
+                ))}
               </div>
+            </div>
+
+            {/* ── @handle (только для публичных) ── */}
+            <div>
+              <p style={{margin:'0 0 6px',fontSize:11,color:c.sub,fontWeight:700}}>
+                {isPublicCh ? 'АДРЕС КАНАЛА (@username)' : 'ВНУТРЕННИЙ HANDLE'}
+              </p>
+              <div style={{display:'flex',alignItems:'center',gap:0,background:c.card,
+                border:`1.5px solid ${handleStatus==='free'||handleStatus==='own'?'#22c55e':handleStatus==='taken'?'#ef4444':c.border}`,
+                borderRadius:12,overflow:'hidden',transition:'border-color 0.2s'}}>
+                <span style={{padding:'12px 10px 12px 14px',fontSize:15,color:c.sub,flexShrink:0}}>@</span>
+                <input value={handle} onChange={e=>checkHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,''))}
+                  placeholder="my_channel"
+                  style={{flex:1,padding:'12px 0',background:'transparent',border:'none',
+                    color:c.light,fontSize:15,outline:'none'}}/>
+                <span style={{padding:'12px 14px 12px 0',fontSize:13,flexShrink:0}}>
+                  {handleStatus==='checking'&&<span style={{color:c.sub}}>⏳</span>}
+                  {(handleStatus==='free'||handleStatus==='own')&&<span style={{color:'#22c55e',fontWeight:700}}>✓ Свободно</span>}
+                  {handleStatus==='taken'&&<span style={{color:'#ef4444',fontWeight:700}}>✗ Занято</span>}
+                </span>
+              </div>
+              {isPublicCh&&handle.length>=3&&(handleStatus==='free'||handleStatus==='own')&&(
+                <p style={{margin:'4px 0 0',fontSize:11,color:'#22c55e'}}>
+                  swaip.app/c/{handle}
+                </p>
+              )}
+              {handleStatus==='taken'&&(
+                <p style={{margin:'4px 0 0',fontSize:11,color:'#ef4444'}}>
+                  Этот адрес уже занят — придумайте другой
+                </p>
+              )}
             </div>
             <div>
               <p style={{margin:'0 0 6px',fontSize:11,color:c.sub,fontWeight:700}}>ОПИСАНИЕ</p>
@@ -3283,12 +3525,87 @@ function GroupTopSection({group,c,accent}:{group:SwaipGroup;c:Props['c'];accent:
 }
 
 /* ══════════════════════════════════════════════════════
+   ПАНЕЛЬ INVITE-ССЫЛОК ДЛЯ ГРУППЫ
+══════════════════════════════════════════════════════ */
+function GroupInvitePanel({group,c,accent,userName,onUpdate}:{
+  group:SwaipGroup;c:any;accent:string;userName:string;
+  onUpdate:(patch:Partial<SwaipGroup>)=>void;
+}){
+  const isOwner=group.members.find(m=>m.name===userName)?.role==='founder';
+  const [creating,setCreating]=useState(false);
+  const [newLabel,setNewLabel]=useState('');
+  const [showCreate,setShowCreate]=useState(false);
+  if(!isOwner)return null;
+
+  const links:ChannelInviteLink[]=group.inviteLinks||[];
+
+  const createLink=async()=>{
+    if(creating)return;setCreating(true);
+    try{
+      const r=await fetch(`${window.location.origin}/api/channel-invites`,{
+        method:'POST',headers:{'Content-Type':'application/json','x-session-token':_getTok()},
+        body:JSON.stringify({channelId:group.id,channelName:group.name,isGroup:true,label:newLabel.trim()||'Ссылка'})});
+      if(r.ok){const d=await r.json();if(d.code){
+        onUpdate({inviteLinks:[...links,{id:uid(),code:d.code,label:newLabel.trim()||'Ссылка',clicks:0,createdAt:Date.now()}]});
+        setNewLabel('');setShowCreate(false);
+      }}
+    }catch{}finally{setCreating(false);}
+  };
+  const deleteLink=async(code:string)=>{
+    try{await fetch(`${window.location.origin}/api/channel-invites/${code}`,{method:'DELETE',headers:{'x-session-token':_getTok()}});}catch{}
+    onUpdate({inviteLinks:links.filter(l=>l.code!==code)});
+  };
+  const copyLink=(code:string)=>{navigator.clipboard.writeText(`${window.location.origin}/invite/${code}`).catch(()=>{});};
+
+  return (
+    <div style={{background:c.card,borderRadius:16,padding:'16px',border:`1px solid ${c.border}`,marginTop:12}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+        <span style={{fontSize:15}}>{group.isPrivate?'🔒':'🌐'}</span>
+        <p style={{margin:0,fontSize:13,fontWeight:800,color:c.light}}>
+          {group.isPrivate?'Закрытая группа — ссылки-приглашения':'Ссылки-приглашения'}
+        </p>
+      </div>
+      {links.length===0&&<p style={{margin:'0 0 8px',fontSize:12,color:c.sub,fontStyle:'italic'}}>Нет активных ссылок</p>}
+      {links.map(lnk=>(
+        <div key={lnk.code} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:`1px solid ${c.border}`}}>
+          <div style={{flex:1,minWidth:0}}>
+            <p style={{margin:0,fontSize:13,fontWeight:700,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lnk.label}</p>
+            <p style={{margin:0,fontSize:10,color:c.sub}}>👆 {lnk.clicks} · {new Date(lnk.createdAt).toLocaleDateString('ru-RU')}</p>
+          </div>
+          <motion.button whileTap={{scale:0.9}} onClick={()=>copyLink(lnk.code)}
+            style={{padding:'5px 10px',borderRadius:20,border:`1px solid ${accent}`,background:`${accent}15`,cursor:'pointer',fontSize:11,color:accent,fontWeight:700}}>📋</motion.button>
+          <motion.button whileTap={{scale:0.9}} onClick={()=>deleteLink(lnk.code)}
+            style={{padding:'5px 10px',borderRadius:20,border:'1px solid rgba(239,68,68,0.3)',background:'rgba(239,68,68,0.1)',cursor:'pointer',fontSize:11,color:'#ef4444',fontWeight:700}}>✕</motion.button>
+        </div>
+      ))}
+      {showCreate?(
+        <div style={{display:'flex',gap:6,marginTop:10}}>
+          <input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="Название ссылки..."
+            onKeyDown={e=>e.key==='Enter'&&createLink()}
+            style={{flex:1,padding:'8px 12px',borderRadius:10,background:c.bg,border:`1px solid ${c.border}`,color:c.light,fontSize:13,outline:'none'}}/>
+          <motion.button whileTap={{scale:0.9}} onClick={createLink}
+            style={{padding:'8px 14px',borderRadius:10,border:'none',cursor:'pointer',background:accent,color:'#fff',fontSize:13,fontWeight:700,flexShrink:0}}>{creating?'…':'Создать'}</motion.button>
+          <motion.button whileTap={{scale:0.9}} onClick={()=>setShowCreate(false)}
+            style={{padding:'8px 12px',borderRadius:10,border:`1px solid ${c.border}`,cursor:'pointer',background:'transparent',color:c.sub,fontSize:13}}>✕</motion.button>
+        </div>
+      ):(
+        <motion.button whileTap={{scale:0.9}} onClick={()=>setShowCreate(true)}
+          style={{marginTop:10,padding:'8px 14px',borderRadius:20,border:`1px dashed ${accent}`,background:'transparent',cursor:'pointer',fontSize:12,fontWeight:700,color:accent,width:'100%'}}>
+          + Создать ссылку-приглашение
+        </motion.button>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
    СТРАНИЦА ГРУППЫ
 ══════════════════════════════════════════════════════ */
 interface GroupPageProps {
   group:SwaipGroup; c:Props['c']; accent:string; isDark:boolean;
   userName:string; userAvatar:string;
   onBack:()=>void;
+  onUpdate:(patch:Partial<SwaipGroup>)=>void;
   onAddPost:(post:Omit<GroupPost,'id'|'createdAt'|'likes'|'myLiked'|'comments'>)=>void;
   onLike:(pid:string)=>void;
   onComment:(pid:string,text:string,anon:boolean)=>void;
@@ -3300,7 +3617,7 @@ interface GroupPageProps {
   onVoteIdea:(pid:string,iid:string)=>void;
   tick:number;
 }
-function GroupPage({group,c,accent,isDark,userName,userAvatar,onBack,onAddPost,onLike,onComment,onVotePoll,onSetWordOfDay,onSetMood,onJoinEvent,onAddIdea,onVoteIdea,tick}:GroupPageProps) {
+function GroupPage({group,c,accent,isDark,userName,userAvatar,onBack,onUpdate,onAddPost,onLike,onComment,onVotePoll,onSetWordOfDay,onSetMood,onJoinEvent,onAddIdea,onVoteIdea,tick}:GroupPageProps) {
   const [subTab,setSubTab]=useState<'feed'|'leaderboard'|'settings'>('feed');
   const [showComposer,setShowComposer]=useState(false);
   const [expandedPost,setExpandedPost]=useState<string|null>(null);
@@ -3506,6 +3823,9 @@ function GroupPage({group,c,accent,isDark,userName,userAvatar,onBack,onAddPost,o
                 );
               })}
             </div>
+
+            {/* Invite links panel */}
+            <GroupInvitePanel group={group} c={c} accent={accent} userName={userName} onUpdate={onUpdate}/>
           </div>
         )}
       </div>
@@ -4293,13 +4613,26 @@ function CreateGroupModal({c,accent,isDark,userName,userAvatar,onClose,onCreate}
   const [gradient,setGradient]=useState(GROUP_GRADIENTS[0]);
   const [isPrivate,setIsPrivate]=useState(false);
 
-  const handleCreate=()=>{
+  const handleCreate=async()=>{
     const founder:GroupMember={hash:'me',name:userName,avatar:userAvatar||'',role:'founder',score:100,joinedAt:Date.now()};
+    const gId=uid();
+
+    let initInviteLinks:ChannelInviteLink[]=[];
+    if(isPrivate){
+      try{
+        const r=await fetch(`${window.location.origin}/api/channel-invites`,{
+          method:'POST',headers:{'Content-Type':'application/json','x-session-token':_getTok()},
+          body:JSON.stringify({channelId:gId,channelName:name.trim(),isGroup:true,label:'Основная ссылка'})});
+        if(r.ok){const d=await r.json();if(d.code)initInviteLinks=[{id:uid(),code:d.code,label:'Основная ссылка',clicks:0,createdAt:Date.now()}];}
+      }catch{}
+    }
+
     const g:SwaipGroup={
-      id:uid(),name:name.trim(),handle:handle.trim()||name.trim().toLowerCase().replace(/\s+/g,'_'),
+      id:gId,name:name.trim(),handle:handle.trim()||name.trim().toLowerCase().replace(/\s+/g,'_'),
       description:desc.trim(),emoji,color,gradient,category:'general',
       createdAt:Date.now(),posts:[],members:[founder],
       wordOfDay:'',wordSetAt:0,todayMood:'',streak:0,isPrivate,
+      inviteLinks:initInviteLinks.length>0?initInviteLinks:undefined,
     };
     onCreate(g);
   };

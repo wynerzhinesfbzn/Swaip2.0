@@ -27,6 +27,7 @@ import gamesRouter from "./games.js";
 import linkPreviewRouter from "./linkPreview";
 import botsRouter from "./bots.js";
 import miniAppsRouter from "./miniApps.js";
+import channelInvitesRouter from "./channelInvites.js";
 
 const router: IRouter = Router();
 
@@ -58,5 +59,6 @@ router.use(gamesRouter);
 router.use(linkPreviewRouter);
 router.use(botsRouter);
 router.use(miniAppsRouter);
+router.use(channelInvitesRouter);
 
 export default router;
