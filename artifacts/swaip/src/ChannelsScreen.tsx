@@ -1491,6 +1491,10 @@ function PollBlock({opts,votedIdx,question,onVote,c}:{
    СОЗДАНИЕ ПОСТА
 ══════════════════════════════════════════════════════ */
 const _getTok=()=>{try{return localStorage.getItem('swaip_session')||'';}catch{return '';}};
+const _POPULAR_TAGS=['музыка','фото','арт','танцы','стиль','юмор','новости','спорт','путешествия','еда','книги','кино','игры','технологии','мода'];
+const _ACTIVITIES=[{k:'movie',e:'🎬',l:'Смотрю'},{k:'music',e:'🎵',l:'Слушаю'},{k:'book',e:'📖',l:'Читаю'},{k:'game',e:'🎮',l:'Играю'},{k:'show',e:'📺',l:'Сериал'}] as const;
+const _searchUsers=async(q:string):Promise<any[]>=>{if(!q.trim())return[];try{const r=await fetch(`${window.location.origin}/api/search?q=${encodeURIComponent(q)}&limit=5`,{headers:{'x-session-token':_getTok()}});if(r.ok){const d=await r.json();return d.results||[];}}catch{}return[];};
+const _getGeo=async():Promise<{city:string;lat:number;lng:number}|null>=>{try{const pos=await new Promise<GeolocationPosition>((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000}));const{latitude:lat,longitude:lng}=pos.coords;const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);const d=await r.json();const city=d.address?.city||d.address?.town||d.address?.village||d.address?.county||'Ваш город';return{city,lat,lng};}catch{return{city:'Ваш город',lat:0,lng:0};}};
 
 function ComposePost({ch,c,accent,onClose,onPublish}:{
   ch:SwaipChannel;c:Props['c'];accent:string;isDark:boolean;
@@ -1549,6 +1553,44 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
 
   /* ── Extras (универсальный «Добавить в пост») ── */
   const [extras,setExtras]=useState<PostExtras>({});
+
+  /* ── Дополнительные настройки ── */
+  const [showAddMenu2,setShowAddMenu2]=useState(false);
+  /* Коллаб */
+  const [showCoAuthor,setShowCoAuthor]=useState(false);
+  const [coAuthorQ,setCoAuthorQ]=useState('');
+  const [coAuthorRes,setCoAuthorRes]=useState<any[]>([]);
+  const [postCoAuthor,setPostCoAuthor]=useState<{hash:string;name:string;avatar:string}|null>(null);
+  /* Анонимное голосование */
+  const [postIsAnonVoting,setPostIsAnonVoting]=useState(false);
+  /* Таймер */
+  const [showTimer,setShowTimer]=useState(false);
+  const [postPublishAt,setPostPublishAt]=useState('');
+  const [postExpiresAt,setPostExpiresAt]=useState('');
+  /* Геолокация */
+  const [showGeo,setShowGeo]=useState(false);
+  const [postGeo,setPostGeo]=useState<{city:string;lat:number;lng:number}|null>(null);
+  const [geoLoading,setGeoLoading]=useState(false);
+  /* Отметить людей */
+  const [showMentions,setShowMentions]=useState(false);
+  const [mentionQ,setMentionQ]=useState('');
+  const [mentionRes,setMentionRes]=useState<any[]>([]);
+  const [postMentions,setPostMentions]=useState<{hash:string;name:string;avatar:string}[]>([]);
+  /* Хештеги */
+  const [showHashtags,setShowHashtags]=useState(false);
+  const [postHashtags,setPostHashtags]=useState<string[]>([]);
+  const [hashtagInput,setHashtagInput]=useState('');
+  /* Флаги */
+  const [postDisableComments,setPostDisableComments]=useState(false);
+  const [postDisableRepost,setPostDisableRepost]=useState(false);
+  const [postEnableTTS,setPostEnableTTS]=useState(false);
+  const [postEnableStats,setPostEnableStats]=useState(false);
+  /* Хелперы */
+  const searchCoAuthor_ch=async(q:string)=>{setCoAuthorQ(q);setCoAuthorRes(await _searchUsers(q));};
+  const searchMention_ch=async(q:string)=>{setMentionQ(q);setMentionRes(await _searchUsers(q));};
+  const addMention_ch=(u:any)=>{const name=u.pro_name||u.pro_full||u.scene_name||'Пользователь';if(postMentions.some(m=>m.hash===u.hash)||postMentions.length>=10)return;setPostMentions(p=>[...p,{hash:u.hash,name,avatar:u.pro_avatar||u.scene_avatar||''}]);setMentionQ('');setMentionRes([]);};
+  const addHashtag_ch=(t:string)=>{const v=t.trim().replace(/^#/,'').toLowerCase().replace(/\s+/g,'_');if(!v||postHashtags.includes(v)||postHashtags.length>=10)return;setPostHashtags(p=>[...p,v]);};
+  const doGetGeo_ch=async()=>{setGeoLoading(true);const g=await _getGeo();setPostGeo(g);setGeoLoading(false);};
 
   const POST_TYPES:[ChannelPost['type'],string,string][]=[
     ['text','✍️','Текст'],['photo','📸','Фото'],['video','🎬','Видео'],
@@ -1639,8 +1681,19 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
       if(type==='announce'&&announceAt)base.announceAt=new Date(announceAt).getTime();
       if(type==='capsule'&&opensAt)Object.assign(base,{opensAt:new Date(opensAt).getTime(),capsuleOpened:false});
       if(type==='episode')Object.assign(base,{seriesName,episodeNum});
-      if(hasBooking){Object.assign(base,{hasBooking:true,bookingLabel:bookingLabel||'Записаться',bookingSlots:bookingSlots});}
+      if(hasBooking){Object.assign(base,{hasBooking:true,bookingLabel:bookingLabel||'Записaться',bookingSlots:bookingSlots});}
       if(hasAnyExtras(extras)) base.extras=extras;
+      if(postCoAuthor) base.coAuthor=postCoAuthor;
+      if(postIsAnonVoting) base.isAnonVoting=true;
+      if(postPublishAt) base.publishAt=new Date(postPublishAt).toISOString();
+      if(postExpiresAt) base.expiresAt=new Date(postExpiresAt).toISOString();
+      if(postGeo) base.geo=postGeo;
+      if(postMentions.length) base.mentions=postMentions;
+      if(postHashtags.length) base.hashtags=postHashtags;
+      if(postDisableComments) base.disableComments=true;
+      if(postDisableRepost) base.disableRepost=true;
+      if(postEnableTTS) base.enableTTS=true;
+      if(postEnableStats) base.enableStats=true;
       onPublish(base);
     }finally{setPublishing(false);}
   };
@@ -2034,6 +2087,230 @@ function ComposePost({ch,c,accent,onClose,onPublish}:{
 
         {/* ── ➕ Добавить в пост (универсальные секции) ── */}
         <PostExtrasComposer extras={extras} onChange={setExtras} c={c} accent={accent}/>
+
+        {/* ── ⚙️ Дополнительные настройки ── */}
+        {(()=>{
+          const cnt=[showCoAuthor&&!!postCoAuthor,postIsAnonVoting,showTimer&&(!!postPublishAt||!!postExpiresAt),showGeo&&!!postGeo,showMentions||postMentions.length>0,showHashtags||postHashtags.length>0,postDisableComments,postDisableRepost,postEnableTTS,postEnableStats].filter(Boolean).length;
+          const menuItems=[
+            {id:'coauthor',emo:'🤝',lbl:'Коллаборативный пост',clr:'#a5b4fc',on:showCoAuthor,toggle:()=>setShowCoAuthor(s=>!s)},
+            {id:'anon',emo:'🕵️',lbl:'Анонимное голосование',clr:'#c4b5fd',on:postIsAnonVoting,toggle:()=>setPostIsAnonVoting(s=>!s),need:'poll'},
+            {id:'timer',emo:'⏰',lbl:'Таймер публикации',clr:'#fbbf24',on:showTimer,toggle:()=>setShowTimer(s=>!s)},
+            {id:'geo',emo:'📍',lbl:'Геолокация поста',clr:'#4ade80',on:showGeo,toggle:()=>setShowGeo(s=>!s)},
+            {id:'mention',emo:'🏷️',lbl:'Отметить людей',clr:'#a78bfa',on:showMentions||postMentions.length>0,toggle:()=>setShowMentions(s=>!s)},
+            {id:'hashtag',emo:'#️⃣',lbl:'Хештеги / темы',clr:'#22d3ee',on:showHashtags||postHashtags.length>0,toggle:()=>setShowHashtags(s=>!s)},
+            {id:'tts',emo:'🔊',lbl:'Озвучка текста (TTS)',clr:'#34d399',on:postEnableTTS,toggle:()=>setPostEnableTTS(s=>!s)},
+            {id:'stats',emo:'📈',lbl:'Детальная статистика',clr:'#a3e635',on:postEnableStats,toggle:()=>setPostEnableStats(s=>!s)},
+            {id:'nocomm',emo:'🚫',lbl:'Запретить комментарии',clr:'#f87171',on:postDisableComments,toggle:()=>setPostDisableComments(s=>!s)},
+            {id:'norepost',emo:'♻️',lbl:'Запретить репост',clr:'#f87171',on:postDisableRepost,toggle:()=>setPostDisableRepost(s=>!s)},
+          ];
+          return (
+            <div style={{marginTop:10,borderRadius:12,border:`1px solid rgba(255,255,255,0.08)`,background:'rgba(255,255,255,0.025)',overflow:'hidden'}}>
+              <div onClick={()=>setShowAddMenu2(s=>!s)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer'}}>
+                <div style={{width:28,height:28,borderRadius:'50%',background:'rgba(99,102,241,0.18)',border:'1px solid rgba(99,102,241,0.4)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:15,color:'#a5b4fc',fontWeight:700,transform:showAddMenu2?'rotate(45deg)':'rotate(0)',transition:'transform 0.2s'}}>+</div>
+                <span style={{flex:1,fontSize:13,color:'#fff',fontWeight:600}}>Настройки поста</span>
+                {cnt>0&&<span style={{fontSize:11,fontWeight:700,color:'#a5b4fc',background:'rgba(99,102,241,0.15)',borderRadius:10,padding:'2px 8px'}}>{cnt}</span>}
+                <span style={{fontSize:11,color:'rgba(255,255,255,0.35)',transform:showAddMenu2?'rotate(180deg)':'rotate(0)',transition:'transform 0.2s'}}>▾</span>
+              </div>
+              <AnimatePresence>
+                {showAddMenu2&&(
+                  <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}} style={{overflow:'hidden',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                    <div style={{padding:'10px 14px',display:'flex',flexDirection:'column',gap:2}}>
+                      {menuItems.map(item=>{
+                        const disabled=item.need==='poll'&&type!=='poll';
+                        return (
+                          <div key={item.id} onClick={disabled?undefined:item.toggle}
+                            style={{display:'flex',alignItems:'center',gap:12,padding:'9px 4px',cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.4:1,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                            <span style={{fontSize:17,width:24,textAlign:'center',flexShrink:0}}>{item.emo}</span>
+                            <span style={{flex:1,fontSize:13,color:item.on?item.clr:'rgba(255,255,255,0.75)',fontWeight:item.on?700:500}}>{item.lbl}</span>
+                            <span style={{fontSize:14,color:item.on?item.clr:'rgba(255,255,255,0.25)',fontWeight:700}}>{item.on?'✓':'+'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })()}
+
+        {/* ── Развёрнутые панели настроек ── */}
+        {showCoAuthor&&(
+          <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(99,102,241,0.4)',background:'rgba(99,102,241,0.06)',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+              <span style={{fontSize:14}}>🤝</span>
+              <span style={{flex:1,fontSize:12,color:'#a5b4fc',fontWeight:700}}>Коллаборативный пост</span>
+              {postCoAuthor&&<span style={{fontSize:10,color:'#a5b4fc',fontWeight:800}}>{postCoAuthor.name}</span>}
+              <button onClick={()=>{setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>
+            <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+              {postCoAuthor?(
+                <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(99,102,241,0.1)',borderRadius:10,padding:'8px 10px'}}>
+                  <div style={{width:28,height:28,borderRadius:'50%',overflow:'hidden',flexShrink:0}}>
+                    {postCoAuthor.avatar?<img src={postCoAuthor.avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:14}}>👤</span>}
+                  </div>
+                  <span style={{flex:1,fontSize:12,fontWeight:800,color:'#fff'}}>{postCoAuthor.name}</span>
+                  <button onClick={()=>{setPostCoAuthor(null);setCoAuthorQ('');setCoAuthorRes([]);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',cursor:'pointer',fontSize:14}}>✕</button>
+                </div>
+              ):(
+                <>
+                  <input value={coAuthorQ} onChange={e=>searchCoAuthor_ch(e.target.value)} placeholder="Поиск по имени…"
+                    style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(99,102,241,0.3)',color:'#fff',fontSize:12,outline:'none'}}/>
+                  {coAuthorRes.length>0&&<div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    {coAuthorRes.map((u:any,i:number)=>{
+                      const uName=u.pro_name||u.pro_full||u.scene_name||'Пользователь';
+                      return <button key={i} onClick={()=>{setPostCoAuthor({hash:u.hash,name:uName,avatar:u.pro_avatar||u.scene_avatar||''});setCoAuthorQ('');setCoAuthorRes([]);}}
+                        style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'7px 10px',border:'1px solid rgba(255,255,255,0.08)',cursor:'pointer',width:'100%',textAlign:'left'}}>
+                        <span style={{fontSize:12,color:'#fff',fontWeight:700}}>{uName}</span>
+                      </button>;
+                    })}
+                  </div>}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showTimer&&(
+          <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(251,191,36,0.4)',background:'rgba(251,191,36,0.05)',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+              <span style={{fontSize:14}}>⏰</span>
+              <span style={{flex:1,fontSize:12,color:'#fbbf24',fontWeight:700}}>Таймер публикации</span>
+              <button onClick={()=>{setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>
+            <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:10}}>
+              <div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:4,fontWeight:600}}>📅 Запланировать на:</div>
+                <input type="datetime-local" value={postPublishAt} min={new Date().toISOString().slice(0,16)} onChange={e=>setPostPublishAt(e.target.value)}
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(251,191,36,0.3)',color:'#fff',fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:4,fontWeight:600}}>⏳ Пост исчезнет:</div>
+                <input type="datetime-local" value={postExpiresAt} min={postPublishAt||new Date().toISOString().slice(0,16)} onChange={e=>setPostExpiresAt(e.target.value)}
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(251,191,36,0.3)',color:'#fff',fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showGeo&&(
+          <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(34,197,94,0.4)',background:'rgba(34,197,94,0.05)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+              <span style={{fontSize:14}}>📍</span>
+              <span style={{flex:1,fontSize:12,color:'#4ade80',fontWeight:700}}>Геолокация поста</span>
+              {postGeo&&<span style={{fontSize:10,color:'#4ade80',fontWeight:800}}>{postGeo.city}</span>}
+              <button onClick={()=>{setShowGeo(false);setPostGeo(null);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>
+            <div style={{padding:'0 12px 12px'}}>
+              {postGeo?(
+                <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(34,197,94,0.08)',borderRadius:10,padding:'8px 10px'}}>
+                  <span style={{fontSize:18}}>📍</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,fontWeight:800,color:'#4ade80'}}>{postGeo.city}</div>
+                    <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>Будет отображаться на посте</div>
+                  </div>
+                  <button onClick={()=>setPostGeo(null)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',cursor:'pointer',fontSize:14}}>✕</button>
+                </div>
+              ):(
+                <button onClick={doGetGeo_ch} disabled={geoLoading}
+                  style={{width:'100%',padding:'9px',borderRadius:8,border:'1px solid rgba(34,197,94,0.3)',background:'rgba(34,197,94,0.06)',color:'#4ade80',fontSize:12,fontWeight:700,cursor:geoLoading?'wait':'pointer'}}>
+                  {geoLoading?'⌛ Определяем...':'📍 Определить моё местоположение'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {(showMentions||postMentions.length>0)&&(
+          <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(167,139,250,0.4)',background:'rgba(167,139,250,0.05)',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+              <span style={{fontSize:14}}>🏷️</span>
+              <span style={{flex:1,fontSize:12,color:'#a78bfa',fontWeight:700}}>Отметить людей ({postMentions.length}/10)</span>
+              <button onClick={()=>{setShowMentions(false);setMentionQ('');setMentionRes([]);setPostMentions([]);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>
+            <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+              {postMentions.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                {postMentions.map(m=>(
+                  <div key={m.hash} style={{display:'flex',alignItems:'center',gap:4,background:'rgba(167,139,250,0.12)',border:'1px solid rgba(167,139,250,0.3)',borderRadius:20,padding:'4px 8px'}}>
+                    <span style={{fontSize:11,color:'#c4b5fd',fontWeight:700}}>{m.name}</span>
+                    <button onClick={()=>setPostMentions(p=>p.filter(x=>x.hash!==m.hash))} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:'0 2px',fontSize:11}}>✕</button>
+                  </div>
+                ))}
+              </div>}
+              {postMentions.length<10&&<input value={mentionQ} onChange={e=>searchMention_ch(e.target.value)} placeholder="Поиск по имени…"
+                style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(167,139,250,0.3)',color:'#fff',fontSize:12,outline:'none'}}/>}
+              {mentionRes.length>0&&<div style={{display:'flex',flexDirection:'column',gap:4}}>
+                {mentionRes.map((u:any,i:number)=>{
+                  const uName=u.pro_name||u.pro_full||u.scene_name||'Пользователь';
+                  const already=postMentions.some(m=>m.hash===u.hash);
+                  return <button key={i} disabled={already} onClick={()=>addMention_ch(u)}
+                    style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'7px 10px',border:'1px solid rgba(255,255,255,0.08)',cursor:already?'not-allowed':'pointer',width:'100%',textAlign:'left',opacity:already?0.5:1}}>
+                    <span style={{fontSize:12,color:'#fff',fontWeight:700,flex:1}}>{uName}</span>
+                    {already&&<span style={{fontSize:10,color:'#a78bfa'}}>✓</span>}
+                  </button>;
+                })}
+              </div>}
+            </div>
+          </div>
+        )}
+
+        {(showHashtags||postHashtags.length>0)&&(
+          <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(34,211,238,0.4)',background:'rgba(34,211,238,0.05)',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+              <span style={{fontSize:14}}>#️⃣</span>
+              <span style={{flex:1,fontSize:12,color:'#22d3ee',fontWeight:700}}>Хештеги ({postHashtags.length}/10)</span>
+              <button onClick={()=>{setShowHashtags(false);setPostHashtags([]);setHashtagInput('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>
+            <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+              {postHashtags.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                {postHashtags.map(t=>(
+                  <div key={t} style={{display:'flex',alignItems:'center',gap:4,background:'rgba(34,211,238,0.12)',border:'1px solid rgba(34,211,238,0.3)',borderRadius:20,padding:'4px 8px 4px 10px'}}>
+                    <span style={{fontSize:11,color:'#67e8f9',fontWeight:700}}>#{t}</span>
+                    <button onClick={()=>setPostHashtags(p=>p.filter(x=>x!==t))} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:'0 2px',fontSize:11}}>✕</button>
+                  </div>
+                ))}
+              </div>}
+              {postHashtags.length<10&&<div style={{display:'flex',gap:6}}>
+                <input value={hashtagInput} onChange={e=>setHashtagInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addHashtag_ch(hashtagInput);setHashtagInput('');}}} placeholder="Хештег + Enter…"
+                  style={{flex:1,boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(34,211,238,0.3)',color:'#fff',fontSize:12,outline:'none'}}/>
+                <button onClick={()=>{addHashtag_ch(hashtagInput);setHashtagInput('');}} style={{padding:'8px 13px',borderRadius:8,background:'rgba(34,211,238,0.2)',border:'1px solid rgba(34,211,238,0.4)',color:'#67e8f9',fontSize:12,fontWeight:700,cursor:'pointer'}}>+</button>
+              </div>}
+              <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                {_POPULAR_TAGS.filter(t=>!postHashtags.includes(t)).slice(0,10).map(t=>(
+                  <button key={t} onClick={()=>addHashtag_ch(t)} disabled={postHashtags.length>=10}
+                    style={{padding:'4px 9px',borderRadius:14,background:'rgba(34,211,238,0.06)',border:'1px solid rgba(34,211,238,0.2)',color:'#67e8f9',fontSize:10,cursor:'pointer',opacity:postHashtags.length>=10?0.4:1}}>
+                    #{t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(postEnableTTS||postEnableStats||postDisableComments||postDisableRepost)&&(
+          <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
+            {postEnableTTS&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(52,211,153,0.35)',background:'rgba(52,211,153,0.06)'}}>
+              <span style={{fontSize:13}}>🔊</span>
+              <span style={{flex:1,fontSize:11,color:'#34d399',fontWeight:700}}>Озвучка текста (TTS включена)</span>
+              <button onClick={()=>setPostEnableTTS(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>}
+            {postEnableStats&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(163,230,53,0.35)',background:'rgba(163,230,53,0.06)'}}>
+              <span style={{fontSize:13}}>📈</span>
+              <span style={{flex:1,fontSize:11,color:'#a3e635',fontWeight:700}}>Детальная статистика (охваты, демография)</span>
+              <button onClick={()=>setPostEnableStats(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>}
+            {postDisableComments&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(248,113,113,0.35)',background:'rgba(248,113,113,0.06)'}}>
+              <span style={{fontSize:13}}>🚫</span>
+              <span style={{flex:1,fontSize:11,color:'#f87171',fontWeight:700}}>Комментарии запрещены</span>
+              <button onClick={()=>setPostDisableComments(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>}
+            {postDisableRepost&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(248,113,113,0.35)',background:'rgba(248,113,113,0.06)'}}>
+              <span style={{fontSize:13}}>♻️</span>
+              <span style={{flex:1,fontSize:11,color:'#f87171',fontWeight:700}}>Репост запрещён</span>
+              <button onClick={()=>setPostDisableRepost(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+            </div>}
+          </div>
+        )}
 
       </div>
     </motion.div>
@@ -3321,6 +3598,35 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
   const [postBgMusic,setPostBgMusic]=useState<BgMusicPreset|null>(null);
   /* extras */
   const [extras,setExtras]=useState<PostExtras>({});
+  /* ── Дополнительные настройки (группы) ── */
+  const [showAddMenu2g,setShowAddMenu2g]=useState(false);
+  const [showCoAuthorG,setShowCoAuthorG]=useState(false);
+  const [coAuthorQG,setCoAuthorQG]=useState('');
+  const [coAuthorResG,setCoAuthorResG]=useState<any[]>([]);
+  const [postCoAuthorG,setPostCoAuthorG]=useState<{hash:string;name:string;avatar:string}|null>(null);
+  const [postIsAnonVotingG,setPostIsAnonVotingG]=useState(false);
+  const [showTimerG,setShowTimerG]=useState(false);
+  const [postPublishAtG,setPostPublishAtG]=useState('');
+  const [postExpiresAtG,setPostExpiresAtG]=useState('');
+  const [showGeoG,setShowGeoG]=useState(false);
+  const [postGeoG,setPostGeoG]=useState<{city:string;lat:number;lng:number}|null>(null);
+  const [geoLoadingG,setGeoLoadingG]=useState(false);
+  const [showMentionsG,setShowMentionsG]=useState(false);
+  const [mentionQG,setMentionQG]=useState('');
+  const [mentionResG,setMentionResG]=useState<any[]>([]);
+  const [postMentionsG,setPostMentionsG]=useState<{hash:string;name:string;avatar:string}[]>([]);
+  const [showHashtagsG,setShowHashtagsG]=useState(false);
+  const [postHashtagsG,setPostHashtagsG]=useState<string[]>([]);
+  const [hashtagInputG,setHashtagInputG]=useState('');
+  const [postDisableCommentsG,setPostDisableCommentsG]=useState(false);
+  const [postDisableRepostG,setPostDisableRepostG]=useState(false);
+  const [postEnableTTSG,setPostEnableTTSG]=useState(false);
+  const [postEnableStatsG,setPostEnableStatsG]=useState(false);
+  const searchCoAuthorG=async(q:string)=>{setCoAuthorQG(q);setCoAuthorResG(await _searchUsers(q));};
+  const searchMentionG=async(q:string)=>{setMentionQG(q);setMentionResG(await _searchUsers(q));};
+  const addMentionG=(u:any)=>{const name=u.pro_name||u.pro_full||u.scene_name||'Пользователь';if(postMentionsG.some(m=>m.hash===u.hash)||postMentionsG.length>=10)return;setPostMentionsG(p=>[...p,{hash:u.hash,name,avatar:u.pro_avatar||u.scene_avatar||''}]);setMentionQG('');setMentionResG([]);};
+  const addHashtagG=(t:string)=>{const v=t.trim().replace(/^#/,'').toLowerCase().replace(/\s+/g,'_');if(!v||postHashtagsG.includes(v)||postHashtagsG.length>=10)return;setPostHashtagsG(p=>[...p,v]);};
+  const doGetGeoG=async()=>{setGeoLoadingG(true);const g=await _getGeo();setPostGeoG(g);setGeoLoadingG(false);};
 
   const meta=GROUP_POST_META[postType];
 
@@ -3341,6 +3647,17 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
     if(postType==='collab') base={...base,text:'',collabParts:[{author:userName,text:collabText}]};
     if(postBgMusic) base={...base,bgMusicUrl:postBgMusic.url,bgMusicLabel:`${postBgMusic.emoji} ${postBgMusic.label}`};
     if(hasAnyExtras(extras)) base={...base,extras};
+    if(postCoAuthorG) (base as any).coAuthor=postCoAuthorG;
+    if(postIsAnonVotingG) (base as any).isAnonVoting=true;
+    if(postPublishAtG) (base as any).publishAt=new Date(postPublishAtG).toISOString();
+    if(postExpiresAtG) (base as any).expiresAt=new Date(postExpiresAtG).toISOString();
+    if(postGeoG) (base as any).geo=postGeoG;
+    if(postMentionsG.length) (base as any).mentions=postMentionsG;
+    if(postHashtagsG.length) (base as any).hashtags=postHashtagsG;
+    if(postDisableCommentsG) (base as any).disableComments=true;
+    if(postDisableRepostG) (base as any).disableRepost=true;
+    if(postEnableTTSG) (base as any).enableTTS=true;
+    if(postEnableStatsG) (base as any).enableStats=true;
     onPost(base);
   };
 
@@ -3515,6 +3832,226 @@ function GroupComposer({group,c,accent,isDark,userName,userAvatar,onClose,onPost
 
           {/* ── ➕ Добавить в пост (универсальные секции) ── */}
           <PostExtrasComposer extras={extras} onChange={setExtras} c={c} accent={meta.color}/>
+
+          {/* ── ⚙️ Настройки поста (группы) ── */}
+          {(()=>{
+            const cntG=[showCoAuthorG&&!!postCoAuthorG,postIsAnonVotingG,showTimerG&&(!!postPublishAtG||!!postExpiresAtG),showGeoG&&!!postGeoG,showMentionsG||postMentionsG.length>0,showHashtagsG||postHashtagsG.length>0,postDisableCommentsG,postDisableRepostG,postEnableTTSG,postEnableStatsG].filter(Boolean).length;
+            const menuG=[
+              {id:'coauthor',emo:'🤝',lbl:'Коллаборативный пост',clr:'#a5b4fc',on:showCoAuthorG,toggle:()=>setShowCoAuthorG(s=>!s)},
+              {id:'anon',emo:'🕵️',lbl:'Анонимное голосование',clr:'#c4b5fd',on:postIsAnonVotingG,toggle:()=>setPostIsAnonVotingG(s=>!s),need:'poll'},
+              {id:'timer',emo:'⏰',lbl:'Таймер публикации',clr:'#fbbf24',on:showTimerG,toggle:()=>setShowTimerG(s=>!s)},
+              {id:'geo',emo:'📍',lbl:'Геолокация поста',clr:'#4ade80',on:showGeoG,toggle:()=>setShowGeoG(s=>!s)},
+              {id:'mention',emo:'🏷️',lbl:'Отметить людей',clr:'#a78bfa',on:showMentionsG||postMentionsG.length>0,toggle:()=>setShowMentionsG(s=>!s)},
+              {id:'hashtag',emo:'#️⃣',lbl:'Хештеги / темы',clr:'#22d3ee',on:showHashtagsG||postHashtagsG.length>0,toggle:()=>setShowHashtagsG(s=>!s)},
+              {id:'tts',emo:'🔊',lbl:'Озвучка текста (TTS)',clr:'#34d399',on:postEnableTTSG,toggle:()=>setPostEnableTTSG(s=>!s)},
+              {id:'stats',emo:'📈',lbl:'Детальная статистика',clr:'#a3e635',on:postEnableStatsG,toggle:()=>setPostEnableStatsG(s=>!s)},
+              {id:'nocomm',emo:'🚫',lbl:'Запретить комментарии',clr:'#f87171',on:postDisableCommentsG,toggle:()=>setPostDisableCommentsG(s=>!s)},
+              {id:'norepost',emo:'♻️',lbl:'Запретить репост',clr:'#f87171',on:postDisableRepostG,toggle:()=>setPostDisableRepostG(s=>!s)},
+            ];
+            return (
+              <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.025)',overflow:'hidden'}}>
+                <div onClick={()=>setShowAddMenu2g(s=>!s)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer'}}>
+                  <div style={{width:28,height:28,borderRadius:'50%',background:'rgba(99,102,241,0.18)',border:'1px solid rgba(99,102,241,0.4)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:15,color:'#a5b4fc',fontWeight:700,transform:showAddMenu2g?'rotate(45deg)':'rotate(0)',transition:'transform 0.2s'}}>+</div>
+                  <span style={{flex:1,fontSize:13,color:'#fff',fontWeight:600}}>Настройки поста</span>
+                  {cntG>0&&<span style={{fontSize:11,fontWeight:700,color:'#a5b4fc',background:'rgba(99,102,241,0.15)',borderRadius:10,padding:'2px 8px'}}>{cntG}</span>}
+                  <span style={{fontSize:11,color:'rgba(255,255,255,0.35)',transform:showAddMenu2g?'rotate(180deg)':'rotate(0)',transition:'transform 0.2s'}}>▾</span>
+                </div>
+                <AnimatePresence>
+                  {showAddMenu2g&&(
+                    <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}} style={{overflow:'hidden',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                      <div style={{padding:'10px 14px',display:'flex',flexDirection:'column',gap:2}}>
+                        {menuG.map(item=>{
+                          const disabled=item.need==='poll'&&postType!=='poll';
+                          return (
+                            <div key={item.id} onClick={disabled?undefined:item.toggle}
+                              style={{display:'flex',alignItems:'center',gap:12,padding:'9px 4px',cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.4:1,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                              <span style={{fontSize:17,width:24,textAlign:'center',flexShrink:0}}>{item.emo}</span>
+                              <span style={{flex:1,fontSize:13,color:item.on?item.clr:'rgba(255,255,255,0.75)',fontWeight:item.on?700:500}}>{item.lbl}</span>
+                              <span style={{fontSize:14,color:item.on?item.clr:'rgba(255,255,255,0.25)',fontWeight:700}}>{item.on?'✓':'+'}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })()}
+
+          {showCoAuthorG&&(
+            <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(99,102,241,0.4)',background:'rgba(99,102,241,0.06)',overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🤝</span>
+                <span style={{flex:1,fontSize:12,color:'#a5b4fc',fontWeight:700}}>Коллаборативный пост</span>
+                {postCoAuthorG&&<span style={{fontSize:10,color:'#a5b4fc',fontWeight:800}}>{postCoAuthorG.name}</span>}
+                <button onClick={()=>{setShowCoAuthorG(false);setCoAuthorQG('');setCoAuthorResG([]);setPostCoAuthorG(null);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                {postCoAuthorG?(
+                  <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(99,102,241,0.1)',borderRadius:10,padding:'8px 10px'}}>
+                    <span style={{flex:1,fontSize:12,fontWeight:800,color:'#fff'}}>{postCoAuthorG.name}</span>
+                    <button onClick={()=>{setPostCoAuthorG(null);setCoAuthorQG('');setCoAuthorResG([]);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',cursor:'pointer',fontSize:14}}>✕</button>
+                  </div>
+                ):(
+                  <>
+                    <input value={coAuthorQG} onChange={e=>searchCoAuthorG(e.target.value)} placeholder="Поиск по имени…"
+                      style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(99,102,241,0.3)',color:'#fff',fontSize:12,outline:'none'}}/>
+                    {coAuthorResG.length>0&&<div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      {coAuthorResG.map((u:any,i:number)=>{
+                        const uName=u.pro_name||u.pro_full||u.scene_name||'Пользователь';
+                        return <button key={i} onClick={()=>{setPostCoAuthorG({hash:u.hash,name:uName,avatar:u.pro_avatar||u.scene_avatar||''});setCoAuthorQG('');setCoAuthorResG([]);}}
+                          style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'7px 10px',border:'1px solid rgba(255,255,255,0.08)',cursor:'pointer',width:'100%',textAlign:'left'}}>
+                          <span style={{fontSize:12,color:'#fff',fontWeight:700}}>{uName}</span>
+                        </button>;
+                      })}
+                    </div>}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {showTimerG&&(
+            <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(251,191,36,0.4)',background:'rgba(251,191,36,0.05)',overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>⏰</span>
+                <span style={{flex:1,fontSize:12,color:'#fbbf24',fontWeight:700}}>Таймер публикации</span>
+                <button onClick={()=>{setShowTimerG(false);setPostPublishAtG('');setPostExpiresAtG('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:10}}>
+                <div>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:4,fontWeight:600}}>📅 Запланировать на:</div>
+                  <input type="datetime-local" value={postPublishAtG} min={new Date().toISOString().slice(0,16)} onChange={e=>setPostPublishAtG(e.target.value)}
+                    style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(251,191,36,0.3)',color:'#fff',fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:4,fontWeight:600}}>⏳ Пост исчезнет:</div>
+                  <input type="datetime-local" value={postExpiresAtG} min={postPublishAtG||new Date().toISOString().slice(0,16)} onChange={e=>setPostExpiresAtG(e.target.value)}
+                    style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(251,191,36,0.3)',color:'#fff',fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showGeoG&&(
+            <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(34,197,94,0.4)',background:'rgba(34,197,94,0.05)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>📍</span>
+                <span style={{flex:1,fontSize:12,color:'#4ade80',fontWeight:700}}>Геолокация поста</span>
+                {postGeoG&&<span style={{fontSize:10,color:'#4ade80',fontWeight:800}}>{postGeoG.city}</span>}
+                <button onClick={()=>{setShowGeoG(false);setPostGeoG(null);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px'}}>
+                {postGeoG?(
+                  <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(34,197,94,0.08)',borderRadius:10,padding:'8px 10px'}}>
+                    <span style={{fontSize:18}}>📍</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:800,color:'#4ade80'}}>{postGeoG.city}</div>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>Будет отображаться на посте</div>
+                    </div>
+                    <button onClick={()=>setPostGeoG(null)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',cursor:'pointer',fontSize:14}}>✕</button>
+                  </div>
+                ):(
+                  <button onClick={doGetGeoG} disabled={geoLoadingG}
+                    style={{width:'100%',padding:'9px',borderRadius:8,border:'1px solid rgba(34,197,94,0.3)',background:'rgba(34,197,94,0.06)',color:'#4ade80',fontSize:12,fontWeight:700,cursor:geoLoadingG?'wait':'pointer'}}>
+                    {geoLoadingG?'⌛ Определяем...':'📍 Определить моё местоположение'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(showMentionsG||postMentionsG.length>0)&&(
+            <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(167,139,250,0.4)',background:'rgba(167,139,250,0.05)',overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>🏷️</span>
+                <span style={{flex:1,fontSize:12,color:'#a78bfa',fontWeight:700}}>Отметить людей ({postMentionsG.length}/10)</span>
+                <button onClick={()=>{setShowMentionsG(false);setMentionQG('');setMentionResG([]);setPostMentionsG([]);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                {postMentionsG.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                  {postMentionsG.map(m=>(
+                    <div key={m.hash} style={{display:'flex',alignItems:'center',gap:4,background:'rgba(167,139,250,0.12)',border:'1px solid rgba(167,139,250,0.3)',borderRadius:20,padding:'4px 8px'}}>
+                      <span style={{fontSize:11,color:'#c4b5fd',fontWeight:700}}>{m.name}</span>
+                      <button onClick={()=>setPostMentionsG(p=>p.filter(x=>x.hash!==m.hash))} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:'0 2px',fontSize:11}}>✕</button>
+                    </div>
+                  ))}
+                </div>}
+                {postMentionsG.length<10&&<input value={mentionQG} onChange={e=>searchMentionG(e.target.value)} placeholder="Поиск по имени…"
+                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(167,139,250,0.3)',color:'#fff',fontSize:12,outline:'none'}}/>}
+                {mentionResG.length>0&&<div style={{display:'flex',flexDirection:'column',gap:4}}>
+                  {mentionResG.map((u:any,i:number)=>{
+                    const uName=u.pro_name||u.pro_full||u.scene_name||'Пользователь';
+                    const already=postMentionsG.some(m=>m.hash===u.hash);
+                    return <button key={i} disabled={already} onClick={()=>addMentionG(u)}
+                      style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'7px 10px',border:'1px solid rgba(255,255,255,0.08)',cursor:already?'not-allowed':'pointer',width:'100%',textAlign:'left',opacity:already?0.5:1}}>
+                      <span style={{fontSize:12,color:'#fff',fontWeight:700,flex:1}}>{uName}</span>
+                      {already&&<span style={{fontSize:10,color:'#a78bfa'}}>✓</span>}
+                    </button>;
+                  })}
+                </div>}
+              </div>
+            </div>
+          )}
+
+          {(showHashtagsG||postHashtagsG.length>0)&&(
+            <div style={{marginTop:10,borderRadius:12,border:'1px solid rgba(34,211,238,0.4)',background:'rgba(34,211,238,0.05)',overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                <span style={{fontSize:14}}>#️⃣</span>
+                <span style={{flex:1,fontSize:12,color:'#22d3ee',fontWeight:700}}>Хештеги ({postHashtagsG.length}/10)</span>
+                <button onClick={()=>{setShowHashtagsG(false);setPostHashtagsG([]);setHashtagInputG('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>
+              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                {postHashtagsG.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                  {postHashtagsG.map(t=>(
+                    <div key={t} style={{display:'flex',alignItems:'center',gap:4,background:'rgba(34,211,238,0.12)',border:'1px solid rgba(34,211,238,0.3)',borderRadius:20,padding:'4px 8px 4px 10px'}}>
+                      <span style={{fontSize:11,color:'#67e8f9',fontWeight:700}}>#{t}</span>
+                      <button onClick={()=>setPostHashtagsG(p=>p.filter(x=>x!==t))} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',padding:'0 2px',fontSize:11}}>✕</button>
+                    </div>
+                  ))}
+                </div>}
+                {postHashtagsG.length<10&&<div style={{display:'flex',gap:6}}>
+                  <input value={hashtagInputG} onChange={e=>setHashtagInputG(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addHashtagG(hashtagInputG);setHashtagInputG('');}}} placeholder="Хештег + Enter…"
+                    style={{flex:1,boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(34,211,238,0.3)',color:'#fff',fontSize:12,outline:'none'}}/>
+                  <button onClick={()=>{addHashtagG(hashtagInputG);setHashtagInputG('');}} style={{padding:'8px 13px',borderRadius:8,background:'rgba(34,211,238,0.2)',border:'1px solid rgba(34,211,238,0.4)',color:'#67e8f9',fontSize:12,fontWeight:700,cursor:'pointer'}}>+</button>
+                </div>}
+                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  {_POPULAR_TAGS.filter(t=>!postHashtagsG.includes(t)).slice(0,10).map(t=>(
+                    <button key={t} onClick={()=>addHashtagG(t)} disabled={postHashtagsG.length>=10}
+                      style={{padding:'4px 9px',borderRadius:14,background:'rgba(34,211,238,0.06)',border:'1px solid rgba(34,211,238,0.2)',color:'#67e8f9',fontSize:10,cursor:'pointer',opacity:postHashtagsG.length>=10?0.4:1}}>
+                      #{t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(postEnableTTSG||postEnableStatsG||postDisableCommentsG||postDisableRepostG)&&(
+            <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
+              {postEnableTTSG&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(52,211,153,0.35)',background:'rgba(52,211,153,0.06)'}}>
+                <span style={{fontSize:13}}>🔊</span>
+                <span style={{flex:1,fontSize:11,color:'#34d399',fontWeight:700}}>Озвучка текста (TTS включена)</span>
+                <button onClick={()=>setPostEnableTTSG(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>}
+              {postEnableStatsG&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(163,230,53,0.35)',background:'rgba(163,230,53,0.06)'}}>
+                <span style={{fontSize:13}}>📈</span>
+                <span style={{flex:1,fontSize:11,color:'#a3e635',fontWeight:700}}>Детальная статистика (охваты, демография)</span>
+                <button onClick={()=>setPostEnableStatsG(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>}
+              {postDisableCommentsG&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(248,113,113,0.35)',background:'rgba(248,113,113,0.06)'}}>
+                <span style={{fontSize:13}}>🚫</span>
+                <span style={{flex:1,fontSize:11,color:'#f87171',fontWeight:700}}>Комментарии запрещены</span>
+                <button onClick={()=>setPostDisableCommentsG(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>}
+              {postDisableRepostG&&<div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:10,border:'1px solid rgba(248,113,113,0.35)',background:'rgba(248,113,113,0.06)'}}>
+                <span style={{fontSize:13}}>♻️</span>
+                <span style={{flex:1,fontSize:11,color:'#f87171',fontWeight:700}}>Репост запрещён</span>
+                <button onClick={()=>setPostDisableRepostG(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:13,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>}
+            </div>
+          )}
 
           {/* Submit */}
           {groupContentError&&(
