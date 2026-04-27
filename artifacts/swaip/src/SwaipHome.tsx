@@ -1622,6 +1622,84 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
               </div>
             )}
 
+            {/* ── Каналы хозяина ── */}
+            {(()=>{
+              const guestChannels:any[]=Array.isArray(d.sw_channels)?d.sw_channels:[];
+              if(!guestChannels.length)return null;
+              return(
+                <div style={{background:c.card,borderBottom:`1px solid ${c.border}`,padding:'14px 12px 10px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                    <span style={{fontSize:16}}>📡</span>
+                    <span style={{fontSize:14,fontWeight:900,color:c.light}}>Каналы</span>
+                    <span style={{fontSize:12,color:c.sub,marginLeft:'auto'}}>{guestChannels.length}</span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {guestChannels.map((ch:any)=>(
+                      <div key={ch.id} style={{borderRadius:14,overflow:'hidden',background:c.cardAlt,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                        <div style={{width:44,height:44,borderRadius:'50%',flexShrink:0,
+                          background:ch.coverGradient||`linear-gradient(135deg,${ac}44,#0a0a14)`,
+                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,
+                          border:'2px solid rgba(255,255,255,0.12)',overflow:'hidden'}}>
+                          {ch.coverPhotoUrl||ch.avatarPhotoUrl
+                            ?<img src={ch.avatarPhotoUrl||ch.coverPhotoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                            :<span>{ch.vibe||'📡'}</span>}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',alignItems:'center',gap:5}}>
+                            <span style={{fontSize:13,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ch.name}</span>
+                            {ch.isVerified&&<span style={{fontSize:10,color:'#60a5fa'}}>✓</span>}
+                          </div>
+                          {ch.description&&<div style={{fontSize:11,color:c.sub,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ch.description}</div>}
+                          <div style={{display:'flex',gap:10,marginTop:3}}>
+                            <span style={{fontSize:10,color:c.sub}}>👥 {ch.subscribers||0} подписчиков</span>
+                            <span style={{fontSize:10,color:c.sub}}>📝 {ch.postCount||0} постов</span>
+                          </div>
+                        </div>
+                        {ch.tags?.length>0&&<div style={{flexShrink:0,fontSize:9,color:ac,background:ac+'18',padding:'3px 8px',borderRadius:20,fontWeight:700,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ch.tags[0]}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Группы хозяина ── */}
+            {(()=>{
+              const guestGroups:any[]=Array.isArray(d.sw_groups)?d.sw_groups:[];
+              const publicGroups=guestGroups.filter((g:any)=>!g.isPrivate);
+              if(!publicGroups.length)return null;
+              return(
+                <div style={{background:c.card,borderBottom:`1px solid ${c.border}`,padding:'14px 12px 10px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                    <span style={{fontSize:16}}>👥</span>
+                    <span style={{fontSize:14,fontWeight:900,color:c.light}}>Группы</span>
+                    <span style={{fontSize:12,color:c.sub,marginLeft:'auto'}}>{publicGroups.length}</span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {publicGroups.map((g:any)=>(
+                      <div key={g.id} style={{borderRadius:14,overflow:'hidden',background:g.gradient||c.cardAlt,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
+                        <div style={{width:44,height:44,borderRadius:12,flexShrink:0,
+                          background:`linear-gradient(135deg,${g.color||ac}44,${g.color||ac}22)`,
+                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,
+                          border:`2px solid ${g.color||ac}44`}}>
+                          <span>{g.emoji||'👥'}</span>
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <span style={{fontSize:13,fontWeight:800,color:'rgba(255,255,255,0.92)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>{g.name}</span>
+                          {g.description&&<div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.description}</div>}
+                          <div style={{display:'flex',gap:10,marginTop:3}}>
+                            <span style={{fontSize:10,color:'rgba(255,255,255,0.45)'}}>👥 {g.memberCount||0} участников</span>
+                            {g.streak>0&&<span style={{fontSize:10,color:'#f97316'}}>🔥 {g.streak} дней</span>}
+                          </div>
+                        </div>
+                        {g.todayMood&&<div style={{flexShrink:0,fontSize:20}}>{g.todayMood}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Лента с фоном feedBg как у хозяина ── */}
             <div style={{padding:'10px 10px 80px',background:feedBg||c.deep,backgroundAttachment:'fixed',minHeight:300}}>
               {posts.length>0

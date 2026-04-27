@@ -162,13 +162,42 @@ function uid():string { return Math.random().toString(36).slice(2,10); }
 ══════════════════════════════════════════════════════ */
 function useChannelsStore(userHash:string):[SwaipChannel[],React.Dispatch<React.SetStateAction<SwaipChannel[]>>] {
   const KEY=`swaip_account_${userHash}_channels_v2`;
+  const SYNC_KEY='sw_channels';
   const [channels,setChannelsRaw]=useState<SwaipChannel[]>(()=>{
-    try{ const s=localStorage.getItem(KEY); return s?JSON.parse(s):[]; }catch{ return []; }
+    try{
+      const s=localStorage.getItem(KEY);
+      const parsed:SwaipChannel[]=s?JSON.parse(s):[];
+      if(parsed.length){
+        const summary=parsed.map(ch=>({
+          id:ch.id,name:ch.name,handle:ch.handle,description:ch.description,
+          vibe:ch.vibe,vibeColor:ch.vibeColor,coverGradient:ch.coverGradient,
+          coverPhotoUrl:ch.coverPhotoUrl,avatarPhotoUrl:ch.avatarPhotoUrl,
+          category:ch.category,tags:ch.tags,subscribers:ch.subscribers,
+          postCount:ch.posts.length,rubrics:ch.rubrics,energyLevel:ch.energyLevel,
+          isVerified:ch.isVerified,pulse:ch.pulse,authorName:ch.authorName,
+          templateId:ch.templateId,usp:ch.usp,createdAt:ch.createdAt,
+        }));
+        try{localStorage.setItem(SYNC_KEY,JSON.stringify(summary));}catch{}
+      }
+      return parsed;
+    }catch{ return []; }
   });
   const setChannels:React.Dispatch<React.SetStateAction<SwaipChannel[]>>=(action)=>{
     setChannelsRaw(prev=>{
       const next=typeof action==='function'?(action as (p:SwaipChannel[])=>SwaipChannel[])(prev):action;
-      try{ localStorage.setItem(KEY,JSON.stringify(next)); }catch{}
+      try{
+        localStorage.setItem(KEY,JSON.stringify(next));
+        const summary=next.map(ch=>({
+          id:ch.id,name:ch.name,handle:ch.handle,description:ch.description,
+          vibe:ch.vibe,vibeColor:ch.vibeColor,coverGradient:ch.coverGradient,
+          coverPhotoUrl:ch.coverPhotoUrl,avatarPhotoUrl:ch.avatarPhotoUrl,
+          category:ch.category,tags:ch.tags,subscribers:ch.subscribers,
+          postCount:ch.posts.length,rubrics:ch.rubrics,energyLevel:ch.energyLevel,
+          isVerified:ch.isVerified,pulse:ch.pulse,authorName:ch.authorName,
+          templateId:ch.templateId,usp:ch.usp,createdAt:ch.createdAt,
+        }));
+        localStorage.setItem(SYNC_KEY,JSON.stringify(summary));
+      }catch{}
       return next;
     });
   };
@@ -248,13 +277,38 @@ interface SwaipGroup {
 ══════════════════════════════════════════════════════ */
 function useGroupsStore(userHash:string):[SwaipGroup[],React.Dispatch<React.SetStateAction<SwaipGroup[]>>] {
   const KEY=`swaip_account_${userHash}_groups_v1`;
+  const SYNC_KEY='sw_groups';
   const [groups,setGroupsRaw]=useState<SwaipGroup[]>(()=>{
-    try{ const s=localStorage.getItem(KEY); return s?JSON.parse(s):[]; }catch{ return []; }
+    try{
+      const s=localStorage.getItem(KEY);
+      const parsed:SwaipGroup[]=s?JSON.parse(s):[];
+      if(parsed.length){
+        const summary=parsed.map(g=>({
+          id:g.id,name:g.name,handle:g.handle,description:g.description,
+          emoji:g.emoji,color:g.color,gradient:g.gradient,category:g.category,
+          memberCount:g.members.length,postCount:g.posts.length,
+          isPrivate:g.isPrivate,wordOfDay:g.wordOfDay,todayMood:g.todayMood,
+          streak:g.streak,createdAt:g.createdAt,
+        }));
+        try{localStorage.setItem(SYNC_KEY,JSON.stringify(summary));}catch{}
+      }
+      return parsed;
+    }catch{ return []; }
   });
   const setGroups:React.Dispatch<React.SetStateAction<SwaipGroup[]>>=(action)=>{
     setGroupsRaw(prev=>{
       const next=typeof action==='function'?(action as (p:SwaipGroup[])=>SwaipGroup[])(prev):action;
-      try{ localStorage.setItem(KEY,JSON.stringify(next)); }catch{}
+      try{
+        localStorage.setItem(KEY,JSON.stringify(next));
+        const summary=next.map(g=>({
+          id:g.id,name:g.name,handle:g.handle,description:g.description,
+          emoji:g.emoji,color:g.color,gradient:g.gradient,category:g.category,
+          memberCount:g.members.length,postCount:g.posts.length,
+          isPrivate:g.isPrivate,wordOfDay:g.wordOfDay,todayMood:g.todayMood,
+          streak:g.streak,createdAt:g.createdAt,
+        }));
+        localStorage.setItem(SYNC_KEY,JSON.stringify(summary));
+      }catch{}
       return next;
     });
   };
