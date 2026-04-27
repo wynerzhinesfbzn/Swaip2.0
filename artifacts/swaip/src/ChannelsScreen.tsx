@@ -3,6 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { checkContent, collectPostText } from './contentFilter';
 import { BgMusicAutoplay, BgMusicPicker, type BgMusicPreset } from './BgMusic';
 import { PostExtrasComposer, PostExtrasRenderer, hasAnyExtras, type PostExtras } from './PostExtras';
+import {
+  TemplatePicker, ChannelEmployeeRoster, ChannelPriceList, ChannelUSPBanner,
+  CHANNEL_TEMPLATES,
+  type ChannelTemplate, type ChannelEmployee, type PriceItem,
+} from './ChannelTemplates';
 
 /* ══════════════════════════════════════════════════════
    ТИПЫ
@@ -67,6 +72,12 @@ interface SwaipChannel {
   pulse: string;
   authorName: string;
   authorAvatar?: string;
+  /* бизнес-шаблон */
+  templateId?: string;
+  usp?: string;
+  keywords?: string[];
+  employees?: ChannelEmployee[];
+  priceList?: PriceItem[];
 }
 
 /* ══════════════════════════════════════════════════════
@@ -833,6 +844,20 @@ function ChannelPage({ch,c,accent,isDark,onBack,onReact,onVote,onOpenCapsule,onP
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Бизнес-секции шаблона ── */}
+      {ch.usp&&<ChannelUSPBanner usp={ch.usp} color={ch.vibeColor||accent} c={c}/>}
+      {ch.employees&&ch.employees.length>0&&(
+        <ChannelEmployeeRoster employees={ch.employees} color={ch.vibeColor||accent} c={c}/>
+      )}
+      {ch.priceList&&ch.priceList.length>0&&ch.templateId&&(
+        <ChannelPriceList
+          items={ch.priceList}
+          color={ch.vibeColor||accent}
+          c={c}
+          type={(CHANNEL_TEMPLATES.find(t=>t.id===ch.templateId)?.type)||'services'}
+        />
       )}
 
       {/* ── Рубрики ── */}
@@ -2326,10 +2351,13 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
   onClose:()=>void;
   onCreate:(ch:SwaipChannel)=>void;
 }) {
-  const [step,setStep]=useState(0);
+  const [step,setStep]=useState(-1);
+  const [selectedTemplate,setSelectedTemplate]=useState<ChannelTemplate|null>(null);
   const [name,setName]=useState('');
   const [handle,setHandle]=useState('');
   const [desc,setDesc]=useState('');
+  const [usp,setUsp]=useState('');
+  const [keywords,setKeywords]=useState('');
   const [coverIdx,setCoverIdx]=useState(4);
   const [vibeIdx,setVibeIdx]=useState(0);
   const [catId,setCatId]=useState('tech');
@@ -2342,8 +2370,25 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
   const [avatarPhotoUrl,setAvatarPhotoUrl]=useState('');
   const [coverUploading,setCoverUploading]=useState(false);
   const [avatarUploading,setAvatarUploading]=useState(false);
+  const [employees,setEmployees]=useState<ChannelEmployee[]>([]);
+  const [priceList,setPriceList]=useState<PriceItem[]>([]);
   const coverFileRef=useRef<HTMLInputElement>(null);
   const avatarFileRef=useRef<HTMLInputElement>(null);
+
+  const applyTemplate=(t:ChannelTemplate)=>{
+    setSelectedTemplate(t);
+    setName(t.exampleName);
+    setDesc(t.exampleDesc);
+    setUsp(t.usp);
+    setKeywords(t.keywords.join(', '));
+    setTags(t.tags.join(', '));
+    setRubrics(t.rubrics);
+    if(t.employees) setEmployees(t.employees);
+    if(t.priceItems) setPriceList(t.priceItems);
+    const catMatch=CHANNEL_CATEGORIES.find(c=>c.id===t.category);
+    if(catMatch) setCatId(catMatch.id);
+    setStep(0);
+  };
 
   /* Кроп обложки */
   const [showCoverCrop,setShowCoverCrop]=useState(false);
@@ -2388,7 +2433,7 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
       handle:handle.trim()||name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''),
       description:desc.trim(),
       vibe:vibe.emoji,vibeColor:vibe.color,
-      coverGradient:cover.bg,
+      coverGradient:selectedTemplate?`linear-gradient(135deg,${selectedTemplate.color}22,${selectedTemplate.color}08)`:cover.bg,
       coverPhotoUrl:coverPhotoUrl||undefined,
       coverPosition:coverPhotoUrl?coverPosition:undefined,
       avatarPhotoUrl:avatarPhotoUrl||undefined,
@@ -2404,6 +2449,11 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
       pulse:`${vibe.emoji} ${vibe.label}`,
       authorName:userName,
       authorAvatar:userAvatar,
+      templateId:selectedTemplate?.id,
+      usp:usp.trim()||undefined,
+      keywords:keywords.split(',').map(k=>k.trim()).filter(Boolean),
+      employees:employees.length>0?employees:undefined,
+      priceList:priceList.length>0?priceList:undefined,
     };
     onCreate(ch);
   };
@@ -2419,25 +2469,49 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
       <div style={{position:'sticky',top:0,background:c.bg,zIndex:2,
         borderBottom:`1px solid ${c.border}`,padding:'16px 16px 12px'}}>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <button onClick={step===0?onClose:()=>setStep(s=>s-1)}
+          <button onClick={step===-1?onClose:()=>setStep(s=>s-1)}
             style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:c.sub,padding:4}}>
-            {step===0?'✕':'←'}
+            {step===-1?'✕':'←'}
           </button>
           <div style={{flex:1}}>
             <p style={{margin:0,fontSize:15,fontWeight:900,color:c.light}}>
-              Создать канал · {STEPS[step]}
+              {step===-1?'Создать канал':`Создать канал · ${STEPS[step]}`}
             </p>
-            <p style={{margin:0,fontSize:11,color:c.sub}}>Шаг {step+1} из {STEPS.length}</p>
+            <p style={{margin:0,fontSize:11,color:c.sub}}>
+              {step===-1
+                ? selectedTemplate?`Шаблон: ${selectedTemplate.emoji} ${selectedTemplate.name}`:'Выбери шаблон или начни с нуля'
+                : `Шаг ${step+1} из ${STEPS.length}`}
+            </p>
           </div>
+          {selectedTemplate&&step>=0&&(
+            <div style={{display:'flex',alignItems:'center',gap:6,padding:'4px 10px',
+              borderRadius:12,background:`${selectedTemplate.color}18`,border:`1px solid ${selectedTemplate.color}40`}}>
+              <span style={{fontSize:14}}>{selectedTemplate.emoji}</span>
+              <span style={{fontSize:11,color:selectedTemplate.color,fontWeight:700}}>{selectedTemplate.name.split('/')[0].trim()}</span>
+            </div>
+          )}
         </div>
         {/* Прогресс */}
-        <div style={{marginTop:10,height:3,background:'rgba(255,255,255,0.1)',borderRadius:2,overflow:'hidden'}}>
-          <motion.div animate={{width:`${((step+1)/STEPS.length)*100}%`}}
-            style={{height:'100%',background:`linear-gradient(90deg,${vibe.color}88,${vibe.color})`,borderRadius:2}}/>
-        </div>
+        {step>=0&&(
+          <div style={{marginTop:10,height:3,background:'rgba(255,255,255,0.1)',borderRadius:2,overflow:'hidden'}}>
+            <motion.div animate={{width:`${((step+1)/STEPS.length)*100}%`}}
+              style={{height:'100%',background:`linear-gradient(90deg,${vibe.color}88,${vibe.color})`,borderRadius:2}}/>
+          </div>
+        )}
       </div>
 
-      <div style={{padding:'20px 16px'}}>
+      {/* ── ШАГ -1: ВЫБОР ШАБЛОНА ── */}
+      {step===-1&&(
+        <div style={{padding:'20px 16px',height:'calc(100vh - 80px)',display:'flex',flexDirection:'column'}}>
+          <TemplatePicker
+            c={c} accent={accent}
+            onSelect={applyTemplate}
+            onSkip={()=>setStep(0)}
+          />
+        </div>
+      )}
+
+      <div style={{padding:'20px 16px',display:step===-1?'none':'block'}}>
 
         {/* ── Превью канала ── */}
         <motion.div layout style={{borderRadius:20,overflow:'hidden',marginBottom:20,
@@ -2819,10 +2893,11 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
         {/* ─────────────── ШАГ 3: ФИНАЛ ─────────────── */}
         {step===3&&(
           <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            {/* Превью */}
             <div style={{padding:'20px',background:`linear-gradient(135deg,${vibe.color}15,${vibe.color}06)`,
               borderRadius:20,border:`1px solid ${vibe.color}30`,textAlign:'center'}}>
               <motion.div animate={{scale:[1,1.1,1]}} transition={{repeat:Infinity,duration:2}}>
-                <span style={{fontSize:48}}>{vibe.emoji}</span>
+                <span style={{fontSize:48}}>{selectedTemplate?selectedTemplate.emoji:vibe.emoji}</span>
               </motion.div>
               <p style={{margin:'12px 0 4px',fontSize:18,fontWeight:900,color:c.light}}>{name||'Твой канал'}</p>
               <p style={{margin:'0 0 4px',fontSize:12,color:c.sub}}>@{handle||'handle'}</p>
@@ -2833,18 +2908,52 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
                 <span style={{fontSize:12,color:c.sub}}>{cat.emoji} {cat.label}</span>
                 {rubrics.length>0&&<><span style={{fontSize:12,color:c.sub}}>·</span>
                 <span style={{fontSize:12,color:accent}}>{rubrics.length} рубрик</span></>}
+                {employees.length>0&&<><span style={{fontSize:12,color:c.sub}}>·</span>
+                <span style={{fontSize:12,color:'#34d399'}}>{employees.length} мастеров</span></>}
+                {priceList.length>0&&<><span style={{fontSize:12,color:c.sub}}>·</span>
+                <span style={{fontSize:12,color:'#fbbf24'}}>{priceList.length} позиций</span></>}
               </div>
             </div>
 
+            {/* УТП (если задано) */}
+            <div>
+              <p style={{margin:'0 0 6px',fontSize:12,fontWeight:700,color:c.sub}}>✨ УТП (уникальное предложение)</p>
+              <textarea value={usp} onChange={e=>setUsp(e.target.value)} placeholder="Опиши главные преимущества твоего бизнеса…"
+                style={{width:'100%',background:c.card,border:`1px solid ${c.border}`,borderRadius:12,
+                  padding:'10px 12px',color:c.light,fontSize:13,resize:'none',height:70,
+                  outline:'none',lineHeight:1.5,boxSizing:'border-box'}}/>
+            </div>
+
+            {/* Ключевые слова */}
+            <div>
+              <p style={{margin:'0 0 6px',fontSize:12,fontWeight:700,color:c.sub}}>🔍 Ключевые слова для поиска (через запятую)</p>
+              <input value={keywords} onChange={e=>setKeywords(e.target.value)}
+                placeholder="маникюр, педикюр, ногти, красота…"
+                style={{width:'100%',background:c.card,border:`1px solid ${c.border}`,borderRadius:12,
+                  padding:'10px 12px',color:c.light,fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+              {keywords&&(
+                <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:8}}>
+                  {keywords.split(',').map(k=>k.trim()).filter(Boolean).map(k=>(
+                    <span key={k} style={{padding:'3px 8px',borderRadius:10,background:`${accent}18`,
+                      border:`1px solid ${accent}35`,fontSize:11,color:accent}}>{k}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Состав канала */}
             <div style={{padding:'14px',background:c.card,borderRadius:14,border:`1px solid ${c.border}`}}>
-              <p style={{margin:'0 0 10px',fontSize:13,fontWeight:800,color:c.light}}>🚀 Что тебя ждёт:</p>
+              <p style={{margin:'0 0 10px',fontSize:13,fontWeight:800,color:c.light}}>🚀 Твой канал будет включать:</p>
               {[
-                `${vibe.emoji} Вайб «${vibe.label}» — твоя энергетика`,
-                `🎨 Обложка «${cover.label}»`,
+                selectedTemplate?`${selectedTemplate.emoji} Шаблон «${selectedTemplate.name}»`:null,
+                `${vibe.emoji} Вайб «${vibe.label}»`,
                 rubrics.length>0?`🎭 ${rubrics.length} рубрик(и): ${rubrics.slice(0,2).join(', ')}${rubrics.length>2?'…':''}`:null,
-                '⏳ Временные капсулы — посты из будущего',
-                '📺 Серии и эпизоды — сезонный контент',
-                '🔥 Взвешенные реакции — вовлечённость аудитории',
+                employees.length>0?`👥 ${employees.length} специалистов с записью`:null,
+                priceList.length>0?`💰 Прайс-лист / меню: ${priceList.length} позиций`:null,
+                usp?`✨ УТП и описание преимуществ`:null,
+                keywords?`🔍 Ключевые слова для поиска`:null,
+                '⏳ Временные капсулы',
+                '🔥 Реакции и вовлечённость',
               ].filter(Boolean).map((f,i)=>(
                 <div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <div style={{width:6,height:6,borderRadius:'50%',background:vibe.color,flexShrink:0}}/>
@@ -2855,10 +2964,12 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
 
             <motion.button whileTap={{scale:0.97}} onClick={handleCreate}
               style={{width:'100%',padding:'16px',borderRadius:16,border:'none',cursor:'pointer',
-                background:`linear-gradient(135deg,${vibe.color}dd,${accent})`,
+                background:selectedTemplate
+                  ?`linear-gradient(135deg,${selectedTemplate.color}dd,${selectedTemplate.color}88)`
+                  :`linear-gradient(135deg,${vibe.color}dd,${accent})`,
                 color:'#fff',fontSize:16,fontWeight:900,
-                boxShadow:`0 6px 24px ${vibe.color}44`}}>
-              {vibe.emoji} Создать канал!
+                boxShadow:`0 6px 24px ${(selectedTemplate?.color||vibe.color)}44`}}>
+              {selectedTemplate?selectedTemplate.emoji:vibe.emoji} Создать канал!
             </motion.button>
           </div>
         )}
