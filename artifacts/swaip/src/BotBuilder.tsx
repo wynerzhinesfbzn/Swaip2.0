@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import SwaipVideoPlayer, { SkinSelector, type VideoSkin } from './SwaipVideoPlayer';
 
 /* ═══════════════════════════════════════════════════════════
    ТИПЫ
@@ -16,6 +17,7 @@ export interface BotScreen {
   text: string;
   imageUrl: string;
   videoUrl: string;
+  videoSkin: VideoSkin;
   type: ScreenType;
   buttons: BotButton[];
   x: number;
@@ -53,7 +55,7 @@ function uid() { return Math.random().toString(36).slice(2,10); }
 function getSessionToken() { return localStorage.getItem('swaip_session_token') || ''; }
 
 function makeScreen(overrides: Partial<BotScreen> = {}): BotScreen {
-  return { id: uid(), name: 'Новый экран', text: '', imageUrl: '', videoUrl: '', type: 'text', buttons: [], x: 0, y: 0, ...overrides };
+  return { id: uid(), name: 'Новый экран', text: '', imageUrl: '', videoUrl: '', videoSkin: 'swaip', type: 'text', buttons: [], x: 0, y: 0, ...overrides };
 }
 
 function getYouTubeId(url: string) {
@@ -127,11 +129,13 @@ export function BotChat({ bot, onClose }: { bot: SwBot; onClose: () => void }) {
             </div>
             <div style={{maxWidth:'85%',flex:1}}>
               {/* Видео */}
-              {screen.type==='video' && (screen.videoUrl) && (
-                <div style={{borderRadius:14,overflow:'hidden',marginBottom:10,background:'#000'}}>
+              {screen.type==='video' && screen.videoUrl && (
+                <div style={{marginBottom:10}}>
                   {ytId
-                    ? <iframe src={`https://www.youtube.com/embed/${ytId}`} style={{width:'100%',height:200,border:'none',display:'block'}} allowFullScreen title="video"/>
-                    : <video src={screen.videoUrl} controls style={{width:'100%',maxHeight:200,display:'block'}}/>}
+                    ? <div style={{borderRadius:14,overflow:'hidden',background:'#000'}}>
+                        <iframe src={`https://www.youtube.com/embed/${ytId}`} style={{width:'100%',height:200,border:'none',display:'block'}} allowFullScreen title="video"/>
+                      </div>
+                    : <SwaipVideoPlayer src={screen.videoUrl} skin={screen.videoSkin||'swaip'} title={screen.name}/>}
                 </div>
               )}
               {/* Фото */}
@@ -253,7 +257,9 @@ function ScreenEditor({
 }) {
   const set = (patch: Partial<BotScreen>) => onUpdate({ ...screen, ...patch });
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [connectingBtnId, setConnectingBtnId] = useState<string|null>(null);
 
   const addBtn = () => set({ buttons: [...screen.buttons, { id: uid(), label: 'Кнопка', nextScreen: '' }] });
@@ -270,6 +276,20 @@ function ScreenEditor({
       const d = await r.json();
       if (d.url) set({ imageUrl: d.url, type:'image' });
     } catch {} finally { setUploading(false); }
+  };
+
+  const uploadVideo = async (file: File) => {
+    setUploadingVideo(true);
+    try {
+      const tok = getSessionToken();
+      const r = await fetch(`${apiBase}/api/video-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'video/mp4', 'x-session-token': tok, 'x-filename': file.name },
+        body: file,
+      });
+      const d = await r.json();
+      if (d.url) set({ videoUrl: d.url, type: 'video' });
+    } catch {} finally { setUploadingVideo(false); }
   };
 
   const inp = (extra: React.CSSProperties = {}): React.CSSProperties => ({
@@ -338,19 +358,47 @@ function ScreenEditor({
 
       {/* Видео */}
       {screen.type==='video' && (
-        <div>
-          <div style={{fontSize:10,fontWeight:700,color:C.sub,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.06em'}}>Видео</div>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{fontSize:10,fontWeight:700,color:C.sub,textTransform:'uppercase',letterSpacing:'0.06em'}}>Видео</div>
+
+          {/* URL ввод */}
           <input value={screen.videoUrl||''} onChange={e=>set({videoUrl:e.target.value})}
-            style={{...inp(),marginBottom:8}} placeholder="YouTube ссылка или URL видео"/>
+            style={inp()} placeholder="YouTube ссылка или URL видео"/>
+
+          {/* Загрузка файла */}
+          <input ref={videoFileRef} type="file" accept="video/*" style={{display:'none'}}
+            onChange={e=>e.target.files?.[0]&&uploadVideo(e.target.files[0])}/>
+          <motion.button whileTap={{scale:0.95}} onClick={()=>videoFileRef.current?.click()} disabled={uploadingVideo}
+            style={{width:'100%',padding:'10px',borderRadius:9,background:C.cardAlt,border:`1px dashed ${C.border}`,color:C.mid,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>
+            {uploadingVideo?'⏳ Загрузка видео...':'🎬 Загрузить видео-файл (mp4, webm)'}
+          </motion.button>
+
+          {/* Статус */}
           {screen.videoUrl && getYouTubeId(screen.videoUrl) && (
             <div style={{borderRadius:10,overflow:'hidden',background:'#000'}}>
               <img src={`https://img.youtube.com/vi/${getYouTubeId(screen.videoUrl)}/hqdefault.jpg`}
-                alt="" style={{width:'100%',maxHeight:140,objectFit:'cover',display:'block'}}/>
+                alt="" style={{width:'100%',maxHeight:130,objectFit:'cover',display:'block'}}/>
               <div style={{padding:'6px 10px',fontSize:11,color:GREEN}}>✓ YouTube видео распознано</div>
             </div>
           )}
           {screen.videoUrl && !getYouTubeId(screen.videoUrl) && (
-            <div style={{padding:'6px 10px',fontSize:11,color:ORANGE}}>⚠ Прямая ссылка на видео-файл (mp4, webm)</div>
+            <div style={{fontSize:11,color:GREEN}}>✓ Видео-файл загружен</div>
+          )}
+
+          {/* Выбор скина */}
+          {screen.videoUrl && !getYouTubeId(screen.videoUrl) && (
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:C.sub,marginBottom:8,textTransform:'uppercase',letterSpacing:'0.06em'}}>Скин плеера</div>
+              <SkinSelector
+                skin={screen.videoSkin||'swaip'}
+                onChange={s=>set({videoSkin:s})}
+              />
+            </div>
+          )}
+
+          {/* Превью плеера */}
+          {screen.videoUrl && !getYouTubeId(screen.videoUrl) && (
+            <SwaipVideoPlayer src={screen.videoUrl} skin={screen.videoSkin||'swaip'} title={screen.name}/>
           )}
         </div>
       )}

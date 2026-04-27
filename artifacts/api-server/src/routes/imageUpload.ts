@@ -143,4 +143,75 @@ router.get("/image/:filename", async (req: Request, res: Response) => {
   res.status(404).json({ error: "Not found" });
 });
 
+/* ─────────────────────────────────────────────────────────
+   POST /api/video-upload — загрузка видео (mp4, webm, mov)
+   GET  /api/video/:filename — отдача видео
+───────────────────────────────────────────────────────── */
+router.post("/video-upload", async (req: Request, res: Response) => {
+  try {
+    const buf: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
+    if (buf.length > 200 * 1024 * 1024) { res.status(413).json({ error: "File too large (max 200MB)" }); return; }
+    if (buf.length === 0) { res.status(400).json({ error: "Empty file" }); return; }
+
+    const ct = (req.headers["content-type"] || "video/mp4").split(";")[0].trim();
+    const ext = ct.includes("webm") ? ".webm" : ct.includes("mov") || ct.includes("quicktime") ? ".mov" : ct.includes("ogg") ? ".ogv" : ".mp4";
+    const filename = crypto.randomUUID() + ext;
+    const objectName = `videos/${filename}`;
+
+    try {
+      const bucket = getBucket();
+      const file = bucket.file(objectName);
+      await withTimeout(file.save(buf, { contentType: ct, resumable: false }), 60_000, "gcs.video.save");
+      logger.info({ filename, bytes: buf.length }, "video saved to GCS");
+      res.json({ url: `/api/video/${filename}` });
+      return;
+    } catch (gcsErr) {
+      logger.warn({ err: gcsErr, filename }, "GCS video upload failed, falling back to local disk");
+    }
+
+    saveToLocalDisk("video_uploads", filename, buf);
+    res.json({ url: `/api/video/${filename}` });
+  } catch (err) {
+    logger.error({ err }, "videoUpload unexpected error");
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+router.get("/video/:filename", async (req: Request, res: Response) => {
+  const filename = String(req.params["filename"]).replace(/[^a-zA-Z0-9.\-_]/g, "");
+  const objectName = `videos/${filename}`;
+  const ext = filename.split('.').pop()?.toLowerCase() || 'mp4';
+  const ct = ext === "webm" ? "video/webm" : ext === "ogv" ? "video/ogg" : ext === "mov" ? "video/quicktime" : "video/mp4";
+
+  try {
+    const bucket = getBucket();
+    const file = bucket.file(objectName);
+    const [exists] = await withTimeout(file.exists(), 5_000, "gcs.exists");
+    if (exists) {
+      res.setHeader("Content-Type", ct);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("Accept-Ranges", "bytes");
+      file.createReadStream().pipe(res);
+      return;
+    }
+  } catch { /* GCS недоступен */ }
+
+  const diskDirs = [path.join(process.cwd(), "video_uploads"), path.join("/tmp", "swaip_uploads", "video_uploads")];
+  for (const dir of diskDirs) {
+    try {
+      const filepath = path.join(dir, filename);
+      if (fs.existsSync(filepath)) {
+        const stat = fs.statSync(filepath);
+        res.setHeader("Content-Type", ct);
+        res.setHeader("Content-Length", stat.size);
+        res.setHeader("Accept-Ranges", "bytes");
+        res.setHeader("Cache-Control", "public, max-age=86400");
+        fs.createReadStream(filepath).pipe(res);
+        return;
+      }
+    } catch { /* продолжаем */ }
+  }
+  res.status(404).json({ error: "Not found" });
+});
+
 export default router;
