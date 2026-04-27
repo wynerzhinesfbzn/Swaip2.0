@@ -418,6 +418,114 @@ function FlowCanvas({
 }
 
 /* ═══════════════════════════════════════════════════════════
+   ИНСТРУКЦИЯ
+═══════════════════════════════════════════════════════════ */
+const HELP_STEPS = [
+  {
+    icon: '🤖',
+    title: 'Что такое SWAIP-бот?',
+    text: 'Это интерактивный бот без кода — как Telegram-бот. Он состоит из экранов: каждый экран показывает сообщение и кнопки. Пользователь нажимает кнопку — переходит на следующий экран.',
+  },
+  {
+    icon: '➕',
+    title: 'Шаг 1 — Создайте бота',
+    text: 'Нажмите «+ Создать бота». Откроется редактор. По умолчанию уже есть первый экран «Старт» — это начало разговора.',
+  },
+  {
+    icon: '📋',
+    title: 'Шаг 2 — Настройте экран',
+    text: 'Нажмите на карточку экрана слева. Справа появится редактор: введите название, текст сообщения, добавьте фото. Это то, что увидит пользователь.',
+  },
+  {
+    icon: '🔘',
+    title: 'Шаг 3 — Добавьте кнопки',
+    text: 'В редакторе нажмите «+ Добавить кнопку». Введите текст кнопки и выберите, на какой экран она переводит. Стрелки на канвасе покажут связи между экранами.',
+  },
+  {
+    icon: '➕',
+    title: 'Шаг 4 — Добавьте экраны',
+    text: 'Нажмите «+ Экран» в левом верхнем углу редактора, чтобы добавить новый экран. Экраны можно перетаскивать по канвасу.',
+  },
+  {
+    icon: '⭐',
+    title: 'Стартовый экран',
+    text: 'Первый экран, с которого начинается бот — стартовый (отмечен звёздочкой). Чтобы сменить стартовый экран: выберите нужный экран → нажмите «⭐ Сделать стартовым» в редакторе.',
+  },
+  {
+    icon: '▶️',
+    title: 'Шаг 5 — Протестируйте',
+    text: 'Нажмите кнопку «▶ Тест» в шапке. Откроется режим чата — вы увидите бота глазами пользователя и сможете кликать по кнопкам.',
+  },
+  {
+    icon: '💾',
+    title: 'Шаг 6 — Сохраните',
+    text: 'Нажмите «💾 Сохранить». Бот сохранится в SWAIP. На вкладке «⚙️ Бот» можно включить публичный режим — тогда бот появится в общем каталоге.',
+  },
+];
+
+function HelpModal({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const cur = HELP_STEPS[step];
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',backdropFilter:'blur(8px)',zIndex:1100,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}
+      onClick={onClose}>
+      <motion.div initial={{scale:0.88,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:0.88,opacity:0}}
+        style={{ background:C.surface,border:`1px solid ${C.border}`,borderRadius:20,width:'100%',maxWidth:360,overflow:'hidden',maxHeight:'90dvh',display:'flex',flexDirection:'column' }}
+        onClick={e=>e.stopPropagation()}>
+
+        {/* Шапка */}
+        <div style={{ background:AC,padding:'16px 20px',display:'flex',alignItems:'center',gap:10 }}>
+          <div style={{ fontSize:28 }}>{cur.icon}</div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:13,fontWeight:900,color:'#fff' }}>{cur.title}</div>
+            <div style={{ fontSize:10,color:'rgba(255,255,255,0.65)',marginTop:2 }}>Шаг {step+1} из {HELP_STEPS.length}</div>
+          </div>
+          <button onClick={onClose} style={{ width:28,height:28,borderRadius:'50%',background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',fontSize:14,cursor:'pointer' }}>✕</button>
+        </div>
+
+        {/* Прогресс */}
+        <div style={{ display:'flex',gap:4,padding:'12px 20px 0' }}>
+          {HELP_STEPS.map((_,i) => (
+            <div key={i} onClick={()=>setStep(i)} style={{ flex:1,height:3,borderRadius:99,background:i<=step?AC:C.border,cursor:'pointer',transition:'background 0.2s' }}/>
+          ))}
+        </div>
+
+        {/* Контент */}
+        <div style={{ flex:1,overflowY:'auto',padding:'20px' }}>
+          <AnimatePresence mode="wait">
+            <motion.div key={step} initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}} transition={{duration:0.18}}>
+              <p style={{ fontSize:14,color:C.light,lineHeight:1.7,margin:0 }}>{cur.text}</p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Кнопки навигации */}
+        <div style={{ display:'flex',gap:8,padding:'12px 20px 20px' }}>
+          {step > 0 && (
+            <button onClick={()=>setStep(s=>s-1)}
+              style={{ flex:1,padding:'11px',borderRadius:12,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:'inherit' }}>
+              ← Назад
+            </button>
+          )}
+          {step < HELP_STEPS.length - 1 ? (
+            <motion.button whileTap={{scale:0.96}} onClick={()=>setStep(s=>s+1)}
+              style={{ flex:1,padding:'11px',borderRadius:12,background:AC,border:'none',color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:'inherit' }}>
+              Далее →
+            </motion.button>
+          ) : (
+            <motion.button whileTap={{scale:0.96}} onClick={onClose}
+              style={{ flex:1,padding:'11px',borderRadius:12,background:AC,border:'none',color:'#fff',fontWeight:800,fontSize:13,cursor:'pointer',fontFamily:'inherit' }}>
+              Понятно! 🚀
+            </motion.button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    СПИСОК БОТОВ
 ═══════════════════════════════════════════════════════════ */
 function BotList({ bots, onOpen, onCreate, onChat, loading }: {
@@ -488,6 +596,9 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
 
   /* Вкладка боковой панели */
   const [sideTab, setSideTab] = useState<'screen'|'settings'>('screen');
+
+  /* Инструкция */
+  const [showHelp, setShowHelp] = useState(false);
 
   /* Загрузка ботов */
   useEffect(() => {
@@ -599,9 +710,16 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
           style={{ padding:'7px 16px',borderRadius:9,background:AC,border:'none',color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer' }}>
           {saving?'…':'💾 Сохранить'}
         </motion.button>
+        <motion.button whileTap={{scale:0.88}} onClick={()=>setShowHelp(true)}
+          style={{ width:30,height:30,borderRadius:8,background:AC+'22',border:`1px solid ${AC}44`,color:AC,fontSize:13,fontWeight:900,cursor:'pointer',flexShrink:0 }}>?</motion.button>
         <button onClick={()=>deleteBot(editBot.id)}
           style={{ width:30,height:30,borderRadius:8,background:RED+'18',border:`1px solid ${RED}33`,color:RED,fontSize:14,cursor:'pointer',flexShrink:0 }}>🗑</button>
       </div>
+
+      {/* Инструкция */}
+      <AnimatePresence>
+        {showHelp && <HelpModal onClose={()=>setShowHelp(false)}/>}
+      </AnimatePresence>
 
       {/* Рабочая область */}
       <div style={{ flex:1,display:'flex',overflow:'hidden' }}>
@@ -690,6 +808,8 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
         <motion.button whileTap={{scale:0.88}} onClick={onClose}
           style={{ width:34,height:34,borderRadius:10,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,fontSize:18,cursor:'pointer',flexShrink:0 }}>←</motion.button>
         <div style={{ fontSize:16,fontWeight:800,color:C.light,flex:1 }}>🤖 Мои боты</div>
+        <motion.button whileTap={{scale:0.88}} onClick={()=>setShowHelp(true)}
+          style={{ width:34,height:34,borderRadius:10,background:AC+'22',border:`1px solid ${AC}44`,color:AC,fontSize:15,fontWeight:900,cursor:'pointer',flexShrink:0 }}>?</motion.button>
       </div>
       <div style={{ flex:1,overflowY:'auto',padding:'0 12px 24px' }}>
         <BotList
@@ -700,6 +820,9 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
           onChat={setChatBot}
         />
       </div>
+      <AnimatePresence>
+        {showHelp && <HelpModal onClose={()=>setShowHelp(false)}/>}
+      </AnimatePresence>
     </div>
   );
 }
