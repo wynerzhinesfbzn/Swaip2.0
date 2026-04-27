@@ -1,228 +1,695 @@
-# SWAIP 2.0 — Русскоязычная социальная сеть
+# SWAIP 2.0 — Полная инструкция для агента
 
-## Встроенный браузер SWAIP (SwaipHome.tsx)
-- Вкладка 🌐 **Браузер** в нижней навигации (navTab='browser')
-- Также доступен из бокового меню (SideMenu) первым пунктом
-- **Адресная строка**: ввод URL или поискового запроса, кнопки ← › ↺ ↗ ⤤
-- **Стартовая страница**: поиск + speed dial (Google, YouTube, Яндекс, VK, ChatGPT, Wikipedia, WB, Яндекс.Карты)
-- **Блокировка iframe**: если сайт запрещает встраивание, показывается экран с кнопкой "Открыть в системном браузере"
-- **Глобальный перехватчик ссылок**: все `<a href="http...">` в приложении перехватываются и открываются в браузере SWAIP (document click capture handler)
-- История навигации с кнопками назад/вперёд
+> **Для будущего агента:** Читай этот файл ПЕРВЫМ делом. Здесь описано всё, что нужно знать о проекте, чтобы не сломать уже работающий код.
 
-## Треды и Закладки в постах (SwaipHome.tsx)
-- **Кнопка 🧵 Треды**: все 6 стилей PostCard, открывает ветку ответов под постом
-- **Кнопка 🔖 Закладки**: все 6 стилей PostCard, сохраняет/убирает пост
-- **Экран Закладки** (🔖 в нижнем профильном таббаре): загружает сохранённые посты через `GET /api/bookmarks`
-- API: `POST /bookmarks/:id` (toggle), `GET /bookmarks`, `GET /broadcasts/:id/replies`, `POST /broadcasts` с `parentId`
+---
 
-## Анимированный статус-настроение (SwaipHome.tsx)
-- 16 настроений (😊 Отлично, 🔥 В потоке, 💡 Вдохновлён, 😴 Устал...)
-- Пикер открывается кнопкой "+ Статус настроения" под ником в профиле
-- Эмодзи анимированно «качается» в бейдже (framer-motion rotate loop)
-- Сохраняется как `pro_mood` в localStorage → автосинхронизируется с сервером
-- Отображается у других пользователей в поисковых результатах
-- `searchResults` обогащён полем `mood?:{emoji,text}` из API (JSONB `data->'pro_mood'`)
+## 1. Что такое SWAIP
 
-## Видеосообщения-кружки (ProMessaging.tsx)
-- Видео в чате отображается кружком 200×200px (`border-radius:50%`, `object-fit:cover`)
-- Запись: предпросмотр 260×260px с пульсирующей красной рамкой (`border: 3px solid red`)
-- Длительность видео отображается бейджем поверх кружка
+SWAIP 2.0 — русскоязычная социальная сеть (аналог VK + Telegram + Авито-услуги).
 
-## Виджеты постов (PostCard в SwaipHome.tsx)
-- **Опросы** — `poll?:Poll` в Post interface, голосование через `/api/broadcasts/:id/poll-vote`, прогресс-бары с анимацией
-- **Редактирование поста** — меню ⋯ → "Редактировать", PUT `/api/broadcasts/:id` (только владелец), `localText` обновляется мгновенно
-- **Цитата поста** — меню ⋯ → "Процитировать", нижний лист с текстом цитаты + сниппет оригинала, POST с `quoteOf`
-- **Репост** — меню ⋯ → "Репостнуть", нижний лист, POST с `repostOf`
-- **Новые пропсы PostCard**: `isOwner?:boolean`, `onUpdate?:(p:Post)=>void`, `onNewPost?:(raw:any)=>void`
-- **Создание опроса** в PostComposerFull — тоггл "📊 Добавить опрос", вопрос + варианты (2–8), отправляется с полем `poll`
-- Все 6 стилей PostCard (классика/синема/газета/неон/пузырь/компакт) поддерживают новые элементы
+**Четыре режима профиля:**
+- `pro` — деловой профиль (имя, фото, должность, компания)
+- `classic` — классическая лента постов
+- `scene` — сцена/артист
+- `krug` — семейный/приватный круг
 
+**Ключевые функции:**
+- Каналы (ChannelsScreen) — публичные/приватные с постами, рубриками, прайсами
+- Группы (ChannelsScreen) — публичные/приватные сообщества
+- Мессенджер E2E (ProMessaging) — шифрование через Ed25519 + Diffie-Hellman
+- Видеозвонки (LiveKit SDK)
+- Музыкальный плеер (SwaipHome + BgMusic.tsx)
+- Поиск людей / каналов / групп (ProSearch.tsx)
+- Криптовалюта SWP (SwpExchange.tsx)
 
-## Музыкальный плеер (SwaipHome.tsx)
-- **MusicPlayerSheet** — полноэкранный нижний лист с 5 дизайнами: 🎵 Classic, 💿 Vinyl, 🌙 Neon, 〰️ Wave, ⬜ Minimal
-- Плейлист хранится в `localStorage` под ключом `swaip_playlist_v2`, не исчезает при перезагрузке
-- Треки добавляются через устройство (upload + конвертация GCS в MP3) или по URL
-- Глобальный аудио-синглтон `_globalAudio` — музыка не прерывается при переходах
-- Редактирование названия/исполнителя, удаление треков, навигация (пред/след)
-- **Floating mini-player** — всплывает снизу экрана при воспроизведении, показывает прогресс
-- **Прикрепить к посту** — кнопка 📀 в PostComposerFull открывает пикер трека; кнопка 📎 в самом плеере прикрепляет и закрывает лист
-- **Прикрепить к посту через плеер** — dispatch `swaip-track-picked-for-post` event → PostComposerFull слушает и показывает карточку трека
-- Виджет 🎵 Музыка в профиле открывает плеер (через `setShowMusicSheet(true)`)
-- Выбор стиля сохраняется в `localStorage` ключ `swaip_music_style`
-- **КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ**: MusicPlayerSheet, mini-player и пикер были внутри `MeetingsScreen` (чужой компонент) — переенсены внутрь `SwaipHome` return (строки 7364-7456). Вот почему плеер вообще не открывался.
-- **Исправлено**: music добавлен в WIDGET_LIST (L4044) — первым элементом
-- **Исправлено**: все 6 стилей профиля обрабатывают `key==='music'` → `setShowMusicSheet(true)`
-- **Исправлено**: `custom-ringtone.mp3` перемещён в `artifacts/swaip/public/` (был в `public/public/`)
-- **Исправлено**: дублирующийся ключ `borderRight` в стиле 3 профиля
+---
 
-## Обзор проекта
+## 2. Стек технологий
 
-SWAIP 2.0 — полноценная социальная сеть на русском языке с четырьмя режимами профиля («Про», «Круг», «Сцена», «Эфир»), видеозвонками, E2E-зашифрованным мессенджером, историями, отзывами, криптовалютой SWP и системой Каналов.
+| Уровень         | Технология                              |
+|-----------------|----------------------------------------|
+| Монорепо        | pnpm workspaces                        |
+| Node.js         | v24                                    |
+| Фронтенд        | React 19 + Vite 7 + TypeScript         |
+| Бэкенд          | Express 5 (TypeScript)                 |
+| БД              | PostgreSQL + Drizzle ORM               |
+| Видеозвонки     | LiveKit SDK                            |
+| Хранилище файлов| Google Cloud Storage (GCS)             |
+| Шифрование      | @noble/curves (Ed25519)                |
+| Push-уведомления| web-push                               |
+| Валидация       | Zod v4 + drizzle-zod                   |
+| Сборка бэкенда  | esbuild (ESM bundle)                   |
 
-### Функция Каналы (ChannelsScreen.tsx)
-Собственная система публичных каналов, более богатая чем в Telegram/VK:
-- **Горизонтальная лента** — подписанные каналы как пузыри со скроллом вверху экрана
-- **Вайб канала** — 10 вариантов «энергетики» (🔥 Горим, 💎 Премиум, 🚀 Прорыв…)
-- **Пульс канала** — анимированный индикатор активности (0–100%), анимированное кольцо
-- **Рубрики** — собственные тематические разделы внутри канала (как категории в журнале)
-- **Типы постов**: текст, фото, опрос, анонс с обратным отсчётом ⏳, временная капсула, эпизоды сериала
-- **Взвешенные реакции** — 🔥🚀 = 3 балла, 💎❤️ = 2, 🤔 = 1; счёт влияет на рейтинг
-- **Мастер создания** — 4 шага: облик → атмосфера → рубрики → финал
-- Данные хранятся в localStorage под ключом `swaip_account_{hash}_channels_v2`
+---
 
-## Стек технологий
-
-| Уровень | Технология |
-|---------|-----------|
-| Монорепозиторий | pnpm workspaces |
-| Node.js | v24 |
-| Фронтенд | React 19 + Vite 7 + TailwindCSS |
-| Бэкенд | Express 5 (TypeScript) |
-| БД | PostgreSQL + Drizzle ORM |
-| Видеозвонки | LiveKit SDK |
-| Хранилище файлов | Google Cloud Storage (GCS) |
-| Шифрование | @noble/curves (Ed25519) |
-| Push-уведомления | web-push |
-| Валидация | Zod v4 + drizzle-zod |
-| Сборка | esbuild (ESM bundle) |
-
-## Структура проекта
+## 3. Структура репозитория
 
 ```
 artifacts/
-  api-server/       — Express 5 бэкенд (порт 8080)
-    src/routes/     — 20+ маршрутов API
-    src/lib/        — sessionAuth, objectStorage, GCS, WebSocket
-    src/middlewares/ — contentFilter
-    src/services/   — callSignaling, meetingChatWs
-  swaip/            — React+Vite фронтенд (порт 18921, previewPath: /)
-    src/App.tsx     — главный компонент (~15K строк)
-    src/SwaipHome.tsx — домашний экран
-    src/pages/      — дополнительные страницы
-    src/hooks/      — кастомные хуки
+  api-server/             ← Express 5 бэкенд (порт 8080)
+    src/
+      routes/             ← 20+ маршрутов API (см. раздел 8)
+      lib/                ← sessionAuth, objectStorage, GCS, WebSocket
+      middlewares/        ← contentFilter
+      services/           ← callSignaling, meetingChatWs
+      index.ts            ← точка входа, подключает все роуты
+
+  swaip/                  ← React+Vite фронтенд (порт 18921, previewPath: /)
+    src/
+      App.tsx             ← корневой компонент (~15K строк)
+      SwaipHome.tsx       ← главный экран (~10K строк)
+      ChannelsScreen.tsx  ← каналы и группы (~4.5K строк)
+      ProSearch.tsx       ← поиск людей/каналов/групп (~700 строк)
+      ProMessaging.tsx    ← мессенджер + E2E
+      BgMusic.tsx         ← фоновая музыка (singleton-плеер)
+      SwpExchange.tsx     ← крипто SWP
+      ChannelTemplates.tsx← шаблоны каналов
+      PostExtras.tsx      ← расширения постов (карусель, ссылка, опрос...)
+      ChatGames.tsx       ← игры в чате
+      GamesArcade.tsx     ← аркадные игры
+      secretCrypto.ts     ← E2E шифрование Ed25519
+      i18n.ts             ← локализация
+      hooks/              ← кастомные хуки
+      pages/              ← дополнительные страницы
+      assets/             ← mp3 треки фоновой музыки
+    public/
+      custom-ringtone.mp3 ← рингтон (ВАЖНО: именно здесь, не в public/public/)
+
 lib/
-  db/               — схема БД (13 таблиц), Drizzle ORM
-  api-spec/         — OpenAPI yaml
-  api-client-react/ — сгенерированные React Query хуки
-  api-zod/          — сгенерированные Zod схемы
+  db/                     ← схема БД (Drizzle ORM), 13 таблиц
+    src/schema.ts         ← таблицы + экспорт
+  api-spec/               ← OpenAPI yaml
+  api-client-react/       ← сгенерированные React Query хуки
+  api-zod/                ← сгенерированные Zod схемы
 ```
 
-## Основные команды
+---
 
+## 4. Запуск проекта (воркфлоу)
+
+Три воркфлоу, все должны быть RUNNING:
+
+| Имя воркфлоу                         | Команда                                         | Порт  |
+|--------------------------------------|-------------------------------------------------|-------|
+| `artifacts/api-server: API Server`  | `pnpm --filter @workspace/api-server run dev`   | 8080  |
+| `artifacts/swaip: web`              | `pnpm --filter @workspace/swaip run dev`        | 18921 |
+| `artifacts/mockup-sandbox: ...`     | `pnpm --filter @workspace/mockup-sandbox run dev`| 8081  |
+
+**Как перезапустить воркфлоу:**
+Через инструмент `restart_workflow` с именем воркфлоу.
+
+**Основные команды:**
 ```bash
-# Проверка типов
+# Проверка типов бэкенда
 pnpm --filter @workspace/api-server run typecheck
 
-# Пересборка бэкенда
+# Сборка бэкенда
 pnpm --filter @workspace/api-server run build
 
 # Применить схему БД
 pnpm --filter @workspace/db run push
 
-# Регенерация API хуков (из openapi.yaml)
+# Регенерация API хуков (после изменения openapi.yaml)
 pnpm --filter @workspace/api-spec run codegen
 ```
 
-## Воркфлоу
+---
 
-- **API Server** (`artifacts/api-server: API Server`) — Express 5, порт 8080
-- **SWAIP Frontend** (`artifacts/swaip: web`) — Vite dev, порт 18921
+## 5. Переменные окружения и секреты
 
-## TypeScript — статус
+Доступны через Replit Secrets (НЕ хардкоди значения в коде!):
 
-Исправления после клонирования (2026-04-26):
-- `routes/battle.ts` — заменены несуществующие колонки `accountsTable.proName/proAvatar` на SQL-выражения `data->>'pro_displayName'` и `data->>'pro_avatarUrl'`; `req.params['id'] as string`.
-- `routes/broadcasts.ts` (DELETE /broadcasts/:id) — убран сломанный поиск по `accountsTable.sessionToken`; используется `userHash` из `requireSession`.
-- `pnpm --filter @workspace/api-server run typecheck` проходит без ошибок.
+| Ключ              | Где используется                          |
+|-------------------|-------------------------------------------|
+| `DATABASE_URL`    | Drizzle ORM, подключение к PostgreSQL     |
+| `SESSION_SECRET`  | JWT-подобные токены сессий + E2E ключи    |
+| `GITHUB_TOKEN`    | push в GitHub через `/api/git-push`       |
+| `GCS_*`           | Google Cloud Storage (загрузка файлов)    |
+| `LIVEKIT_*`       | LiveKit видеозвонки                       |
+| `VAPID_*`         | Web Push уведомления                      |
 
-Все 17 ошибок TS исправлены (2025-04-22):
-- `objectStorage.ts` — приведение типа `response.json() as {signed_url: string}`
-- `audioUpload.ts` — исправлена деструктуризация `[meta]` вместо `[[meta]]`
-- `broadcasts.ts` — `authorMode` заменён на `'pro'` (нет в схеме comments)
-- `chunkUpload.ts` — инициализация `let url = ""`
-- `meetings.ts` (7 мест) — `req.params as { meetingId: string }`
-- `messaging.ts` — SSE handler: `Promise<void>` + явные `return`
-- `reviews.ts` (3 места) — `req.params as { hash: string }`
-- `stories.ts` (3 места) — добавлены `return` перед `res.json()`/`res.status()`
-- `tts.ts` — добавлен `return` перед `res.send()`
+Чтобы добавить новый секрет — используй инструмент `environment-secrets` (читай skill перед использованием).
 
-## База данных — схема (13 таблиц)
+---
 
-accounts, sessions, loginLogs, follows, broadcasts, broadcastReactions,
-broadcastComments, commentReactions, stories, messaging (conversations,
-messages, conversationParticipants, messageReactions), meetings,
-meetingParticipants, meetingMessages, meetingLogs, reviews, swpWallets,
-moderationReports, moderationBans, moderationLog, pushSubscriptions
+## 6. База данных (PostgreSQL + Drizzle ORM)
 
-## Известные ограничения (из аудита)
+### Схема — 13 таблиц
 
-- `/api/git-push` — не требует авторизации (risk: code injection)
-- `SESSION_SECRET` используется и для сессий и для шифрования сообщений
-- Инвайт-коды: поиск без индекса (full table scan при росте)
-- Курс SWP — захардкожен, не из реального источника
-- `App.tsx` — монстр-компонент (~15K строк), нужен рефакторинг
+```
+accounts              ← пользователи (hash, data JSONB, sessionToken)
+sessions              ← сессии
+loginLogs             ← история входов
+follows               ← подписки/друзья
+broadcasts            ← посты/трансляции
+broadcastReactions    ← реакции на посты
+broadcastComments     ← комментарии
+commentReactions      ← реакции на комментарии
+stories               ← истории (24ч)
+conversations         ← чаты (1:1 и групповые)
+messages              ← сообщения в чатах
+conversationParticipants
+messageReactions
+meetings              ← видеовстречи
+meetingParticipants
+meetingMessages
+meetingLogs
+reviews               ← отзывы
+swpWallets            ← крипто-кошельки SWP
+moderationReports
+moderationBans
+moderationLog
+pushSubscriptions     ← Web Push подписки
+```
 
-## Композер постов: расширение «Добавить в пост» (2026-04-26)
+### Ключевое: таблица `accounts`
 
-В единое меню `+ Добавить в пост` (SwaipHome.tsx ~9012) добавлены 12 новых блоков:
-- 🖼️ Карусель / галерея (до 10 фото, parallel upload через `/api/image-upload`, поле `additionalImageUrls`)
-- 🔗 Превью ссылки (новый эндпоинт `GET /api/link-preview` парсит OG-метаданные, поле `linkPreview`)
-- ❓ Вопрос подписчикам (поле `question`, ответы планируются в личку)
-- 🎯 Викторина / квиз (требует включённый опрос, поле `quiz.correctIndex`)
-- 🏆 Челлендж (название + хештег + дедлайн, поле `challenge`)
-- 🎬 Активность (5 типов: фильм/музыка/книга/игра/сериал, поле `activity`)
-- 🏷️ Отметить людей (до 10 пользователей через `/api/search`, поле `mentions`)
-- #️⃣ Хештеги / темы (до 10, popular tags подсказки, поле `hashtags`)
-- 🔊 Озвучка текста / TTS (флаг `enableTTS`)
-- 📈 Детальная статистика (флаг `enableStats`)
-- 🚫 Запретить комментарии (флаг `disableComments`)
-- ♻️ Запретить репост (флаг `disableRepost`)
+```typescript
+// JSONB поле data содержит ВСЕ данные профиля
+// Примеры ключей в data:
+// pro_displayName   ← имя пользователя
+// pro_avatarUrl     ← аватар
+// pro_bio           ← биография
+// pro_position      ← должность
+// pro_company       ← компания
+// sw_nick           ← @ник
+// sw_channels       ← JSON-массив каналов пользователя
+// sw_groups         ← JSON-массив групп пользователя
+// sw_highlights     ← хайлайты профиля
+// pro_mood          ← текущее настроение {emoji, text}
+// swaip_playlist_v2 ← плейлист (НЕ синхронизируется на сервер)
+```
 
-Каждый блок:
-- Появляется только при включении в меню
-- Имеет шапку с эмодзи + название + кнопкой ✕ для удаления
-- Состояния очищаются в `reset()`
+**ВАЖНО:** Ключи с префиксами `pro_|classic_|scene_|krug_|sw_|priv_` синхронизируются с сервером через `PUT /api/account`. Ключи без этих префиксов остаются только в localStorage.
 
-Backend: добавлен `routes/linkPreview.ts` — fetch URL → парсинг `og:title/description/image/site_name` через regex (с timeout 6s, лимит 200KB HTML, абсолютные image URLs). Зарегистрирован в `routes/index.ts`.
+### Как делать запросы
 
-Все новые поля идут в `extras`-объекты при POST `/api/broadcasts` — backend сохраняет их в `data` JSONB колонку без явной валидации (отображение в ленте — отдельная задача).
+```typescript
+import { db } from '../lib/db';
+import { accountsTable } from '../lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
-## Фоновая музыка постов (2026-04-26)
+// Получить аккаунт по hash
+const [account] = await db.select()
+  .from(accountsTable)
+  .where(eq(accountsTable.hash, userHash));
 
-В композер добавлен пресет `🎵 Фоновая музыка` (15-я опция в меню «➕ Добавить в пост»).
+// Получить поле из JSONB
+const [row] = await db.select({
+  name: sql<string>`${accountsTable.data}->>'pro_displayName'`,
+}).from(accountsTable).where(eq(accountsTable.hash, hash));
 
-### 14 встроенных пресетов (3 категории)
-- **Кинематограф**: Саспенс терминала, Тёмный удар, Битва в центре, Зловещий I, Зловещий II
-- **Детектив**: Неон в допросной, Имя зачёркнутое чернилами, Заброшенная глушь
-- **Природа**: Лесные птицы, Светлячки, Птицы у реки, Маленький ручей, Тихий поток (loop), Лёгкий дождь
+// ILIKE поиск в JSONB
+const rows = await db.select()
+  .from(accountsTable)
+  .where(sql`${accountsTable.data}->>'sw_channels' ILIKE ${`%${keyword}%`}`);
+```
 
-Импорт через `@assets/*.mp3` (Vite alias `attached_assets/`). В композере — превью (▶ кнопка) + выбор галочкой.
+---
 
-### Авто-плеер в ленте
-- Компонент `BgMusicAutoplay` (SwaipHome.tsx ~1949) рендерится в каждом из 5 стилей `PostCard` (через `bgMusicAutoplayEl`).
-- Использует `IntersectionObserver` на самой post-wrapper div (находится через `sentinelRef.nextElementSibling.nextElementSibling`).
-- При intersection >= 0.4 → автозапуск (loop, volume 0.45).
-- **Глобальный singleton**: `window._swaipBgAudio` + `_swaipBgPostId` — одновременно играет только одна дорожка; новый пост в зоне видимости останавливает предыдущий.
-- Если браузер блокирует autoplay → показывается кнопка `▶ Включить звук` (после первого user-gesture работает).
-- Mute-настройка `swaip_bg_muted` в localStorage (кнопка 🔔/🔕 в шапке).
+## 7. Аутентификация и сессии
 
-### Передача с поста
-- Поля `bgMusicUrl` + `bgMusicLabel` в `Post`-интерфейсе и `rawToPost()`.
-- Отправляются в обоих body POST `/api/broadcasts` (postData + JSON).
-- Backend сохраняет в `data` JSONB (без явной схемной валидации).
+### Как работает
 
-## Фоновая музыка — расширено на каналы и чаты (2026-04-26)
+1. **Регистрация/вход** — `POST /api/sessions` → сервер генерирует `sessionToken` (случайная строка), сохраняет в `accounts.sessionToken`
+2. **Хранение на клиенте** — токен в localStorage под ключом `swaip_session_token`
+3. **Каждый запрос** — заголовок `x-session-token: <token>`
+4. **Проверка на сервере** — middleware `requireSession` в `lib/sessionAuth.ts`
 
-Создан общий модуль `src/BgMusic.tsx` с:
-- 14 пресетов (3 категории), импорт mp3 из `@assets/`.
-- `BgMusicAutoplay` (singleton-плеер с IO-наблюдателем). Принимает `attach: 'sibling'|'parent'` (по умолчанию `'sibling'` — для совместимости с PostCard).
-- `BgMusicPicker` — компактная сетка пресетов с превью (▶/⏸) и выбором (✓).
+### requireSession middleware
 
-### Где доступно
-- **Лента (PostCard)** — `bgmusic` в меню «➕ Добавить в пост».
-- **Каналы/Группы (`GroupComposer` в ChannelsScreen)** — кнопка «🎵 Фоновая музыка» в композере, сохранение в `GroupPost.bgMusicUrl/bgMusicLabel`. `GroupPostCard` рендерит `<BgMusicAutoplay attach="parent"/>` в начале карточки.
-- **Чаты (1:1, групповые, broadcast)** — кнопка «🎵» рядом с 😊 в input-bar. Открывает шит с пикером + кнопкой «Отправить». Отправляется как сообщение `messageType='bgmusic'` (`mediaUrl`=URL, `mediaName`=label). В рендере: `<BgMusicAutoplay attach="parent"/>`. Превью в списке чатов: `🎵 [label]`.
-- **Секретные E2E-чаты** — кнопка `🎵` скрыта (URL не шифруется через E2E, чтобы не разглашать дорожку).
+```typescript
+import { requireSession } from '../lib/sessionAuth';
 
-### Архитектура singleton'а
-`window._swaipBgAudio` + `_swaipBgPostId` — один плеер на всё приложение. Музыка из ленты, канала и чата конкурирует за одну активную дорожку. localStorage `swaip_bg_muted` глобален.
+// Защищённый роут:
+router.post('/api/something', requireSession, async (req, res) => {
+  const { userHash } = req; // доступен после requireSession
+  // ...
+});
+```
+
+### Получить токен на клиенте
+
+```typescript
+function getSessionToken(): string {
+  return localStorage.getItem('swaip_session_token') || '';
+}
+
+// Пример запроса с авторизацией
+fetch(`${window.location.origin}/api/something`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-session-token': getSessionToken(),
+  },
+  body: JSON.stringify(data),
+});
+```
+
+---
+
+## 8. API маршруты (краткий справочник)
+
+Все роуты регистрируются в `artifacts/api-server/src/routes/index.ts`.
+
+| Файл роута          | Основные эндпоинты                                                |
+|---------------------|------------------------------------------------------------------|
+| `accounts.ts`       | `GET /api/account/:hash`, `PUT /api/account`, `GET /api/search`, `GET /api/channels-search` |
+| `sessions.ts`       | `POST /api/sessions` (логин/регистрация), `DELETE /api/sessions` |
+| `broadcasts.ts`     | `GET/POST /api/broadcasts`, `PUT/DELETE /api/broadcasts/:id`, poll-vote, bookmarks |
+| `messaging.ts`      | `GET/POST /api/conversations`, `/api/messages`, SSE для real-time |
+| `meetings.ts`       | `POST /api/meetings`, LiveKit токены                             |
+| `stories.ts`        | `GET/POST /api/stories`                                          |
+| `reviews.ts`        | `GET/POST /api/reviews/:hash`                                    |
+| `imageUpload.ts`    | `POST /api/image-upload` → GCS                                   |
+| `audioUpload.ts`    | `POST /api/audio-upload` → GCS + конвертация в MP3              |
+| `videoUpload.ts`    | `POST /api/video-upload` → GCS                                   |
+| `chunkUpload.ts`    | Чанковая загрузка больших файлов                                 |
+| `linkPreview.ts`    | `GET /api/link-preview?url=...` → OG-метаданные                 |
+| `referral.ts`       | `GET /api/referral/stats`, реферальная система + монеты          |
+| `exchange.ts`       | Криптовалюта SWP                                                 |
+| `push.ts`           | Web Push подписки                                                |
+| `moderation.ts`     | Жалобы и баны                                                    |
+| `gitPush.ts`        | `POST /api/git-push` → push в GitHub (использует GITHUB_TOKEN)  |
+| `health.ts`         | `GET /api/health`                                                |
+| `tts.ts`            | Text-to-speech                                                   |
+
+### Как добавить новый роут
+
+```typescript
+// 1. Создать файл artifacts/api-server/src/routes/myfeature.ts
+import { Router } from 'express';
+import { db } from '../lib/db';
+import { requireSession } from '../lib/sessionAuth';
+
+const router = Router();
+
+router.get('/api/myfeature', requireSession, async (req, res) => {
+  try {
+    // ...
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+export default router;
+
+// 2. Добавить в artifacts/api-server/src/routes/index.ts:
+import myfeature from './myfeature';
+// ...
+app.use(myfeature);
+```
+
+---
+
+## 9. Фронтенд: ключевые паттерны
+
+### useSaved хук (localStorage ↔ React state)
+
+```typescript
+// Автоматически читает из localStorage и пишет при изменении
+const [value, setValue] = useSaved('pro_displayName', 'Моё имя');
+```
+
+### Синхронизация localStorage → сервер
+
+Происходит автоматически при:
+- Логине (GET из БД → заполняет localStorage → PUT обратно)
+- Изменении каналов/групп (кастомные события `sw:channels-updated`, `sw:groups-updated`)
+- Сохранении профиля
+
+```typescript
+// Диспатч события при изменении каналов (в ChannelsScreen.tsx):
+window.dispatchEvent(new CustomEvent('sw:channels-updated'));
+
+// SwaipHome.tsx слушает и делает PUT /api/account:
+window.addEventListener('sw:channels-updated', () => pushSnap());
+```
+
+PREFIX_RE = `/^(pro_|classic_|scene_|krug_|sw_|priv_)/` — только эти ключи синхронизируются.
+
+### Темы / цвета
+
+```typescript
+// SwaipHome.tsx использует c = colorScheme объект:
+const c = {
+  deep: '#0A0A14',       // фон приложения
+  surface: '#12121E',    // поверхность панелей
+  card: '#1A1A2E',       // карточки
+  cardAlt: '#14142A',    // альтернативные карточки
+  border: '#2A2A4A',     // границы
+  borderB: '#1E1E3A',
+  light: '#E8E8F8',      // основной текст
+  mid: '#9090B8',        // вторичный текст
+  sub: '#5A5A8A',        // третичный текст
+};
+const ac = '#7C6FFF'; // акцентный цвет (фиолетовый)
+```
+
+### Анимации (Framer Motion)
+
+```typescript
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Кнопка с тапом:
+<motion.button whileTap={{ scale: 0.88 }} onClick={...}>
+
+// Анимированное появление:
+<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+
+// Переходы между экранами:
+<AnimatePresence mode="wait">
+  {showScreen && (
+    <motion.div key="screen" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}>
+```
+
+---
+
+## 10. Каналы и группы (ChannelsScreen.tsx)
+
+### Хранение данных
+
+```typescript
+// Ключи localStorage:
+const KEY = `swaip_account_${userHash}_channels_v2`;   // полные данные каналов
+const SYNC_KEY = 'sw_channels';                         // синк-снимок → сервер
+const KEY_G = `swaip_account_${userHash}_groups_v2`;   // полные данные групп
+const SYNC_KEY_G = 'sw_groups';                         // синк-снимок → сервер
+```
+
+### Структура канала (SwaipChannel)
+
+```typescript
+interface SwaipChannel {
+  id: string;
+  name: string;
+  handle: string;
+  description: string;
+  vibe: string;            // энергетика (🔥 Горим, 💎 Премиум...)
+  vibeColor: string;
+  coverGradient: string;
+  category: string;        // категория из SERVICE_CATEGORIES
+  tags: string[];
+  subscribers: number;
+  posts: ChannelPost[];    // последние 20 постов
+  employees: Employee[];   // сотрудники
+  priceList: PriceItem[];  // прайс-лист
+  rubrics: string[];       // рубрики
+  isVerified: boolean;
+  pulse: number;           // 0–100 активность
+  energyLevel: number;
+  authorName: string;
+  templateId?: string;
+  usp?: string;
+  createdAt: string;
+}
+```
+
+### SERVICE_CATEGORIES (22 категории услуг, Авито-стиль)
+
+```typescript
+// В ProSearch.tsx и ChannelsScreen.tsx:
+// Красота, Ремонт, IT и технологии, Здоровье, Образование,
+// Юридические услуги, Бухгалтерия, Дизайн, Доставка и логистика,
+// Туризм и отдых, Авто, Животные, Мероприятия, Фото и видео,
+// Музыка, Спорт, Кулинария, Строительство, Клининг, Недвижимость,
+// Рукоделие, Разное
+```
+
+---
+
+## 11. Поиск (ProSearch.tsx)
+
+### Архитектура поиска
+
+```
+Пользователь вводит текст
+         ↓
+ProSearch.tsx doSearchChannels()
+         ↓
+1. Ищет в localStorage (sw_channels, sw_groups) мгновенно
+         ↓
+2. Запрос GET /api/channels-search?q=...
+   (ILIKE по JSONB в таблице accounts)
+         ↓
+3. Объединяет результаты, дедупликация по id
+         ↓
+Показывает карточки каналов/групп
+```
+
+### API /api/channels-search
+
+```
+GET /api/channels-search?q=парикмахерская&tags=красота
+
+Логика:
+1. Разбивает q на слова (split по пробелам)
+2. Добавляет теги из параметра tags
+3. ILIKE по data->>'sw_channels' и data->>'sw_groups'
+4. JS-фильтрация по name+description+handle+tags
+5. Возвращает { channels: [...], groups: [...] }
+```
+
+### Поиск людей
+
+```
+GET /api/search?q=Иван&mode=pro
+
+Ищет по pro_displayName, pro_fullName, sw_nick в JSONB
+Возвращает список профилей с аватаром, ником, биографией, настроением
+```
+
+---
+
+## 12. Мессенджер E2E (ProMessaging.tsx)
+
+### Алгоритм шифрования
+
+1. У каждого пользователя — пара Ed25519 ключей (публичный хранится в `pro_publicKey` в БД)
+2. Для E2E чата: ECDH на X25519 (конвертация из Ed25519) → общий секрет
+3. Шифрование: AES-256-GCM
+4. Ключи генерируются в `secretCrypto.ts` через `@noble/curves`
+
+**ВАЖНО:** Секретный ключ хранится ТОЛЬКО в localStorage (`priv_secretKey`). На сервер не попадает. Если пользователь сменит устройство — переписка недоступна.
+
+### Видео-кружки в чате
+
+- Запись: предпросмотр 260×260px с пульсирующей красной рамкой
+- Отображение: кружок 200×200px (`border-radius: 50%`, `object-fit: cover`)
+- Длительность — бейдж поверх кружка
+
+---
+
+## 13. Музыкальный плеер (SwaipHome.tsx + BgMusic.tsx)
+
+### Архитектура
+
+```
+window._globalAudio       ← глобальный singleton Audio объект
+window._swaipBgAudio      ← singleton для фоновой музыки в постах
+window._swaipBgPostId     ← id текущего играющего поста
+
+localStorage:
+  swaip_playlist_v2       ← плейлист пользователя (треки)
+  swaip_music_style       ← выбранный стиль плеера (0–4)
+  swaip_bg_muted          ← замьючена ли фоновая музыка
+```
+
+### MusicPlayerSheet — 5 стилей
+
+| ID | Стиль     | Описание          |
+|----|-----------|-------------------|
+| 0  | Classic   | Стандартный       |
+| 1  | Vinyl     | Вращающаяся vinyl |
+| 2  | Neon      | Неоновый          |
+| 3  | Wave      | Волна             |
+| 4  | Minimal   | Минималистичный   |
+
+### Фоновая музыка постов (BgMusicAutoplay)
+
+Компонент `BgMusicAutoplay` (в `BgMusic.tsx`):
+- Использует `IntersectionObserver` — автозапуск при 40% видимости
+- При intersection нового поста → останавливает предыдущий
+- Параметр `attach: 'sibling' | 'parent'` — где искать пост-контейнер
+
+**КРИТИЧЕСКИ:** Не дублировать `MusicPlayerSheet`, `mini-player` — они должны быть ТОЛЬКО внутри SwaipHome return, не внутри MeetingsScreen или других компонентов.
+
+---
+
+## 14. Браузер внутри SWAIP
+
+Вкладка 🌐 в нижней навигации (`navTab='browser'`).
+
+- Адресная строка: URL или поисковый запрос → Яндекс
+- Speed dial: Google, YouTube, Яндекс, VK, ChatGPT, Wikipedia, WB, Яндекс.Карты
+- **Глобальный перехватчик:** все `<a href="http...">` перехватываются → открываются в браузере SWAIP
+- Если сайт запрещает встраивание → экран с кнопкой "Открыть в системном браузере"
+
+---
+
+## 15. Система постов
+
+### Интерфейс Post
+
+```typescript
+interface Post {
+  id: string;
+  authorHash: string;
+  authorName: string;
+  authorAvatar: string;
+  text: string;
+  imageUrl?: string;
+  additionalImageUrls?: string[];  // карусель
+  bgMusicUrl?: string;             // фоновая музыка
+  bgMusicLabel?: string;
+  poll?: Poll;                     // опрос
+  quiz?: { correctIndex: number }; // квиз
+  challenge?: { title, hashtag, deadline }; // челлендж
+  activity?: { type, title };      // активность (фильм/книга...)
+  mentions?: string[];             // @упомянутые
+  hashtags?: string[];
+  linkPreview?: OGData;           // превью ссылки
+  question?: string;               // вопрос подписчикам
+  quoteOf?: string;               // цитата поста
+  repostOf?: string;              // репост
+  parentId?: string;               // ответ в треде
+  enableTTS?: boolean;
+  disableComments?: boolean;
+  disableRepost?: boolean;
+  createdAt: string;
+}
+```
+
+### 6 стилей PostCard
+
+| Стиль     | Ключ        | Описание         |
+|-----------|-------------|------------------|
+| Классика  | `classic`   | Стандартный      |
+| Синема    | `cinema`    | Широкоформатный  |
+| Газета    | `newspaper` | Текстовый        |
+| Неон      | `neon`      | Неоновый         |
+| Пузырь    | `bubble`    | Мессенджер-стиль |
+| Компакт   | `compact`   | Компактный       |
+
+Все 6 стилей реализуют: опросы, закладки, треды, квоты, репосты, видео-кружки, фоновую музыку.
+
+---
+
+## 16. Как делать изменения — чек-лист
+
+### Перед началом работы
+
+1. Прочитай этот файл полностью
+2. Проверь, все ли воркфлоу RUNNING (через `refresh_all_logs`)
+3. Если нет — запусти через `restart_workflow`
+
+### Изменение бэкенда
+
+1. Найди нужный файл в `artifacts/api-server/src/routes/`
+2. Проверь типы: `pnpm --filter @workspace/api-server run typecheck`
+3. Если ошибки TS — исправь перед коммитом
+4. Перезапусти воркфлоу `artifacts/api-server: API Server`
+
+### Изменение фронтенда
+
+1. Ищи компонент по функции — ориентируйся на раздел 9
+2. Используй `grep` для поиска по коду
+3. Не создавай новые файлы если можно изменить существующий
+4. Перезапусти воркфлоу `artifacts/swaip: web`
+
+### Добавление новой страницы/экрана
+
+1. Создай компонент в `artifacts/swaip/src/`
+2. Добавь навигацию в SwaipHome.tsx (через `navTab` или отдельный стейт)
+3. Импортируй и рендери внутри SwaipHome return
+
+### Добавление нового API
+
+1. Создай файл в `artifacts/api-server/src/routes/`
+2. Зарегистрируй в `artifacts/api-server/src/routes/index.ts`
+3. При необходимости добавь в OpenAPI spec (`lib/api-spec/openapi.yaml`)
+4. Regenerate хуки: `pnpm --filter @workspace/api-spec run codegen`
+
+### Изменение схемы БД
+
+1. Отредактируй `lib/db/src/schema.ts`
+2. Выполни: `pnpm --filter @workspace/db run push`
+3. Обнови типы в роутах если нужно
+
+---
+
+## 17. Известные ограничения (не ломай это!)
+
+### Критические
+
+- `SwaipHome.tsx` и `App.tsx` — ОГРОМНЫЕ файлы (~10–15K строк). При редактировании всегда читай окружающий контекст (offset/limit), не редактируй вслепую.
+- `MusicPlayerSheet` + `mini-player` — ТОЛЬКО в SwaipHome return, не переносить в другие компоненты
+- `custom-ringtone.mp3` — в `artifacts/swaip/public/` (НЕ в `public/public/`)
+- E2E секретный ключ — ТОЛЬКО в localStorage `priv_secretKey`, никогда на сервер
+- `sw_channels` / `sw_groups` в localStorage → синхронизируются на сервер через `PUT /api/account`
+
+### Безопасность (известные проблемы, не исправляй без задачи)
+
+- `/api/git-push` — не требует авторизации (потенциальный риск)
+- `SESSION_SECRET` используется и для сессий и для E2E ключей (не меняй без понимания последствий)
+- Инвайт-коды: поиск без индекса (full table scan)
+
+### TypeScript
+
+- Используй `as const` и конкретные типы. Избегай `any` без крайней необходимости
+- `req.params['id'] as string` — нужен cast для Express 5
+- Все роуты должны явно возвращать `return res.json(...)` или `return res.status(...).json(...)`
+
+---
+
+## 18. GitHub и деплой
+
+### Push в GitHub
+
+```bash
+# Через API эндпоинт (рекомендуется — использует GITHUB_TOKEN секрет):
+POST /api/git-push
+Body: { "message": "feat: описание изменений" }
+
+# ИЛИ через фоновую задачу (project task) — для прямого git push
+# Прямые git push команды в main agent не разрешены
+```
+
+### Deploy на Replit
+
+Используй `suggest_deploy` инструмент когда приложение готово к публикации.
+
+---
+
+## 19. Частые ошибки и их решения
+
+| Ошибка | Причина | Решение |
+|--------|---------|---------|
+| Плеер не открывается | MusicPlayerSheet вне SwaipHome return | Перенести в SwaipHome return |
+| Файл не воспроизводится | mp3 не в `public/` | Проверить путь `artifacts/swaip/public/` |
+| Каналы не находятся поиском | sw_channels не синхронизированы | Проверить диспатч `sw:channels-updated` |
+| TS ошибка в роуте | req.params без каста | Добавить `req.params as { id: string }` |
+| Пустой результат API | Нет `return` перед `res.json()` | Добавить `return res.json(...)` |
+| Белый экран | Воркфлоу упал | Запусти `restart_workflow` |
+| Vite BABEL warning | Файл > 500KB | Ожидаемо для App.tsx и SwaipHome.tsx — не критично |
+| localStorage не синхронизируется | Ключ без PREFIX_RE | Назови ключ с `pro_`/`sw_`/`krug_` и т.д. |
+
+---
+
+## 20. История важных изменений
+
+| Дата       | Изменение                                                        |
+|------------|------------------------------------------------------------------|
+| 2026-04-27 | Поиск: локальный поиск + авто-синк каналов/групп; UX улучшения  |
+| 2026-04-27 | Поиск каналов/групп: ProSearch.tsx + /api/channels-search       |
+| 2026-04-26 | Каналы: кликабельные карточки, полноэкранный просмотр           |
+| 2026-04-26 | SERVICE_CATEGORIES (22 категории услуг с keywords)              |
+| 2026-04-26 | Фоновая музыка в постах, каналах и чатах (BgMusic.tsx)          |
+| 2026-04-26 | Музыкальный плеер: 5 стилей, floating mini-player               |
+| 2026-04-26 | PostComposerFull: 15 типов вложений (карусель, квиз, OG...)     |
+| 2026-04-26 | TS исправления: 17 ошибок в роутах api-server                   |
+| 2026-04-25 | E2E мессенджер, видео-кружки, встроенный браузер                |
+| 2026-04-24 | Базовая социальная сеть: посты, профили, подписки               |
