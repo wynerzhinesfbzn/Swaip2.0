@@ -13,7 +13,7 @@ function genId(): string {
 /* GET /api/mini-apps — мини-аппы текущего пользователя */
 router.get("/mini-apps", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
+    const { userHash } = req;
     const rows = await db
       .select()
       .from(miniAppsTable)
@@ -36,13 +36,16 @@ router.get("/mini-apps/public", async (_req, res) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-/* GET /api/mini-apps/:id — получить мини-апп */
-router.get("/mini-apps/:id", async (req, res) => {
+/* GET /api/mini-apps/:id — получить мини-апп (публичный или свой) */
+router.get("/mini-apps/:id", requireSession, async (req, res) => {
   try {
-    const { id } = req.params as { id: string };
+    const { userHash } = req;
+    const id = String(req.params.id ?? "");
     const [app] = await db.select().from(miniAppsTable).where(eq(miniAppsTable.id, id));
     if (!app) return res.status(404).json({ error: "Mini app not found" });
-    // Увеличить счётчик просмотров
+    if (app.isPublic !== "true" && app.ownerHash !== userHash) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
     await db.update(miniAppsTable)
       .set({ viewCount: (app.viewCount || 0) + 1 })
       .where(eq(miniAppsTable.id, id));
@@ -53,8 +56,12 @@ router.get("/mini-apps/:id", async (req, res) => {
 /* POST /api/mini-apps — создать мини-апп */
 router.post("/mini-apps", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
-    const { name, description, icon, config, isPublic } = req.body as any;
+    const { userHash } = req;
+    const body = req.body as Record<string, unknown>;
+    const { name, description, icon, config, isPublic } = body as {
+      name?: string; description?: string; icon?: string;
+      config?: unknown; isPublic?: boolean;
+    };
     const defaultConfig = {
       accentColor: "#8b5cf6",
       darkMode: false,
@@ -87,9 +94,12 @@ router.post("/mini-apps", requireSession, async (req, res) => {
 /* PUT /api/mini-apps/:id — обновить мини-апп */
 router.put("/mini-apps/:id", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
+    const { userHash } = req;
     const { id } = req.params as { id: string };
-    const { name, description, icon, config, isPublic } = req.body as any;
+    const { name, description, icon, config, isPublic } = req.body as {
+      name?: string; description?: string; icon?: string;
+      config?: unknown; isPublic?: boolean;
+    };
     const [existing] = await db.select().from(miniAppsTable).where(eq(miniAppsTable.id, id));
     if (!existing) return res.status(404).json({ error: "Not found" });
     if (existing.ownerHash !== userHash) return res.status(403).json({ error: "Forbidden" });
@@ -111,7 +121,7 @@ router.put("/mini-apps/:id", requireSession, async (req, res) => {
 /* DELETE /api/mini-apps/:id — удалить мини-апп */
 router.delete("/mini-apps/:id", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
+    const { userHash } = req;
     const { id } = req.params as { id: string };
     const [existing] = await db.select().from(miniAppsTable).where(eq(miniAppsTable.id, id));
     if (!existing) return res.status(404).json({ error: "Not found" });

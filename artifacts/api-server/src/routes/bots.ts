@@ -13,7 +13,7 @@ function genId(): string {
 /* ── GET /api/bots — боты текущего пользователя ─────────── */
 router.get("/bots", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
+    const { userHash } = req;
     const rows = await db
       .select()
       .from(botsTable)
@@ -36,12 +36,16 @@ router.get("/bots/public", async (_req, res) => {
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
 
-/* ── GET /api/bots/:id — получить бота ───────────────────── */
-router.get("/bots/:id", async (req, res) => {
+/* ── GET /api/bots/:id — получить бота (публичный или свой) ── */
+router.get("/bots/:id", requireSession, async (req, res) => {
   try {
-    const { id } = req.params as { id: string };
+    const { userHash } = req;
+    const id = String(req.params.id ?? "");
     const [bot] = await db.select().from(botsTable).where(eq(botsTable.id, id));
     if (!bot) return res.status(404).json({ error: "Bot not found" });
+    if (bot.isPublic !== "true" && bot.ownerHash !== userHash) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
     return res.json(bot);
   } catch { return res.status(500).json({ error: "Server error" }); }
 });
@@ -49,7 +53,7 @@ router.get("/bots/:id", async (req, res) => {
 /* ── POST /api/bots — создать бота ───────────────────────── */
 router.post("/bots", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
+    const { userHash } = req;
     const { name, description, avatarUrl, isPublic } = req.body || {};
     const id = genId();
     /* Стартовый экран по умолчанию */
@@ -85,7 +89,7 @@ router.post("/bots", requireSession, async (req, res) => {
 /* ── PUT /api/bots/:id — обновить бота ───────────────────── */
 router.put("/bots/:id", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
+    const { userHash } = req;
     const { id } = req.params as { id: string };
     const [existing] = await db.select().from(botsTable).where(eq(botsTable.id, id));
     if (!existing) return res.status(404).json({ error: "Bot not found" });
@@ -105,7 +109,7 @@ router.put("/bots/:id", requireSession, async (req, res) => {
 /* ── DELETE /api/bots/:id ─────────────────────────────────── */
 router.delete("/bots/:id", requireSession, async (req, res) => {
   try {
-    const { userHash } = req as any;
+    const { userHash } = req;
     const { id } = req.params as { id: string };
     const [existing] = await db.select().from(botsTable).where(eq(botsTable.id, id));
     if (!existing) return res.status(404).json({ error: "Bot not found" });

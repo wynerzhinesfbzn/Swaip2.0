@@ -139,7 +139,7 @@ function fillHandsDurak(state: ReturnType<typeof initDurakState>) {
 
 /* POST /api/game/invite */
 router.post("/game/invite", requireSession, (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const { convId, type, opponentHash } = req.body as { convId: number; type: GameType; opponentHash?: string };
   if (!convId || !type) { res.status(400).json({ error: "missing params" }); return; }
 
@@ -187,7 +187,7 @@ router.post("/game/invite", requireSession, (req, res) => {
 
 /* GET /api/game/pending?convId=X */
 router.get("/game/pending", requireSession, (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = Number(req.query.convId);
   if (!convId) { res.status(400).json({ error: "missing convId" }); return; }
   const found = [...games.values()].find(g =>
@@ -201,7 +201,7 @@ router.get("/game/pending", requireSession, (req, res) => {
 
 /* GET /api/game/:id */
 router.get("/game/:id", requireSession, (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const g = games.get(req.params.id as string);
   if (!g) { res.status(404).json({ error: "not found" }); return; }
   res.json({ game: sanitizeGame(g, me) });
@@ -209,7 +209,7 @@ router.get("/game/:id", requireSession, (req, res) => {
 
 /* POST /api/game/:id/accept */
 router.post("/game/:id/accept", requireSession, (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const g = games.get(req.params.id as string);
   if (!g || g.status !== "pending") { res.status(400).json({ error: "invalid" }); return; }
   if (!g.players.includes(me)) g.players.push(me);
@@ -232,7 +232,7 @@ router.post("/game/:id/accept", requireSession, (req, res) => {
 
 /* POST /api/game/:id/join  (durak multiplayer) */
 router.post("/game/:id/join", requireSession, (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const g = games.get(req.params.id as string);
   if (!g || g.type !== "durak") { res.status(400).json({ error: "invalid" }); return; }
   if (g.players.includes(me)) { res.json({ ok: true }); return; }
@@ -243,7 +243,7 @@ router.post("/game/:id/join", requireSession, (req, res) => {
 
 /* POST /api/game/:id/start  (host starts durak after enough players joined) */
 router.post("/game/:id/start", requireSession, (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const g = games.get(req.params.id as string);
   if (!g || g.hostHash !== me || g.type !== "durak") { res.status(400).json({ error: "invalid" }); return; }
   if (g.players.length < 2) { res.status(400).json({ error: "need at least 2 players" }); return; }
@@ -263,7 +263,7 @@ router.post("/game/:id/decline", requireSession, (req, res) => {
 
 /* POST /api/game/:id/move */
 router.post("/game/:id/move", requireSession, (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const g = games.get(req.params.id as string);
   if (!g || g.status !== "active") { res.status(400).json({ error: "not active" }); return; }
   if (!g.players.includes(me)) { res.status(403).json({ error: "not a player" }); return; }

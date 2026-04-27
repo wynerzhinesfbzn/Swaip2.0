@@ -92,7 +92,7 @@ function verifyParticipantToken(token: string): { participantId: string; meeting
  * POST /api/meetings/create
  * ────────────────────────────────────────────────── */
 router.post("/meetings/create", requireSession, async (req, res) => {
-  const creatorHash: string = (req as any).userHash;
+  const creatorHash: string = req.userHash;
   const { name, startTime, tokenType = "common", codeWord, tokenExpiry, allowAnonymous, anonymousGuest } = req.body;
   if (!name || typeof name !== "string" || !name.trim())
     return res.status(400).json({ error: "Название конференции обязательно" });
@@ -134,7 +134,7 @@ router.post("/meetings/create", requireSession, async (req, res) => {
  * GET /api/meetings/my
  * ────────────────────────────────────────────────── */
 router.get("/meetings/my", requireSession, async (req, res) => {
-  const creatorHash: string = (req as any).userHash;
+  const creatorHash: string = req.userHash;
   const rows = await db.select().from(meetingsTable)
     .where(eq(meetingsTable.creatorHash, creatorHash))
     .orderBy(desc(meetingsTable.createdAt));
@@ -160,7 +160,7 @@ router.get("/meetings/my", requireSession, async (req, res) => {
  * DELETE /api/meetings/:meetingId
  * ────────────────────────────────────────────────── */
 router.delete("/meetings/:meetingId", requireSession, async (req, res) => {
-  const creatorHash: string = (req as any).userHash;
+  const creatorHash: string = req.userHash;
   const { meetingId } = req.params as { meetingId: string };
   const rows = await db.select().from(meetingsTable).where(eq(meetingsTable.meetingId, meetingId)).limit(1);
   if (!rows.length) return res.status(404).json({ error: "Не найдено" });
@@ -420,7 +420,7 @@ router.post("/meetings/token", async (req, res) => {
  * Завершить конференцию (только создатель)
  * ────────────────────────────────────────────────── */
 router.post("/meetings/:meetingId/end", requireSession, async (req, res) => {
-  const creatorHash: string = (req as any).userHash;
+  const creatorHash: string = req.userHash;
   const { meetingId } = req.params as { meetingId: string };
 
   const rows = await db.select().from(meetingsTable).where(eq(meetingsTable.meetingId, meetingId)).limit(1);

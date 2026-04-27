@@ -100,7 +100,7 @@ router.get("/follows/:hash", async (req, res) => {
 });
 
 router.post("/follows", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const { targetHash } = req.body;
   if (!targetHash || targetHash === me) return res.status(400).json({ error: "Bad request" });
   try {
@@ -168,7 +168,7 @@ router.get("/follows/:hash/list", async (req, res) => {
 
 /* POST /follows/mutual  — обе стороны становятся подписчиками друг друга */
 router.post("/follows/mutual", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const { targetHash } = req.body;
   if (!targetHash || targetHash === me) return res.status(400).json({ error: "Bad request" });
   try {
@@ -187,7 +187,7 @@ router.post("/follows/mutual", requireSession, async (req, res) => {
 /* ─────────────────────────── CONVERSATIONS ─────────────────────────── */
 
 router.get("/conversations", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   try {
     const dmConvs = await db.select().from(conversationsTable)
       .where(and(
@@ -275,7 +275,7 @@ router.get("/conversations", requireSession, async (req, res) => {
 });
 
 router.post("/conversations", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const { otherHash, type: reqType, name: reqName } = req.body;
 
   /* ── Создание группы или канала-эфира напрямую ── */
@@ -335,7 +335,7 @@ router.post("/conversations", requireSession, async (req, res) => {
 });
 
 router.post("/conversations/:id/participants", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
   const { addHash } = req.body;
   if (!addHash) return res.status(400).json({ error: "addHash required" });
@@ -403,7 +403,7 @@ async function buildGroupName(hashes: string[]): Promise<string> {
 }
 
 router.patch("/conversations/:id", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
   const { name } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: "Name required" });
@@ -423,7 +423,7 @@ router.patch("/conversations/:id", requireSession, async (req, res) => {
 });
 
 router.delete("/conversations/:id/participants", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
 
   try {
@@ -488,7 +488,7 @@ router.get("/conversations/:id/sse", async (req, res): Promise<void> => {
 });
 
 router.get("/conversations/:id/messages", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
   const limit = parseInt(req.query.limit as string) || 50;
   const before = req.query.before ? parseInt(req.query.before as string) : undefined;
@@ -581,7 +581,7 @@ router.get("/conversations/:id/messages", requireSession, async (req, res) => {
 });
 
 router.post("/conversations/:id/messages", requireSession, contentFilter("message", ["content"]), async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
   const { content = '', messageType = 'text', mediaUrl, mediaName, duration, replyToId, burnInMs } = req.body;
 
@@ -670,7 +670,7 @@ router.post("/conversations/:id/messages", requireSession, contentFilter("messag
 
 /* ── Обмен публичными ключами для E2E ── */
 router.patch("/conversations/:id/public-key", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
   const { publicKey } = req.body;
   if (!publicKey) return res.status(400).json({ error: "publicKey required" });
@@ -693,7 +693,7 @@ router.patch("/conversations/:id/public-key", requireSession, async (req, res) =
 });
 
 router.get("/conversations/:id/peer-key", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
 
   try {
@@ -713,7 +713,7 @@ router.get("/conversations/:id/peer-key", requireSession, async (req, res) => {
 
 /* ── Таймер сгорания ── */
 router.patch("/conversations/:id/burn-timer", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['id'] as string);
   const { burnTimer } = req.body;
   if (typeof burnTimer !== 'number') return res.status(400).json({ error: "burnTimer required" });
@@ -729,7 +729,7 @@ router.patch("/conversations/:id/burn-timer", requireSession, async (req, res) =
 });
 
 router.delete("/conversations/:convId/messages/:msgId", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const msgId = parseInt(req.params['msgId'] as string);
   const { deleteForAll } = req.body ?? {};
   try {
@@ -752,7 +752,7 @@ router.delete("/conversations/:convId/messages/:msgId", requireSession, async (r
 
 /* ── Редактировать сообщение ── */
 router.patch("/conversations/:convId/messages/:msgId", requireSession, contentFilter("message", ["content"]), async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['convId'] as string);
   const msgId = parseInt(req.params['msgId'] as string);
   const { content } = req.body;
@@ -787,7 +787,7 @@ router.patch("/conversations/:convId/messages/:msgId", requireSession, contentFi
 
 /* ── Реакция на сообщение (toggle) ── */
 router.post("/conversations/:convId/messages/:msgId/reactions", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   const convId = parseInt(req.params['convId'] as string);
   const msgId = parseInt(req.params['msgId'] as string);
   const { emoji } = req.body;
@@ -827,7 +827,7 @@ router.post("/conversations/:convId/messages/:msgId/reactions", requireSession, 
 });
 
 router.get("/contacts", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   try {
     const [following, followers] = await Promise.all([
       db.select({ hash: followsTable.followingHash }).from(followsTable).where(eq(followsTable.followerHash, me)),
@@ -843,7 +843,7 @@ router.get("/contacts", requireSession, async (req, res) => {
 
 /* ── Список связей Круга: friends / followers / following ── */
 router.get("/circle-connections", requireSession, async (req, res) => {
-  const me = (req as any).userHash as string;
+  const me = req.userHash as string;
   try {
     const [followingRows, followerRows] = await Promise.all([
       db.select({ hash: followsTable.followingHash }).from(followsTable).where(eq(followsTable.followerHash, me)),

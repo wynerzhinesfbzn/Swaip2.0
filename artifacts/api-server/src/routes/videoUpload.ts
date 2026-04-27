@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import { objectStorageClient } from "../lib/objectStorage";
 import { logger } from "../lib/logger";
+import { getSessionToken, resolveSession } from "../lib/sessionAuth.js";
 
 const router = Router();
 const VID_DIR = path.join(process.cwd(), "video_uploads");
@@ -88,7 +89,9 @@ async function saveVideoToStorage(buf: Buffer, filename: string, mime: string): 
 }
 
 /* POST /api/video-upload/init */
-router.post("/video-upload/init", (req: Request, res: Response) => {
+router.post("/video-upload/init", async (req: Request, res: Response) => {
+  const userHash = await resolveSession(getSessionToken(req));
+  if (!userHash) return res.status(401).json({ error: "Unauthorized" });
   try {
     const rawBody = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString("utf8")) : req.body;
     const { filename = "", totalChunks = 1 } = rawBody as { filename?: string; totalChunks?: number };
@@ -104,7 +107,9 @@ router.post("/video-upload/init", (req: Request, res: Response) => {
 });
 
 /* POST /api/video-upload/chunk */
-router.post("/video-upload/chunk", (req: Request, res: Response) => {
+router.post("/video-upload/chunk", async (req: Request, res: Response) => {
+  const userHash = await resolveSession(getSessionToken(req));
+  if (!userHash) return res.status(401).json({ error: "Unauthorized" });
   try {
     const uploadId   = String(req.headers["x-upload-id"]    || "");
     const chunkIndex = parseInt(String(req.headers["x-chunk-index"] || "0"), 10);
@@ -125,6 +130,8 @@ router.post("/video-upload/chunk", (req: Request, res: Response) => {
 
 /* POST /api/video-upload/finalize */
 router.post("/video-upload/finalize", async (req: Request, res: Response) => {
+  const userHash = await resolveSession(getSessionToken(req));
+  if (!userHash) return res.status(401).json({ error: "Unauthorized" });
   try {
     const rawBody = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString("utf8")) : req.body;
     const { uploadId } = rawBody as { uploadId: string };
@@ -189,6 +196,8 @@ router.post("/video-upload/finalize", async (req: Request, res: Response) => {
 
 /* POST /api/video-upload — прямая загрузка (≤ 200MB) */
 router.post("/video-upload", async (req: Request, res: Response) => {
+  const userHash = await resolveSession(getSessionToken(req));
+  if (!userHash) return res.status(401).json({ error: "Unauthorized" });
   try {
     const buf: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || "");
     if (buf.length > 200 * 1024 * 1024) { res.status(413).json({ error: "File too large (max 200MB)" }); return; }
