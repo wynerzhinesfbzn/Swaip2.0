@@ -1829,12 +1829,13 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
 /* ══════════════════════════════════════════════
    MESSAGES SCREEN (Conversations List)
 ══════════════════════════════════════════════ */
-export function MessagesScreen({ myHash, accent, onBack, openChatWith, openSecretChatWith, onViewProfile, onFindPeople }: {
+export function MessagesScreen({ myHash, accent, onBack, openChatWith, openSecretChatWith, onViewProfile, onFindPeople, onOpenSearch }: {
   myHash: string; accent: string; onBack: () => void;
   openChatWith?: { hash: string; info: ConvUser };
   openSecretChatWith?: { hash: string; info: ConvUser };
   onViewProfile?: (hash: string) => void;
   onFindPeople?: () => void;
+  onOpenSearch?: (tab: 'people'|'channels'|'groups') => void;
 }) {
   type ChatTab = 'direct' | 'group' | 'broadcast' | 'secret';
   const [chatTab,        setChatTab]       = useState<ChatTab>('direct');
@@ -2037,6 +2038,11 @@ export function MessagesScreen({ myHash, accent, onBack, openChatWith, openSecre
                 color:'#000', fontWeight:900, fontSize:14, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
               ＋ Создать группу
             </motion.button>
+            <motion.button whileTap={{ scale:0.96 }} onClick={() => (onOpenSearch||onFindPeople) ? (onOpenSearch ? onOpenSearch('people') : onFindPeople!()) : onBack()}
+              style={{ padding:'10px 24px', borderRadius:100, border:`1.5px solid ${accent}55`, background:'transparent',
+                color:accent, fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
+              🔍 Найти людей
+            </motion.button>
           </div>
         )}
 
@@ -2050,6 +2056,11 @@ export function MessagesScreen({ myHash, accent, onBack, openChatWith, openSecre
                 color:'#000', fontWeight:900, fontSize:14, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
               📡 Создать канал
             </motion.button>
+            <motion.button whileTap={{ scale:0.96 }} onClick={() => onOpenSearch ? onOpenSearch('channels') : (onFindPeople ? onFindPeople() : onBack())}
+              style={{ padding:'10px 24px', borderRadius:100, border:`1.5px solid ${accent}55`, background:'transparent',
+                color:accent, fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
+              🔍 Найти каналы
+            </motion.button>
           </div>
         )}
 
@@ -2060,7 +2071,7 @@ export function MessagesScreen({ myHash, accent, onBack, openChatWith, openSecre
             <div style={{ fontSize:13, color:'rgba(255,255,255,0.45)', textAlign:'center', lineHeight:1.65, maxWidth:280, fontFamily:'"Montserrat",sans-serif' }}>
               Секретные чаты имеют сквозное шифрование. Начните новый, найдя собеседника через поиск.
             </div>
-            <motion.button whileTap={{ scale:0.96 }} onClick={onBack}
+            <motion.button whileTap={{ scale:0.96 }} onClick={() => onOpenSearch ? onOpenSearch('people') : (onFindPeople ? onFindPeople() : onBack())}
               style={{ padding:'12px 28px', borderRadius:100, border:'none', background:'linear-gradient(135deg,#22c55e,#16a34a)',
                 color:'#fff', fontWeight:900, fontSize:14, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
               🔍 Найти пользователя

@@ -50,11 +50,12 @@ export interface UnifiedSearchProps {
   onOpenChat(hash:string,info:{name:string;avatar:string;handle:string}):void;
   onCall?(hash:string,info:{name:string;avatar:string}):void;
   searchByCode?(code:string):Promise<any>;
+  initialTab?:'people'|'channels'|'groups';
 }
 
-export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOpenChat,onCall,searchByCode}:UnifiedSearchProps){
+export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOpenChat,onCall,searchByCode,initialTab}:UnifiedSearchProps){
   /* Вкладки */
-  const [tab,setTab]=useState<'people'|'channels'|'groups'>('people');
+  const [tab,setTab]=useState<'people'|'channels'|'groups'>(initialTab||'people');
 
   /* Поиск людей */
   const [peopleQ,setPeopleQ]=useState('');
@@ -75,6 +76,8 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
   /* Детальный просмотр канала/группы */
   const [openChannel,setOpenChannel]=useState<ChannelResult|null>(null);
   const [openGroup,setOpenGroup]=useState<GroupResult|null>(null);
+
+  useEffect(()=>{ if(initialTab) setTab(initialTab); },[initialTab]);
 
   const ac=accent;
 

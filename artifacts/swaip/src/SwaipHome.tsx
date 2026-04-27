@@ -3907,6 +3907,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [callPeerInfo,setCallPeerInfo]=useState<{name:string;avatar:string}|null>(null);
   useEffect(()=>{if(call.callState==='idle')setCallPeerInfo(null);},[call.callState]);
   const [showSearch,setShowSearch]=useState(false);
+  const [searchInitialTab,setSearchInitialTab]=useState<'people'|'channels'|'groups'>('people');
   const [searchQ,setSearchQ]=useState('');
   const [codeInput,setCodeInput]=useState('');
   const [codeResult,setCodeResult]=useState<{found:boolean;hash?:string;name?:string;handle?:string;avatar?:string;mode?:string}|null>(null);
@@ -4931,7 +4932,8 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           openChatWith={chatTarget||undefined}
           openSecretChatWith={secretChatTarget||undefined}
           onViewProfile={hash=>{ setProfileViewHash(hash); }}
-          onFindPeople={()=>{ setNavTab('home'); setTimeout(()=>{ setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); },120); }}/>
+          onFindPeople={()=>{ setNavTab('home'); setTimeout(()=>{ setSearchInitialTab('people'); setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); },120); }}
+          onOpenSearch={(tab)=>{ setSearchInitialTab(tab); setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); }}/>
         <CallOverlayUI call={call} peerInfo={callPeerInfo} apiBase={apiBase}/>
       </div>
     )}
@@ -10604,6 +10606,7 @@ function MeetingsScreen({apiBase,userHash,onBack}:{apiBase:string;userHash:strin
               apiBase={apiBase}
               c={c as any}
               accent={activeAccent}
+              initialTab={searchInitialTab}
               onClose={()=>{setShowSearch(false);}}
               onViewProfile={(hash,fallback)=>{
                 setProfileViewHash(hash);
