@@ -934,7 +934,7 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
           <motion.button whileTap={{scale:0.88}} onClick={onClose}
             style={{width:34,height:34,borderRadius:10,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,fontSize:18,cursor:'pointer',flexShrink:0}}>←</motion.button>
           <div style={{fontSize:15,fontWeight:800,color:C.light,flex:1}}>
-            {mode==='bots'?'🤖 Мои боты':'✨ Мини-аппы'}
+            {mode==='bots'?'🤖 Мои боты':'✨ Mini Apps'}
           </div>
           {mode==='bots'&&(
             <motion.button whileTap={{scale:0.88}} onClick={()=>setShowHelp(true)}
@@ -949,7 +949,7 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
           </button>
           <button onClick={()=>setMode('mini')}
             style={{flex:1,padding:'10px 0',background:'none',border:'none',borderBottom:`2px solid ${mode==='mini'?'#8b5cf6':'transparent'}`,color:mode==='mini'?'#8b5cf6':C.sub,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:6,transition:'all 0.15s'}}>
-            ✨ Мини-апп
+            ✨ Mini App
           </button>
         </div>
       </div>

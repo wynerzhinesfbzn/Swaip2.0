@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import SwaipVideoPlayer, { SkinSelector, type VideoSkin } from './SwaipVideoPlayer';
 
 /* ════════════════════════════ ТИПЫ ════════════════════════════ */
-export type BlockType = 'hero' | 'text' | 'image' | 'video' | 'buttons' | 'price' | 'divider' | 'contacts';
+export type BlockType = 'hero' | 'text' | 'image' | 'video' | 'buttons' | 'price' | 'divider' | 'contacts' | 'code';
 
 export interface MiniAppButton {
   id: string;
@@ -45,6 +45,9 @@ export interface MiniAppBlock {
   /* divider */
   divStyle?: 'line' | 'space' | 'dots';
   divSize?: 'sm' | 'md' | 'lg';
+  /* code */
+  htmlCode?: string;
+  codeHeight?: number;
   /* contacts */
   phone?: string;
   email?: string;
@@ -90,8 +93,9 @@ const BLOCK_TYPES: { type: BlockType; icon: string; label: string; desc: string 
   { type: 'video',    icon: '🎥', label: 'Видео',     desc: 'Файл или YouTube' },
   { type: 'buttons',  icon: '🔗', label: 'Кнопки',   desc: 'Ссылки и действия' },
   { type: 'price',    icon: '💎', label: 'Цена',      desc: 'Карточка с тарифом' },
-  { type: 'contacts', icon: '📞', label: 'Контакты',  desc: 'Телефон, email, адрес' },
-  { type: 'divider',  icon: '➖', label: 'Разделитель', desc: 'Линия или отступ' },
+  { type: 'contacts', icon: '📞', label: 'Contacts',   desc: 'Телефон, email, адрес' },
+  { type: 'divider',  icon: '➖', label: 'Divider',    desc: 'Линия или отступ' },
+  { type: 'code',     icon: '💻', label: 'Code',       desc: 'HTML / CSS / JavaScript' },
 ];
 
 const ACCENT_COLORS = ['#8b5cf6','#6366f1','#ec4899','#f59e0b','#10b981','#0ea5e9','#ef4444','#14b8a6'];
@@ -113,6 +117,22 @@ function makeBlock(type: BlockType): MiniAppBlock {
     case 'price':    return { id, type, priceName: 'Стандарт', price: '990', currency: '₽', period: 'мес', features: ['Функция 1','Функция 2','Функция 3'], ctaLabel: 'Выбрать', accentColor: ACCENT };
     case 'contacts': return { id, type, phone: '', email: '', address: '', website: '' };
     case 'divider':  return { id, type, divStyle: 'line', divSize: 'md' };
+    case 'code':     return { id, type, codeHeight: 200, htmlCode: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; font-family: sans-serif; background: #0a0a1a; color: #fff; }
+    .box { padding: 20px; text-align: center; }
+    h2 { color: #8b5cf6; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Hello, SWAIP Mini App! 👋</h2>
+    <p>Edit this HTML/CSS/JS code</p>
+  </div>
+</body>
+</html>` };
   }
 }
 
@@ -216,6 +236,20 @@ function BlockRenderer({ block, accent, dark, compact = false }: { block: MiniAp
       if (block.divStyle==='space') return <div style={{height:block.divSize==='sm'?16:block.divSize==='lg'?48:32,background:bg}}/>;
       if (block.divStyle==='dots') return <div style={{background:bg,padding:'12px 0',textAlign:'center',fontSize:18,color:sub,letterSpacing:8}}>···</div>;
       return <div style={{background:bg,padding:block.divSize==='sm'?'8px 20px':block.divSize==='lg'?'24px 20px':'16px 20px'}}><div style={{height:1,background:dark?'#2a2a3d':'#e0e0f0'}}/></div>;
+    case 'code':
+      if (!block.htmlCode) return (
+        <div style={{background:bg,padding:'16px',textAlign:'center',color:sub,fontSize:12}}>
+          <span style={{fontSize:24}}>💻</span><br/>Вставьте HTML/CSS/JS код
+        </div>
+      );
+      return (
+        <iframe
+          srcDoc={block.htmlCode}
+          sandbox="allow-scripts"
+          style={{width:'100%',height:compact?Math.min(block.codeHeight||200,180):block.codeHeight||200,border:'none',display:'block',background:'#000'}}
+          title="code-block"
+        />
+      );
     default: return null;
   }
 }
@@ -438,6 +472,63 @@ function BlockEditor({
           ))}
         </div>
       </>)}
+
+      {block.type === 'code' && (<>
+        <div style={{background:'#8b5cf622',border:'1px solid #8b5cf644',borderRadius:10,padding:'10px 12px',marginBottom:4}}>
+          <div style={{fontSize:12,fontWeight:700,color:'#a78bfa',marginBottom:4}}>💻 Developer Code Block</div>
+          <div style={{fontSize:11,color:C.mid,lineHeight:1.5}}>
+            Поддерживается <strong style={{color:C.light}}>HTML</strong>, <strong style={{color:C.light}}>CSS</strong>, <strong style={{color:C.light}}>JavaScript</strong>.<br/>
+            Код запускается в изолированном iframe (sandbox).<br/>
+            Можно использовать любые фреймворки через CDN.
+          </div>
+        </div>
+        {label('Высота блока (px)')}
+        <input type="number" min={80} max={800} value={block.codeHeight||200} onChange={e=>set({codeHeight:Number(e.target.value)||200})} style={{...inp(),width:120}}/>
+        {label('HTML / CSS / JavaScript код')}
+        <textarea
+          value={block.htmlCode||''}
+          onChange={e=>set({htmlCode:e.target.value})}
+          spellCheck={false}
+          style={{...inp(),minHeight:260,resize:'vertical',fontFamily:'"Fira Code","Cascadia Code","Courier New",monospace',fontSize:12,lineHeight:1.6,tabSize:2}}
+          placeholder={`<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { margin:0; background:#0a0a1a; color:#fff; }\n  </style>\n</head>\n<body>\n  <h1>Hello World!</h1>\n  <script>\n    console.log('Mini App loaded!');\n  </script>\n</body>\n</html>`}
+        />
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>set({htmlCode:`<!DOCTYPE html>
+<html><head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #0a0a1a; color: #fff; padding: 20px; }
+    h1 { color: #8b5cf6; margin-bottom: 12px; }
+    .btn { background: #8b5cf6; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .btn:hover { background: #7c3aed; }
+  </style>
+</head>
+<body>
+  <h1>Hello, SWAIP Mini App! 🚀</h1>
+  <p style="margin-bottom:16px;color:#aaa">Custom HTML/CSS/JS block</p>
+  <button class="btn" onclick="alert('SWAIP!')">Click me</button>
+</body></html>`})}
+            style={{flex:1,padding:'7px 10px',borderRadius:8,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>
+            📋 Сброс к примеру
+          </button>
+          <button onClick={()=>set({htmlCode:`<!DOCTYPE html>
+<html><head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>body{margin:0;background:#0a0a1a;display:flex;align-items:center;justify-content:center;height:100vh;}</style>
+</head>
+<body>
+  <canvas id="c" width="260" height="160"></canvas>
+  <script>
+    new Chart(document.getElementById('c'),{type:'doughnut',data:{labels:['React','Vue','JS'],datasets:[{data:[40,30,30],backgroundColor:['#8b5cf6','#6366f1','#ec4899']}]},options:{plugins:{legend:{labels:{color:'#fff'}}}}});
+  </script>
+</body></html>`})}
+            style={{flex:1,padding:'7px 10px',borderRadius:8,background:C.cardAlt,border:`1px solid ${C.border}`,color:'#10b981',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>
+            📊 Пример Chart.js
+          </button>
+        </div>
+      </>)}
     </div>
   );
 }
@@ -459,7 +550,7 @@ function PhonePreview({ config, accent, selectedId, onSelect }: {
             {config.blocks.length === 0 ? (
               <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#606080' }}>
                 <div style={{ fontSize: 40 }}>✨</div>
-                <div style={{ fontSize: 13, textAlign: 'center' }}>Добавьте блоки<br/>для превью</div>
+                <div style={{ fontSize: 13, textAlign: 'center' }}>Add blocks<br/>to see preview</div>
               </div>
             ) : config.blocks.map(block => (
               <div key={block.id} onClick={() => onSelect(block.id)} style={{
@@ -491,13 +582,13 @@ function MiniAppList({ apps, selectedId, onSelect, onCreate, onDelete, loading }
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <motion.button whileTap={{ scale: 0.96 }} onClick={onCreate}
         style={{ width: '100%', padding: '11px', borderRadius: 12, background: `linear-gradient(135deg, ${ACCENT}, #6366f1)`, border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        ✨ Новый мини-апп
+        ✨ New Mini App
       </motion.button>
       {loading && <div style={{ textAlign: 'center', color: C.mid, padding: '20px 0', fontSize: 13 }}>⏳ Загрузка...</div>}
       {!loading && apps.length === 0 && (
         <div style={{ textAlign: 'center', color: C.mid, padding: '24px 0', fontSize: 13 }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>✨</div>
-          Нет мини-аппов. Создайте первый!
+          No Mini Apps yet. Create your first!
         </div>
       )}
       {apps.map(app => (
@@ -552,7 +643,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
     const tok = getSessionToken();
     const r = await fetch(`${apiBase}/api/mini-apps`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': tok },
-      body: JSON.stringify({ name: 'Новый мини-апп' }),
+      body: JSON.stringify({ name: 'New Mini App' }),
     });
     const app: SwMiniApp = await r.json();
     const parsed = { ...app, config: typeof app.config === 'string' ? JSON.parse(app.config as unknown as string) : app.config };
@@ -570,7 +661,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
 
   /* Удалить */
   const deleteApp = async (id: string) => {
-    if (!confirm('Удалить мини-апп?')) return;
+    if (!confirm('Delete this Mini App?')) return;
     const tok = getSessionToken();
     await fetch(`${apiBase}/api/mini-apps/${id}`, { method: 'DELETE', headers: { 'x-session-token': tok } });
     setApps(prev => prev.filter(a => a.id !== id));
@@ -637,7 +728,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
       {/* ═══ СПИСОК: нет редактора ═══ */}
       {!editApp && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.mid, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Мои мини-аппы</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.mid, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>My Mini Apps</div>
           <MiniAppList apps={apps} selectedId={null} onSelect={openEdit} onCreate={createApp} onDelete={deleteApp} loading={loading}/>
         </div>
       )}
@@ -667,7 +758,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
           {(['blocks','preview','editor'] as const).map(tab => (
             <button key={tab} onClick={() => setMobileTab(tab)}
               style={{ flex: 1, padding: '9px 4px', background: 'none', border: 'none', borderBottom: mobileTab === tab ? `2px solid ${accent}` : '2px solid transparent', color: mobileTab === tab ? accent : C.mid, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-              {tab === 'blocks' ? '📋 Блоки' : tab === 'preview' ? '📱 Превью' : '✏️ Редактор'}
+              {tab === 'blocks' ? '📋 Blocks' : tab === 'preview' ? '📱 Preview' : '✏️ Editor'}
             </button>
           ))}
         </div>
@@ -712,7 +803,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
               {/* Список блоков */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
                 {config.blocks.length === 0 && (
-                  <div style={{ textAlign: 'center', color: C.mid, padding: '20px 0', fontSize: 12 }}>Нет блоков — добавьте первый ↓</div>
+                  <div style={{ textAlign: 'center', color: C.mid, padding: '20px 0', fontSize: 12 }}>No blocks yet — add the first one ↓</div>
                 )}
                 {config.blocks.map((block, i) => {
                   const bt = BLOCK_TYPES.find(b => b.type === block.type);
@@ -735,7 +826,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
               {/* Добавить блок */}
               <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowAddBlock(!showAddBlock)}
                 style={{ width: '100%', padding: '10px', borderRadius: 10, background: showAddBlock ? accent + '22' : C.cardAlt, border: `1px dashed ${showAddBlock ? accent : C.border}`, color: showAddBlock ? accent : C.mid, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-                {showAddBlock ? '✕ Закрыть' : '+ Добавить блок'}
+                {showAddBlock ? '✕ Close' : '+ Add Block'}
               </motion.button>
               <AnimatePresence>
                 {showAddBlock && (
@@ -780,7 +871,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
               ) : (
                 <div style={{ textAlign: 'center', color: C.mid, padding: '40px 0' }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>👆</div>
-                  <div style={{ fontSize: 13 }}>Выберите блок в превью<br/>или в списке блоков</div>
+                  <div style={{ fontSize: 13 }}>Select a block in Preview<br/>or in the Blocks list</div>
                 </div>
               )}
             </div>
@@ -797,27 +888,27 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
             <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
               onClick={e => e.stopPropagation()}
               style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 24, padding: '24px 20px', width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ fontWeight: 800, fontSize: 18, color: C.light }}>🔗 Поделиться мини-аппом</div>
+              <div style={{ fontWeight: 800, fontSize: 18, color: C.light }}>🔗 Share Mini App</div>
               <div>
-                <div style={{ fontSize: 11, color: C.mid, marginBottom: 6, textTransform: 'uppercase' }}>Сделать публичным</div>
+                <div style={{ fontSize: 11, color: C.mid, marginBottom: 6, textTransform: 'uppercase' }}>Make public</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div onClick={() => { setEditApp(prev => prev ? { ...prev, isPublic: prev.isPublic === 'true' ? 'false' : 'true' } : prev); }}
                     style={{ width: 44, height: 24, borderRadius: 12, background: editApp.isPublic === 'true' ? accent : C.cardAlt, border: `1.5px solid ${editApp.isPublic === 'true' ? accent : C.border}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
                     <div style={{ position: 'absolute', top: 2, left: editApp.isPublic === 'true' ? 22 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }}/>
                   </div>
-                  <span style={{ fontSize: 13, color: C.mid }}>{editApp.isPublic === 'true' ? 'Публичный — виден всем' : 'Приватный — только вы'}</span>
+                  <span style={{ fontSize: 13, color: C.mid }}>{editApp.isPublic === 'true' ? 'Public — visible to everyone' : 'Private — only you'}</span>
                 </div>
               </div>
               {editApp.isPublic === 'true' && (
                 <div>
-                  <div style={{ fontSize: 11, color: C.mid, marginBottom: 6, textTransform: 'uppercase' }}>Ссылка</div>
+                  <div style={{ fontSize: 11, color: C.mid, marginBottom: 6, textTransform: 'uppercase' }}>Link</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <div style={{ flex: 1, background: C.cardAlt, border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 12px', fontSize: 12, color: C.mid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {shareUrl}
                     </div>
-                    <button onClick={() => { navigator.clipboard.writeText(shareUrl); alert('Ссылка скопирована!'); }}
+                    <button onClick={() => { navigator.clipboard.writeText(shareUrl); alert('Link copied!'); }}
                       style={{ background: accent, border: 'none', color: '#fff', borderRadius: 10, padding: '9px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                      Копировать
+                      Copy
                     </button>
                   </div>
                 </div>
@@ -825,7 +916,7 @@ export default function SwaipMiniAppBuilder({ apiBase }: { apiBase: string }) {
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={async () => { await save(); setShowShare(false); }}
                   style={{ flex: 1, padding: '11px', borderRadius: 12, background: `linear-gradient(135deg,${accent},${accent}cc)`, border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  💾 Сохранить и закрыть
+                  💾 Save & Close
                 </button>
               </div>
             </motion.div>
