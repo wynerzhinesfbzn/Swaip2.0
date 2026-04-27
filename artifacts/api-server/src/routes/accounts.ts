@@ -120,6 +120,88 @@ router.get("/search", async (req, res) => {
 });
 
 /*
+ * GET /api/channels-search
+ * Поиск каналов и групп по тексту (name, tags, description) и/или категории (keywords).
+ * ?q=keyword — текстовый поиск
+ * ?tags=сантехник,ремонт — поиск по тегам (через запятую)
+ */
+router.get("/channels-search", async (req, res) => {
+  try {
+    const q    = (typeof req.query.q    === 'string' ? req.query.q    : '').trim().toLowerCase();
+    const tags = (typeof req.query.tags === 'string' ? req.query.tags : '').trim().toLowerCase();
+
+    const keywords: string[] = [];
+    if (q)    keywords.push(...q.split(/\s+/).filter(Boolean));
+    if (tags) keywords.push(...tags.split(',').map(t=>t.trim()).filter(Boolean));
+
+    if (!keywords.length) return res.json({ channels: [], groups: [] });
+
+    /* Ищем аккаунты у которых sw_channels / sw_groups содержат хоть одно ключевое слово */
+    const likeTerms = keywords.map(k => `%${k.replace(/\\/g,'\\\\').replace(/%/g,'\\%').replace(/_/g,'\\_')}%`);
+
+    /* Строим OR-условие: хотя бы одно слово встречается в sw_channels или sw_groups */
+    const channelWhere = sql.join(
+      likeTerms.map(l => sql`(${accountsTable.data}->>'sw_channels' ILIKE ${l})`),
+      sql` OR `
+    );
+    const groupWhere = sql.join(
+      likeTerms.map(l => sql`(${accountsTable.data}->>'sw_groups' ILIKE ${l})`),
+      sql` OR `
+    );
+
+    const rows = await db.select({
+      hash:         accountsTable.hash,
+      sw_channels:  sql<string>`${accountsTable.data}->>'sw_channels'`,
+      sw_groups:    sql<string>`${accountsTable.data}->>'sw_groups'`,
+      owner_name:   sql<string>`COALESCE(${accountsTable.data}->>'pro_displayName', ${accountsTable.data}->>'pro_fullName', ${accountsTable.data}->>'sw_nick', '')`,
+      owner_avatar: sql<string>`COALESCE(${accountsTable.data}->>'pro_avatarUrl', '')`,
+      owner_nick:   sql<string>`COALESCE(${accountsTable.data}->>'sw_nick', '')`,
+    })
+    .from(accountsTable)
+    .where(sql`(${channelWhere}) OR (${groupWhere})`)
+    .limit(100);
+
+    const foundChannels: any[] = [];
+    const foundGroups: any[] = [];
+
+    for (const row of rows) {
+      const ownerInfo = { hash: row.hash, name: row.owner_name, avatar: row.owner_avatar, nick: row.owner_nick };
+
+      /* Каналы */
+      if (row.sw_channels) {
+        let chs: any[] = [];
+        try { chs = JSON.parse(row.sw_channels); } catch {}
+        if (Array.isArray(chs)) {
+          for (const ch of chs) {
+            const haystack = [ch.name, ch.description, ch.handle, ...(ch.tags||[])].join(' ').toLowerCase();
+            const matches = keywords.some(k => haystack.includes(k));
+            if (matches) foundChannels.push({ ...ch, _owner: ownerInfo });
+          }
+        }
+      }
+
+      /* Группы */
+      if (row.sw_groups) {
+        let gs: any[] = [];
+        try { gs = JSON.parse(row.sw_groups); } catch {}
+        if (Array.isArray(gs)) {
+          for (const g of gs) {
+            if (g.isPrivate) continue;
+            const haystack = [g.name, g.description, g.handle, g.category].join(' ').toLowerCase();
+            const matches = keywords.some(k => haystack.includes(k));
+            if (matches) foundGroups.push({ ...g, _owner: ownerInfo });
+          }
+        }
+      }
+    }
+
+    return res.json({ channels: foundChannels.slice(0,60), groups: foundGroups.slice(0,60) });
+  } catch (e) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/*
  * GET /api/account/stats
  * Returns quick stats for the current user (post counts, follow counts, messages)
  * IMPORTANT: must be registered BEFORE /account/:hash to avoid route collision

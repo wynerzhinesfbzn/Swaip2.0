@@ -3,6 +3,7 @@ import SwpExchange from './SwpExchange';
 import AccessibilityAssistant from './AccessibilityAssistant';
 import GamesArcade from './GamesArcade';
 import ChannelsScreen from './ChannelsScreen';
+import {UnifiedSearchScreen} from './ProSearch';
 import { motion, AnimatePresence } from 'framer-motion';
 import { checkContent, collectPostText } from './contentFilter';
 import { MessagesScreen, CallCtx, useUnreadCount } from './ProMessaging';
@@ -5907,124 +5908,6 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           </motion.button>
         </div>
 
-        {/* Поиск */}
-        <AnimatePresence>
-          {showSearch&&(
-            <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}} style={{overflow:'hidden'}}>
-              <div style={{padding:'10px 12px 12px',background:c.surface,borderTop:`1px solid ${c.border}`}}>
-                <div style={{position:'relative',marginBottom:6}}>
-                  <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',fontSize:14,pointerEvents:'none'}}>🔍</span>
-                  <input value={searchQ} onChange={e=>{const v=e.target.value;setSearchQ(v);if(window._sqTimer)clearTimeout(window._sqTimer);window._sqTimer=setTimeout(()=>searchByQuery(v),400);}} placeholder="Поиск по имени или нику..."
-                    style={{width:'100%',boxSizing:'border-box',padding:'9px 36px 9px 34px',background:c.cardAlt,border:`1px solid ${c.borderB}`,borderRadius:10,color:c.light,fontSize:13,outline:'none',fontFamily:'inherit'}}/>
-                  {searchLoading&&<span style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',fontSize:12,color:c.sub}}>...</span>}
-                </div>
-                {searchQ.trim()&&(
-                  <div style={{marginBottom:10,borderRadius:12,overflow:'hidden',border:`1px solid ${c.borderB}`}}>
-                    {searchResults.length===0&&!searchLoading
-                      ?<div style={{padding:'12px',fontSize:12,color:c.sub,textAlign:'center'}}>По запросу «{searchQ}» ничего не найдено</div>
-                      :searchResults.map((r,ri)=>{
-                        const rAvatar=r.avatar||av(r.hash.slice(0,14)||'u',80);
-                        return(
-                          <div key={r.hash} style={{background:c.cardAlt,borderBottom:ri<searchResults.length-1?`1px solid ${c.border}`:'none'}}>
-                            {/* Кликабельная строка → открывает полный профиль */}
-                            <motion.div whileTap={{scale:0.98}} onClick={()=>{setProfileViewHash(r.hash);setProfileViewFallback({name:r.name,avatar:r.avatar||av(r.hash.slice(0,14)||'u',80),handle:r.handle||'',bio:r.bio||''});setShowSearch(false);}} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer'}}>
-                              <div style={{width:46,height:46,borderRadius:'50%',overflow:'hidden',flexShrink:0,border:`2px solid ${activeAccent}44`,boxShadow:`0 2px 12px rgba(0,0,0,0.3)`}}>
-                                {r.avatar?<img src={rAvatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                                  :<div style={{width:'100%',height:'100%',background:c.card,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>👤</div>}
-                              </div>
-                              <div style={{flex:1,minWidth:0}}>
-                                <div style={{display:'flex',alignItems:'center',gap:5}}>
-                                  <div style={{fontSize:14,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
-                                  {r.mood?.emoji&&(
-                                    <span style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:2,background:`${activeAccent}18`,border:`1px solid ${activeAccent}33`,borderRadius:12,padding:'1px 6px',fontSize:10,color:activeAccent,fontWeight:700}}>
-                                      {r.mood.emoji} {r.mood.text}
-                                    </span>
-                                  )}
-                                </div>
-                                {r.handle&&<div style={{fontSize:11,color:c.sub,marginTop:1}}>@{r.handle}</div>}
-                                {r.bio&&<div style={{fontSize:11,color:c.sub,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:0.7}}>{r.bio}</div>}
-                              </div>
-                              <span style={{fontSize:11,color:activeAccent,fontWeight:700,flexShrink:0}}>Профиль →</span>
-                            </motion.div>
-                            {/* Кнопки действий */}
-                            <div style={{display:'flex',gap:6,padding:'0 12px 10px'}}>
-                              <motion.button whileTap={{scale:0.93}} onClick={()=>{
-                                setChatTarget({hash:r.hash,info:{name:r.name,avatar:rAvatar,handle:r.handle||''}});
-                                setNavTab('messages');setShowSearch(false);
-                              }} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px 0',borderRadius:9,background:activeAccent,border:'none',color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
-                                ✏️ Написать
-                              </motion.button>
-                              <motion.button whileTap={{scale:0.93}} onClick={()=>{
-                                setCallPeerInfo({name:r.name,avatar:rAvatar});
-                                call.startCall(r.hash,'video');
-                                setShowSearch(false);
-                              }} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px 0',borderRadius:9,background:c.card,border:`1px solid ${c.border}`,color:c.mid,fontWeight:700,fontSize:12,cursor:'pointer'}}>
-                                📹 Позвонить
-                              </motion.button>
-                            </div>
-                          </div>
-                        );
-                      })
-                    }
-                  </div>
-                )}
-                <div style={{background:`rgba(160,160,200,0.05)`,border:`1px solid ${c.borderB}`,borderRadius:12,padding:'10px 12px'}}>
-                  <div style={{fontSize:10,fontWeight:700,color:c.sub,marginBottom:8,textTransform:'uppercase',letterSpacing:'0.06em'}}>🔢 Поиск по номеру приглашения</div>
-                  <div style={{display:'flex',gap:6}}>
-                    <input value={codeInput} onChange={e=>{setCodeInput(e.target.value.replace(/\D/g,'').slice(0,9));setCodeResult(null);}}
-                      onKeyDown={e=>e.key==='Enter'&&searchByCode()} inputMode="numeric" placeholder="9 цифр..."
-                      style={{flex:1,padding:'9px 12px',background:c.cardAlt,border:`1px solid ${c.borderB}`,borderRadius:9,color:c.light,fontSize:15,outline:'none',fontFamily:'monospace',letterSpacing:3}}/>
-                    <motion.button whileTap={{scale:0.93}} onClick={searchByCode} disabled={codeInput.length!==9||codeLoading}
-                      style={{padding:'9px 14px',background:codeInput.length===9?`rgba(160,160,200,0.25)`:`rgba(160,160,200,0.1)`,border:`1px solid ${c.borderB}`,borderRadius:9,color:c.mid,fontWeight:700,fontSize:13,cursor:'pointer'}}>
-                      {codeLoading?'…':'Найти'}
-                    </motion.button>
-                  </div>
-                  {codeResult&&(
-                    <motion.div initial={{opacity:0,y:4}} animate={{opacity:1,y:0}}
-                      style={{marginTop:10,borderRadius:12,overflow:'hidden',border:`1px solid ${c.borderB}`}}>
-                      {!codeResult.found
-                        ?<div style={{padding:'12px',fontSize:13,color:c.sub,textAlign:'center'}}>⚠️ Аккаунт не найден</div>
-                        :<div style={{background:c.cardAlt}}>
-                          {/* Кликабельная строка → профиль */}
-                          <motion.div whileTap={{scale:0.98}} onClick={()=>{if(codeResult.hash){setProfileViewHash(codeResult.hash);setProfileViewFallback({name:codeResult.name||'Участник SWAIP',avatar:codeResult.avatar||av(codeResult.hash.slice(0,14)||'u',80),handle:codeResult.handle||'',bio:''});setShowSearch(false);}}} style={{display:'flex',alignItems:'center',gap:10,padding:'12px',cursor:codeResult.hash?'pointer':'default'}}>
-                            <div style={{width:50,height:50,borderRadius:'50%',overflow:'hidden',flexShrink:0,border:`2px solid ${activeAccent}44`,boxShadow:`0 2px 12px rgba(0,0,0,0.3)`}}>
-                              {codeResult.avatar
-                                ?<img src={codeResult.avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                                :<div style={{width:'100%',height:'100%',background:c.card,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>👤</div>}
-                            </div>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:15,fontWeight:800,color:c.light}}>{codeResult.name||'Участник SWAIP'}</div>
-                              {codeResult.handle&&<div style={{fontSize:11,color:c.sub,marginTop:1}}>@{codeResult.handle}</div>}
-                            </div>
-                            {codeResult.hash&&<span style={{fontSize:11,color:activeAccent,fontWeight:700,flexShrink:0}}>Профиль →</span>}
-                          </motion.div>
-                          {/* Кнопки действий */}
-                          {codeResult.hash&&<div style={{display:'flex',gap:6,padding:'0 12px 12px'}}>
-                            <motion.button whileTap={{scale:0.93}} onClick={()=>{
-                              const cAvatar=codeResult.avatar||av(codeResult.hash!.slice(0,14)||'u',80);
-                              setChatTarget({hash:codeResult.hash!,info:{name:codeResult.name||'Пользователь',avatar:cAvatar,handle:codeResult.handle||''}});
-                              setNavTab('messages');setShowSearch(false);
-                            }} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'8px 0',borderRadius:9,background:activeAccent,border:'none',color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
-                              ✏️ Написать
-                            </motion.button>
-                            <motion.button whileTap={{scale:0.93}} onClick={()=>{
-                              const cAvatar=codeResult.avatar||av(codeResult.hash!.slice(0,14)||'u',80);
-                              setCallPeerInfo({name:codeResult.name||'Пользователь',avatar:cAvatar});
-                              call.startCall(codeResult.hash!,'video');
-                              setShowSearch(false);
-                            }} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'8px 0',borderRadius:9,background:c.card,border:`1px solid ${c.border}`,color:c.mid,fontWeight:700,fontSize:12,cursor:'pointer'}}>
-                              📹 Позвонить
-                            </motion.button>
-                          </div>}
-                        </div>
-                      }
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* ══ ИСТОРИИ ══ */}
@@ -10675,6 +10558,42 @@ function MeetingsScreen({apiBase,userHash,onBack}:{apiBase:string;userHash:strin
                 style={{width:'100%',padding:'13px',background:'rgba(255,255,255,0.06)',
                   border:'1px solid rgba(255,255,255,0.1)',borderRadius:14,color:'rgba(255,255,255,0.5)',fontSize:14,fontWeight:700,cursor:'pointer'}}>Закрыть</motion.button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ ЕДИНЫЙ ПОИСК (полноэкранный) ═══ */}
+      <AnimatePresence>
+        {showSearch&&(
+          <motion.div key="unified-search" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.15}}
+            style={{position:'fixed',inset:0,zIndex:300}}>
+            <UnifiedSearchScreen
+              apiBase={apiBase}
+              c={c as any}
+              accent={activeAccent}
+              onClose={()=>{setShowSearch(false);}}
+              onViewProfile={(hash,fallback)=>{
+                setProfileViewHash(hash);
+                if(fallback)setProfileViewFallback(fallback);
+                setShowSearch(false);
+              }}
+              onOpenChat={(hash,info)=>{
+                setChatTarget({hash,info});
+                setNavTab('messages');
+                setShowSearch(false);
+              }}
+              onCall={(hash,info)=>{
+                setCallPeerInfo({name:info.name,avatar:info.avatar});
+                call.startCall(hash,'video');
+                setShowSearch(false);
+              }}
+              searchByCode={async(code:string)=>{
+                try{
+                  const res=await fetch(`${apiBase}/api/invite-code/${code}`);
+                  return await res.json();
+                }catch{return{found:false};}
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
