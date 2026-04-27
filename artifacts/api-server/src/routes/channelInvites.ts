@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { resolveSession, getSessionToken } from "../lib/sessionAuth.js";
 import { db } from "@workspace/db";
-import { accounts as accountsTable } from "@workspace/db/schema";
+import { accountsTable } from "@workspace/db/schema";
 import { sql } from "drizzle-orm";
 
 const router = Router();
@@ -11,24 +11,54 @@ const router = Router();
 const INVITES_FILE = path.join(process.cwd(), "channel_invites.json");
 const HANDLES_FILE = path.join(process.cwd(), "channel_handles.json");
 
-/* ─── helpers ─── */
-function loadInvites(): Record<string, {
-  code: string; ownerHash: string; channelId: string; channelName: string;
-  isGroup: boolean; label: string; clicks: number; createdAt: number;
-}> {
-  try { if (fs.existsSync(INVITES_FILE)) return JSON.parse(fs.readFileSync(INVITES_FILE,"utf-8")); } catch {}
-  return {};
+/* ─── types ─── */
+interface InviteRecord {
+  code: string;
+  ownerHash: string;
+  channelId: string;
+  channelName: string;
+  isGroup: boolean;
+  label: string;
+  clicks: number;
+  createdAt: number;
 }
-function saveInvites(d: ReturnType<typeof loadInvites>) {
-  try { fs.writeFileSync(INVITES_FILE, JSON.stringify(d, null, 2)); } catch {}
+interface HandleRecord {
+  ownerHash: string;
+  channelId: string;
+  registeredAt: number;
 }
 
-function loadHandles(): Record<string, { ownerHash: string; channelId: string; registeredAt: number }> {
-  try { if (fs.existsSync(HANDLES_FILE)) return JSON.parse(fs.readFileSync(HANDLES_FILE,"utf-8")); } catch {}
-  return {};
+/* ─── helpers ─── */
+function loadInvites(): Record<string, InviteRecord> {
+  if (!fs.existsSync(INVITES_FILE)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(INVITES_FILE, "utf-8")) as Record<string, InviteRecord>;
+  } catch {
+    return {};
+  }
 }
-function saveHandles(d: ReturnType<typeof loadHandles>) {
-  try { fs.writeFileSync(HANDLES_FILE, JSON.stringify(d, null, 2)); } catch {}
+function saveInvites(d: Record<string, InviteRecord>): void {
+  try {
+    fs.writeFileSync(INVITES_FILE, JSON.stringify(d, null, 2));
+  } catch (err) {
+    console.error("[channelInvites] saveInvites failed:", err);
+  }
+}
+
+function loadHandles(): Record<string, HandleRecord> {
+  if (!fs.existsSync(HANDLES_FILE)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(HANDLES_FILE, "utf-8")) as Record<string, HandleRecord>;
+  } catch {
+    return {};
+  }
+}
+function saveHandles(d: Record<string, HandleRecord>): void {
+  try {
+    fs.writeFileSync(HANDLES_FILE, JSON.stringify(d, null, 2));
+  } catch (err) {
+    console.error("[channelInvites] saveHandles failed:", err);
+  }
 }
 
 function randCode(): string {
@@ -36,17 +66,19 @@ function randCode(): string {
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
+const RESERVED = new Set(["swaip","admin","support","official","bot","system","null","undefined","root","moderator"]);
+
 /* ═══════════════════════════════════════════════════════
    GET /api/channel-handles/check?handle=xxx
    Проверяет доступность @handle для публичного канала
 ═══════════════════════════════════════════════════════ */
 router.get("/channel-handles/check", async (req, res) => {
-  const handle = ((req.query.handle as string) || "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+  const handle = (typeof req.query.handle === "string" ? req.query.handle : "")
+    .toLowerCase().replace(/[^a-z0-9_]/g, "");
+
   if (!handle || handle.length < 3) return res.json({ available: false, reason: "too_short" });
   if (handle.length > 32) return res.json({ available: false, reason: "too_long" });
-
-  const reserved = ["swaip","admin","support","official","bot","system","null","undefined","root","moderator"];
-  if (reserved.includes(handle)) return res.json({ available: false, reason: "reserved" });
+  if (RESERVED.has(handle)) return res.json({ available: false, reason: "reserved" });
 
   const handles = loadHandles();
   const token = getSessionToken(req);
@@ -66,7 +98,9 @@ router.get("/channel-handles/check", async (req, res) => {
     if ((rows[0]?.cnt ?? 0) > 0) {
       return res.json({ available: false, reason: "taken" });
     }
-  } catch {}
+  } catch (err) {
+    console.error("[channelInvites] DB handle check failed:", err);
+  }
 
   return res.json({ available: true });
 });
@@ -80,11 +114,14 @@ router.post("/channel-handles/register", async (req, res) => {
   const userHash = await resolveSession(token);
   if (!userHash) return res.status(401).json({ error: "Unauthorized" });
 
-  const { handle, channelId } = req.body as { handle: string; channelId: string };
+  const body = req.body as Record<string, unknown>;
+  const handle = typeof body.handle === "string" ? body.handle : "";
+  const channelId = typeof body.channelId === "string" ? body.channelId : "";
   if (!handle || !channelId) return res.status(400).json({ error: "Missing fields" });
 
   const h = handle.toLowerCase().replace(/[^a-z0-9_]/g, "");
   if (h.length < 3) return res.status(400).json({ error: "Handle too short" });
+  if (RESERVED.has(h)) return res.status(400).json({ error: "Handle reserved" });
 
   const handles = loadHandles();
   if (handles[h] && handles[h].ownerHash !== userHash) {
@@ -106,9 +143,12 @@ router.post("/channel-invites", async (req, res) => {
   const userHash = await resolveSession(token);
   if (!userHash) return res.status(401).json({ error: "Unauthorized" });
 
-  const { channelId, channelName, isGroup = false, label = "Ссылка" } = req.body as {
-    channelId: string; channelName: string; isGroup?: boolean; label?: string;
-  };
+  const body = req.body as Record<string, unknown>;
+  const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";
+  const channelName = typeof body.channelName === "string" ? body.channelName.trim() : "Unnamed";
+  const isGroup = body.isGroup === true;
+  const label = typeof body.label === "string" ? body.label.trim().slice(0, 80) : "Ссылка";
+
   if (!channelId) return res.status(400).json({ error: "Missing channelId" });
 
   const code = randCode();
@@ -116,17 +156,17 @@ router.post("/channel-invites", async (req, res) => {
   invites[code] = { code, ownerHash: userHash, channelId, channelName, isGroup, label, clicks: 0, createdAt: Date.now() };
   saveInvites(invites);
 
-  return res.json({ ok: true, code, link: `${process.env.APP_URL || ""}/invite/${code}` });
+  return res.json({ ok: true, code, link: `${process.env["APP_URL"] ?? ""}/invite/${code}` });
 });
 
 /* ═══════════════════════════════════════════════════════
    GET /api/channel-invites/:code
    Возвращает информацию о ссылке-приглашении
 ═══════════════════════════════════════════════════════ */
-router.get("/channel-invites/:code", async (req, res) => {
-  const { code } = req.params;
+router.get("/channel-invites/:code", (req, res) => {
+  const code = req.params.code?.toUpperCase() ?? "";
   const invites = loadInvites();
-  const inv = invites[code.toUpperCase()];
+  const inv = invites[code];
   if (!inv) return res.status(404).json({ found: false });
   return res.json({ found: true, ...inv });
 });
@@ -135,10 +175,9 @@ router.get("/channel-invites/:code", async (req, res) => {
    POST /api/channel-invites/:code/click
    Отмечает переход по ссылке (трекинг)
 ═══════════════════════════════════════════════════════ */
-router.post("/channel-invites/:code/click", async (req, res) => {
-  const { code } = req.params;
+router.post("/channel-invites/:code/click", (req, res) => {
+  const key = req.params.code?.toUpperCase() ?? "";
   const invites = loadInvites();
-  const key = code.toUpperCase();
   if (!invites[key]) return res.status(404).json({ error: "Not found" });
   invites[key].clicks += 1;
   saveInvites(invites);
@@ -154,13 +193,11 @@ router.get("/channel-invites", async (req, res) => {
   const userHash = await resolveSession(token);
   if (!userHash) return res.status(401).json({ error: "Unauthorized" });
 
-  const channelId = req.query.channelId as string;
+  const channelId = typeof req.query.channelId === "string" ? req.query.channelId : "";
   if (!channelId) return res.status(400).json({ error: "Missing channelId" });
 
   const invites = loadInvites();
-  const list = Object.values(invites).filter(
-    i => i.channelId === channelId && i.ownerHash === userHash
-  );
+  const list = Object.values(invites).filter(i => i.channelId === channelId && i.ownerHash === userHash);
   return res.json({ invites: list });
 });
 
@@ -173,12 +210,11 @@ router.delete("/channel-invites/:code", async (req, res) => {
   const userHash = await resolveSession(token);
   if (!userHash) return res.status(401).json({ error: "Unauthorized" });
 
-  const { code } = req.params;
+  const key = req.params.code?.toUpperCase() ?? "";
   const invites = loadInvites();
-  const key = code.toUpperCase();
-  if (!invites[key] || invites[key].ownerHash !== userHash) {
-    return res.status(403).json({ error: "Forbidden" });
-  }
+  if (!invites[key]) return res.status(404).json({ error: "Not found" });
+  if (invites[key].ownerHash !== userHash) return res.status(403).json({ error: "Forbidden" });
+
   delete invites[key];
   saveInvites(invites);
   return res.json({ ok: true });

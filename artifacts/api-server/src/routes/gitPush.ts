@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getSessionToken, resolveSession } from "../lib/sessionAuth.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const router: IRouter = Router();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,6 +13,13 @@ const PROJECT_ROOT = path.resolve(__dirname, "../../../");
 const SCRIPTS_DIR = path.join(PROJECT_ROOT, "scripts");
 
 router.post("/git-push", async (req, res) => {
+  /* Require authenticated session */
+  const sessionToken = getSessionToken(req);
+  const userHash = await resolveSession(sessionToken);
+  if (!userHash) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+
   const token = process.env["GITHUB_TOKEN"];
   if (!token) {
     return res.status(400).json({
@@ -20,63 +28,53 @@ router.post("/git-push", async (req, res) => {
     });
   }
 
-  const commitMsg = (req.body?.message as string | undefined)?.trim()
+  const rawMsg = (req.body?.message as unknown);
+  const commitMsg = (typeof rawMsg === "string" ? rawMsg.trim() : "")
     || `chore: update ${new Date().toISOString()}`;
 
   const env = { ...process.env, GITHUB_TOKEN: token };
-  const opts = { cwd: PROJECT_ROOT, env, timeout: 60000 };
+  const opts = { cwd: PROJECT_ROOT, env, timeout: 60_000 };
 
   try {
-    /* 1. Настроить git remote с токеном */
+    /* 1. Configure git remote with token */
     const setupHelper = path.join(SCRIPTS_DIR, "setup-git-auth.sh");
-    await execAsync(`bash "${setupHelper}"`, opts);
+    await execFileAsync("bash", [setupHelper], opts);
 
-    /* 2. Проверить статус без индекса (git diff не трогает index.lock) */
+    /* 2. Check uncommitted state */
     let hasUncommitted = false;
     let commitOutput = "(nothing to commit — pushed existing commits)";
 
     try {
-      /* git diff HEAD -- работает без index.lock */
-      const { stdout: diffOut } = await execAsync("git diff HEAD --name-only", opts);
-      /* Незакоммиченные новые файлы */
-      const { stdout: lsFiles } = await execAsync("git ls-files --others --exclude-standard", opts);
-      hasUncommitted = (diffOut.trim().length > 0) || (lsFiles.trim().length > 0);
+      const { stdout: diffOut } = await execFileAsync("git", ["diff", "HEAD", "--name-only"], opts);
+      const { stdout: lsFiles } = await execFileAsync("git", ["ls-files", "--others", "--exclude-standard"], opts);
+      hasUncommitted = diffOut.trim().length > 0 || lsFiles.trim().length > 0;
     } catch {
-      /* Если и это не работает — продолжаем, просто пушим то что есть */
+      /* Continue — just push existing commits */
     }
 
-    /* 3. Если есть незакоммиченные изменения — пробуем закоммитить */
+    /* 3. Commit if there are uncommitted changes — safe arg array, no shell interpolation */
     if (hasUncommitted) {
       try {
-        await execAsync("git add -A", opts);
-        const { stdout: co } = await execAsync(
-          `git commit -m "${commitMsg.replace(/"/g, '\\"')}"`,
-          opts
-        );
+        await execFileAsync("git", ["add", "-A"], opts);
+        const { stdout: co } = await execFileAsync("git", ["commit", "-m", commitMsg], opts);
         commitOutput = co.trim();
-      } catch (commitErr: any) {
-        /* Если commit провалился из-за lock — просто пушим существующие коммиты */
-        commitOutput = `commit skipped (${commitErr?.stderr?.split('\n')[0] || 'lock conflict'})`;
+      } catch (commitErr: unknown) {
+        const msg = commitErr instanceof Error ? commitErr.message : String(commitErr);
+        commitOutput = `commit skipped (${msg.split("\n")[0]})`;
       }
     }
 
-    /* 4. Push — не требует index.lock */
-    const { stdout: pushOut, stderr: pushErr } = await execAsync(
-      "git push origin main",
-      opts
+    /* 4. Push */
+    const { stdout: pushOut, stderr: pushErr } = await execFileAsync(
+      "git", ["push", "origin", "main"], opts
     );
 
-    /* git push пишет в stderr даже при успехе */
     const pushMsg = (pushOut + pushErr).trim() || "Already up to date.";
 
-    return res.json({
-      success: true,
-      hasUncommitted,
-      commit: commitOutput,
-      push: pushMsg,
-    });
-  } catch (err: any) {
-    const errMsg = err?.stderr || err?.stdout || err?.message || "Unknown error";
+    return res.json({ success: true, hasUncommitted, commit: commitOutput, push: pushMsg });
+  } catch (err: unknown) {
+    const e = err as Record<string, unknown>;
+    const errMsg = (e?.["stderr"] || e?.["stdout"] || (err instanceof Error ? err.message : "Unknown error")) as string;
     return res.status(500).json({ success: false, error: errMsg });
   }
 });
