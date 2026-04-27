@@ -25,6 +25,7 @@ import browserProxyRouter from "./browserProxy.js";
 import battleRouter from "./battle.js";
 import gamesRouter from "./games.js";
 import linkPreviewRouter from "./linkPreview";
+import botsRouter from "./bots.js";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use(browserProxyRouter);
 router.use(battleRouter);
 router.use(gamesRouter);
 router.use(linkPreviewRouter);
+router.use(botsRouter);
 
 export default router;
