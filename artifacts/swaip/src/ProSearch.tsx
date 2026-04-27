@@ -170,7 +170,7 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
   const displayGroups=catResults.groups.filter(()=>tab==='groups');
 
   return(
-    <div style={{position:'fixed',inset:0,background:c.deep,display:'flex',flexDirection:'column',zIndex:200,fontFamily:'inherit'}}>
+    <div style={{position:'fixed',inset:0,background:c.deep,display:'flex',flexDirection:'column',zIndex:1200,fontFamily:'inherit'}}>
       {/* ── Шапка ─────────────────────────────────────────── */}
       <div style={{background:c.surface,borderBottom:`1px solid ${c.border}`,padding:'10px 12px 0',flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>

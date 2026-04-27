@@ -10598,41 +10598,38 @@ function MeetingsScreen({apiBase,userHash,onBack}:{apiBase:string;userHash:strin
       </AnimatePresence>
 
       {/* ═══ ЕДИНЫЙ ПОИСК (полноэкранный) ═══ */}
-      <AnimatePresence>
-        {showSearch&&(
-          <motion.div key="unified-search" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.15}}
-            style={{position:'fixed',inset:0,zIndex:1200}}>
-            <UnifiedSearchScreen
-              apiBase={apiBase}
-              c={c as any}
-              accent={activeAccent}
-              initialTab={searchInitialTab}
-              onClose={()=>{setShowSearch(false);}}
-              onViewProfile={(hash,fallback)=>{
-                setProfileViewHash(hash);
-                if(fallback)setProfileViewFallback(fallback);
-                setShowSearch(false);
-              }}
-              onOpenChat={(hash,info)=>{
-                setChatTarget({hash,info});
-                setNavTab('messages');
-                setShowSearch(false);
-              }}
-              onCall={(hash,info)=>{
-                setCallPeerInfo({name:info.name,avatar:info.avatar});
-                call.startCall(hash,'video');
-                setShowSearch(false);
-              }}
-              searchByCode={async(code:string)=>{
-                try{
-                  const res=await fetch(`${apiBase}/api/invite-code/${code}`);
-                  return await res.json();
-                }catch{return{found:false};}
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showSearch&&(
+        <div style={{position:'fixed',inset:0,zIndex:1200,top:0,left:0,right:0,bottom:0}}>
+          <UnifiedSearchScreen
+            apiBase={apiBase}
+            c={c as any}
+            accent={activeAccent}
+            initialTab={searchInitialTab}
+            onClose={()=>{setShowSearch(false);}}
+            onViewProfile={(hash,fallback)=>{
+              setProfileViewHash(hash);
+              if(fallback)setProfileViewFallback(fallback);
+              setShowSearch(false);
+            }}
+            onOpenChat={(hash,info)=>{
+              setChatTarget({hash,info});
+              setNavTab('messages');
+              setShowSearch(false);
+            }}
+            onCall={(hash,info)=>{
+              setCallPeerInfo({name:info.name,avatar:info.avatar});
+              call.startCall(hash,'video');
+              setShowSearch(false);
+            }}
+            searchByCode={async(code:string)=>{
+              try{
+                const res=await fetch(`${apiBase}/api/invite-code/${code}`);
+                return await res.json();
+              }catch{return{found:false};}
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
