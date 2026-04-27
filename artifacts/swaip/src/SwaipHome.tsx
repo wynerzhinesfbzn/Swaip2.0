@@ -4932,8 +4932,8 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           openChatWith={chatTarget||undefined}
           openSecretChatWith={secretChatTarget||undefined}
           onViewProfile={hash=>{ setProfileViewHash(hash); }}
-          onFindPeople={()=>{ setNavTab('home'); setTimeout(()=>{ setSearchInitialTab('people'); setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); },120); }}
-          onOpenSearch={(tab)=>{ setSearchInitialTab(tab); setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); }}/>
+          onFindPeople={()=>{ setNavTab('home'); setSearchInitialTab('people'); setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); }}
+          onOpenSearch={(tab)=>{ setNavTab('home'); setSearchInitialTab(tab); setShowSearch(true); setSearchQ(''); setCodeInput(''); setCodeResult(null); }}/>
         <CallOverlayUI call={call} peerInfo={callPeerInfo} apiBase={apiBase}/>
       </div>
     )}
