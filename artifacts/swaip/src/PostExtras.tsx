@@ -105,50 +105,68 @@ export function PostExtrasComposer({
         <span style={{ fontSize: 11, color: c.sub }}>{open ? '▴' : '▾'}</span>
       </button>
       {open && (
-        <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {SECTIONS.map(s => {
-            const on = !!extras[s.key];
-            const isOpen = expanded === s.key;
-            return (
-              <div key={s.key} style={{ borderTop: `1px solid ${c.border}` }}>
-                <button type="button" onClick={() => toggleSection(s.key)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px',
-                    background: 'transparent', border: 'none', cursor: 'pointer', color: c.light, fontSize: 13, fontWeight: 600 }}>
-                  <span style={{ fontSize: 16 }}>{s.emoji}</span>
-                  <span style={{ flex: 1, textAlign: 'left', color: on ? s.color : c.light, fontWeight: on ? 700 : 600 }}>{s.label}</span>
-                  <span style={{ fontSize: on ? 14 : 18, color: on ? s.color : c.sub, fontWeight: 700, lineHeight: 1 }}>{on ? '✓' : '+'}</span>
-                </button>
-                {isOpen && (
-                  <div style={{ padding: '4px 4px 12px' }}>
-                    {s.key === 'carousel' && (
-                      <CarouselEditor value={extras.carousel} onChange={v => v ? upd({ carousel: v }) : remove('carousel')} c={c} input={baseInput} accent={s.color} />
-                    )}
-                    {s.key === 'booking' && (
-                      <BookingEditor value={extras.booking} onChange={v => v ? upd({ booking: v }) : remove('booking')} c={c} input={baseInput} accent={s.color} />
-                    )}
-                    {s.key === 'poll' && (
-                      <PollEditor value={extras.poll} onChange={v => v ? upd({ poll: v }) : remove('poll')} c={c} input={baseInput} accent={s.color} />
-                    )}
-                    {s.key === 'quiz' && (
-                      <QuizEditor value={extras.quiz} onChange={v => v ? upd({ quiz: v }) : remove('quiz')} c={c} input={baseInput} accent={s.color} />
-                    )}
-                    {s.key === 'question' && (
-                      <QuestionEditor value={extras.question} onChange={v => v ? upd({ question: v }) : remove('question')} c={c} input={baseInput} />
-                    )}
-                    {s.key === 'challenge' && (
-                      <ChallengeEditor value={extras.challenge} onChange={v => v ? upd({ challenge: v }) : remove('challenge')} c={c} input={baseInput} accent={s.color} />
-                    )}
-                    {s.key === 'link' && (
-                      <LinkEditor value={extras.link} onChange={v => v ? upd({ link: v }) : remove('link')} c={c} input={baseInput} accent={s.color} />
-                    )}
-                    {s.key === 'activity' && (
-                      <ActivityEditor value={extras.activity} onChange={v => v ? upd({ activity: v }) : remove('activity')} c={c} accent={s.color} />
+        <div style={{ paddingBottom: 12 }}>
+          {/* ── Горизонтальная карусель иконок ── */}
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '8px 12px 10px', scrollbarWidth: 'none' }}>
+            {SECTIONS.map(s => {
+              const on = !!extras[s.key];
+              const isOpen = expanded === s.key;
+              return (
+                <button key={s.key} type="button" onClick={() => toggleSection(s.key)}
+                  style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 62 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 16, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontSize: 22, position: 'relative', transition: 'all 0.15s',
+                    background: on ? `${s.color}22` : 'rgba(255,255,255,0.06)',
+                    border: `2px solid ${isOpen ? s.color : on ? s.color + '77' : 'rgba(255,255,255,0.1)'}`,
+                    boxShadow: isOpen ? `0 0 12px ${s.color}55` : 'none' }}>
+                    {s.emoji}
+                    {on && (
+                      <div style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%',
+                        background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 9, fontWeight: 900, color: '#fff' }}>✓</div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  <span style={{ fontSize: 10, fontWeight: 700, color: on ? s.color : isOpen ? s.color : 'rgba(255,255,255,0.5)',
+                    textAlign: 'center', lineHeight: 1.2, maxWidth: 60,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {s.label.split(' /')[0].split(' «')[0]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ── Редактор выбранной секции ── */}
+          {expanded && (
+            <div style={{ margin: '0 12px', padding: '12px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.04)', border: `1px solid ${SECTIONS.find(s=>s.key===expanded)?.color||accent}40` }}>
+              {expanded === 'carousel' && (
+                <CarouselEditor value={extras.carousel} onChange={v => v ? upd({ carousel: v }) : remove('carousel')} c={c} input={baseInput} accent={SECTIONS.find(s=>s.key==='carousel')!.color} />
+              )}
+              {expanded === 'booking' && (
+                <BookingEditor value={extras.booking} onChange={v => v ? upd({ booking: v }) : remove('booking')} c={c} input={baseInput} accent={SECTIONS.find(s=>s.key==='booking')!.color} />
+              )}
+              {expanded === 'poll' && (
+                <PollEditor value={extras.poll} onChange={v => v ? upd({ poll: v }) : remove('poll')} c={c} input={baseInput} accent={SECTIONS.find(s=>s.key==='poll')!.color} />
+              )}
+              {expanded === 'quiz' && (
+                <QuizEditor value={extras.quiz} onChange={v => v ? upd({ quiz: v }) : remove('quiz')} c={c} input={baseInput} accent={SECTIONS.find(s=>s.key==='quiz')!.color} />
+              )}
+              {expanded === 'question' && (
+                <QuestionEditor value={extras.question} onChange={v => v ? upd({ question: v }) : remove('question')} c={c} input={baseInput} />
+              )}
+              {expanded === 'challenge' && (
+                <ChallengeEditor value={extras.challenge} onChange={v => v ? upd({ challenge: v }) : remove('challenge')} c={c} input={baseInput} accent={SECTIONS.find(s=>s.key==='challenge')!.color} />
+              )}
+              {expanded === 'link' && (
+                <LinkEditor value={extras.link} onChange={v => v ? upd({ link: v }) : remove('link')} c={c} input={baseInput} accent={SECTIONS.find(s=>s.key==='link')!.color} />
+              )}
+              {expanded === 'activity' && (
+                <ActivityEditor value={extras.activity} onChange={v => v ? upd({ activity: v }) : remove('activity')} c={c} accent={SECTIONS.find(s=>s.key==='activity')!.color} />
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
