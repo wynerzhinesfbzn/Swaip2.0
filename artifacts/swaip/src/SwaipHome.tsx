@@ -4891,7 +4891,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
 
     {/* ═══ ЭКРАН: БОТЫ ═══ */}
     {currentScreen==='bots'&&(
-      <BotBuilder apiBase={apiBase} onClose={()=>setCurrentScreen('home')}/>
+      <div style={{position:'fixed',inset:0,zIndex:800}}>
+        <BotBuilder apiBase={apiBase} onClose={()=>setCurrentScreen('home')}/>
+      </div>
     )}
 
     {/* ═══ ЭКРАН: МИТИНГИ ═══ */}

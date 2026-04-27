@@ -582,7 +582,7 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
 
   /* ── Редактор ─── */
   if (editBot) return (
-    <div style={{ position:'fixed',inset:0,background:C.deep,display:'flex',flexDirection:'column',zIndex:300,fontFamily:'inherit' }}>
+    <div style={{ position:'fixed',inset:0,background:C.deep,display:'flex',flexDirection:'column',zIndex:900,fontFamily:'inherit' }}>
       {/* Шапка редактора */}
       <div style={{ background:C.surface,borderBottom:`1px solid ${C.border}`,padding:'10px 12px',display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
         <motion.button whileTap={{scale:0.88}} onClick={()=>setEditBot(null)}
@@ -685,7 +685,7 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
 
   /* ── Список ботов ─── */
   return (
-    <div style={{ position:'fixed',inset:0,background:C.deep,display:'flex',flexDirection:'column',zIndex:300,fontFamily:'inherit' }}>
+    <div style={{ position:'fixed',inset:0,background:C.deep,display:'flex',flexDirection:'column',zIndex:900,fontFamily:'inherit' }}>
       <div style={{ background:C.surface,borderBottom:`1px solid ${C.border}`,padding:'12px 16px',display:'flex',alignItems:'center',gap:10,flexShrink:0 }}>
         <motion.button whileTap={{scale:0.88}} onClick={onClose}
           style={{ width:34,height:34,borderRadius:10,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,fontSize:18,cursor:'pointer',flexShrink:0 }}>←</motion.button>
