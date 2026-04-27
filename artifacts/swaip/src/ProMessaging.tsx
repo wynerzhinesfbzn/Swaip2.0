@@ -2020,7 +2020,8 @@ export function MessagesScreen({ myHash, accent, onBack, openChatWith, openSecre
             <div style={{ fontSize:52 }}>💬</div>
             <div style={{ fontSize:16, fontWeight:800, color:'#fff', textAlign:'center', fontFamily:'"Montserrat",sans-serif' }}>{T.no_chats}</div>
             <div style={{ fontSize:13, color:'rgba(255,255,255,0.45)', textAlign:'center', lineHeight:1.65, maxWidth:280, fontFamily:'"Montserrat",sans-serif' }}>{T.no_chats_hint}</div>
-            <motion.button whileTap={{ scale:0.96 }} onClick={onFindPeople||onBack}
+            <motion.button whileTap={{ scale:0.96 }}
+              onClick={() => onOpenSearch ? onOpenSearch('people') : (onFindPeople ? onFindPeople() : onBack?.())}
               style={{ padding:'12px 28px', borderRadius:100, border:'none', background:`linear-gradient(135deg,${accent},${accent}bb)`,
                 color:'#000', fontWeight:900, fontSize:14, cursor:'pointer', fontFamily:'"Montserrat",sans-serif' }}>
               🔍 {T.go_to_search}
