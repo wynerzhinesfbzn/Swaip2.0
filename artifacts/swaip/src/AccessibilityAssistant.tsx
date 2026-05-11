@@ -700,8 +700,16 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           {translating ? `⏳ ${t('translating')}` : t('translate')}
         </motion.button>
 
-        {/* ТАБЫ ПАПОК — горизонтальный скролл */}
+        {/* ТАБЫ ПАПОК — горизонтальный скролл, «Мои фразы» первая */}
         <div style={{ flexShrink:0, display:'flex', gap:5, overflowX:'auto', padding:'1px 0', scrollbarWidth:'none' as any }}>
+          <motion.button whileTap={{ scale:0.92 }} onClick={()=>openFolder('mine')}
+            style={{ padding:'6px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
+              background:activeFolder==='mine'?`${accent}22`:'rgba(255,255,255,0.05)',
+              border:`1.5px solid ${activeFolder==='mine'?accent+'55':LINE}`,
+              color:activeFolder==='mine'?accent:TEXT, fontSize:11, fontWeight:700,
+              whiteSpace:'nowrap', transition:'all 0.15s' }}>
+            📁 Мои фразы
+          </motion.button>
           {PRESET_FOLDERS.map(folder=>(
             <motion.button key={folder.id} whileTap={{ scale:0.92 }} onClick={()=>openFolder(folder.id)}
               style={{ padding:'6px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
@@ -712,14 +720,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               {folder.icon} {folder.label}
             </motion.button>
           ))}
-          <motion.button whileTap={{ scale:0.92 }} onClick={()=>openFolder('mine')}
-            style={{ padding:'6px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
-              background:activeFolder==='mine'?`${accent}22`:'rgba(255,255,255,0.05)',
-              border:`1.5px solid ${activeFolder==='mine'?accent+'55':LINE}`,
-              color:activeFolder==='mine'?accent:TEXT, fontSize:11, fontWeight:700,
-              whiteSpace:'nowrap', transition:'all 0.15s' }}>
-            📁 Мои фразы
-          </motion.button>
         </div>
 
         {/* SOS */}
@@ -741,65 +741,65 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
       <AnimatePresence>
         {activeFolder && (
           <>
-            {/* Фон-затемнение */}
+            {/* Лёгкий фон — можно кликнуть чтобы закрыть */}
             <motion.div
               initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
               onClick={()=>{ setActiveFolder(null); setAddingPhrase(false); }}
-              style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.45)', zIndex:450 }}/>
+              style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.22)', zIndex:450 }}/>
 
-            {/* Панель */}
+            {/* Панель — компактная, ~45% высоты */}
             <motion.div
               initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
-              transition={{ type:'spring', damping:30, stiffness:340 }}
-              style={{ position:'absolute', bottom:0, left:0, right:0, maxHeight:'62%',
-                background:'rgba(13,13,20,0.98)', borderTop:`1px solid ${LINE}`,
-                borderRadius:'18px 18px 0 0', display:'flex', flexDirection:'column', zIndex:460,
-                boxShadow:'0 -8px 40px rgba(0,0,0,0.6)' }}>
+              transition={{ type:'spring', damping:32, stiffness:360 }}
+              style={{ position:'absolute', bottom:0, left:0, right:0, maxHeight:'46%',
+                background:'rgba(14,14,22,0.97)', borderTop:`1px solid ${LINE}`,
+                borderRadius:'16px 16px 0 0', display:'flex', flexDirection:'column', zIndex:460,
+                boxShadow:'0 -6px 30px rgba(0,0,0,0.55)', backdropFilter:'blur(12px)' }}>
 
               {/* Ручка */}
-              <div style={{ width:36, height:4, background:'rgba(255,255,255,0.18)', borderRadius:2, margin:'10px auto 0' }}/>
+              <div style={{ width:32, height:3, background:'rgba(255,255,255,0.15)', borderRadius:2, margin:'8px auto 0' }}/>
 
-              {/* Табы папок — горизонтальный скролл внутри панели */}
-              <div style={{ flexShrink:0, display:'flex', gap:5, overflowX:'auto', padding:'10px 12px 8px', scrollbarWidth:'none' as any }}>
+              {/* Табы — «Мои фразы» первая, потом папки */}
+              <div style={{ flexShrink:0, display:'flex', gap:5, overflowX:'auto', padding:'8px 12px 6px', scrollbarWidth:'none' as any }}>
+                <motion.button whileTap={{ scale:0.92 }}
+                  onClick={()=>setActiveFolder('mine')}
+                  style={{ padding:'4px 9px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
+                    background:activeFolder==='mine'?`${accent}28`:'rgba(255,255,255,0.06)',
+                    border:`1.5px solid ${activeFolder==='mine'?accent+'66':LINE}`,
+                    color:activeFolder==='mine'?accent:SUB, fontSize:10, fontWeight:700,
+                    whiteSpace:'nowrap', transition:'all 0.12s' }}>
+                  📁 Мои фразы
+                </motion.button>
                 {PRESET_FOLDERS.map(folder=>(
                   <motion.button key={folder.id} whileTap={{ scale:0.92 }}
                     onClick={()=>setActiveFolder(folder.id)}
-                    style={{ padding:'5px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
+                    style={{ padding:'4px 9px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
                       background:activeFolder===folder.id?`${accent}28`:'rgba(255,255,255,0.06)',
                       border:`1.5px solid ${activeFolder===folder.id?accent+'66':LINE}`,
-                      color:activeFolder===folder.id?accent:SUB, fontSize:11, fontWeight:700,
+                      color:activeFolder===folder.id?accent:SUB, fontSize:10, fontWeight:700,
                       whiteSpace:'nowrap', transition:'all 0.12s' }}>
                     {folder.icon} {folder.label}
                   </motion.button>
                 ))}
-                <motion.button whileTap={{ scale:0.92 }}
-                  onClick={()=>setActiveFolder('mine')}
-                  style={{ padding:'5px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
-                    background:activeFolder==='mine'?`${accent}28`:'rgba(255,255,255,0.06)',
-                    border:`1.5px solid ${activeFolder==='mine'?accent+'66':LINE}`,
-                    color:activeFolder==='mine'?accent:SUB, fontSize:11, fontWeight:700,
-                    whiteSpace:'nowrap', transition:'all 0.12s' }}>
-                  📁 Мои фразы
-                </motion.button>
               </div>
 
               {/* Разделитель */}
               <div style={{ height:1, background:LINE, flexShrink:0 }}/>
 
-              {/* Список фраз — вертикальный скролл */}
-              <div style={{ flex:1, overflowY:'auto', padding:'8px 12px 20px', scrollbarWidth:'thin' as any, scrollbarColor:'rgba(255,255,255,0.1) transparent' }}>
+              {/* Список фраз — компактный, вертикальный скролл */}
+              <div style={{ flex:1, overflowY:'auto', padding:'6px 12px 16px', scrollbarWidth:'thin' as any, scrollbarColor:'rgba(255,255,255,0.08) transparent' }}>
                 <AnimatePresence mode="wait">
                   {activeFolder !== 'mine' && (
                     <motion.div key={activeFolder}
-                      initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }}
-                      transition={{ duration:0.16 }}
-                      style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}
+                      transition={{ duration:0.14 }}
+                      style={{ display:'flex', flexDirection:'column', gap:3 }}>
                       {(PRESET_FOLDERS.find(f=>f.id===activeFolder)?.phrases||[]).map(phrase=>(
                         <motion.button key={phrase} whileTap={{ scale:0.97 }}
                           onClick={()=>{ quickPhrase(phrase); setActiveFolder(null); }}
-                          style={{ width:'100%', padding:'12px 14px', borderRadius:12, cursor:'pointer',
-                            background:'rgba(255,255,255,0.05)', border:`1px solid ${LINE}`,
-                            color:TEXT, fontSize:14, fontWeight:700, fontFamily:FF,
+                          style={{ width:'100%', padding:'9px 12px', borderRadius:10, cursor:'pointer',
+                            background:'rgba(255,255,255,0.04)', border:`1px solid ${LINE}`,
+                            color:TEXT, fontSize:13, fontWeight:600, fontFamily:FF,
                             textAlign:'left', transition:'background 0.1s' }}>
                           {phrase}
                         </motion.button>
@@ -809,49 +809,50 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
                   {activeFolder === 'mine' && (
                     <motion.div key="mine"
-                      initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }}
-                      transition={{ duration:0.16 }}
-                      style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}
+                      transition={{ duration:0.14 }}
+                      style={{ display:'flex', flexDirection:'column', gap:3 }}>
                       {myPhrases.length===0 && !addingPhrase && (
-                        <div style={{ textAlign:'center', color:SUB, fontSize:12, fontStyle:'italic', padding:'20px 0' }}>
+                        <div style={{ textAlign:'center', color:SUB, fontSize:11, fontStyle:'italic', padding:'14px 0' }}>
                           Нет сохранённых фраз
                         </div>
                       )}
                       {myPhrases.map((phrase,idx)=>(
-                        <div key={idx} style={{ display:'flex', gap:4, alignItems:'center' }}>
+                        <div key={idx} style={{ display:'flex', gap:3, alignItems:'center' }}>
                           <motion.button whileTap={{ scale:0.97 }}
                             onClick={()=>{ quickPhrase(phrase); setActiveFolder(null); }}
-                            style={{ flex:1, padding:'12px 14px', borderRadius:12, cursor:'pointer',
-                              background:'rgba(255,255,255,0.05)', border:`1px solid ${LINE}`,
-                              color:TEXT, fontSize:14, fontWeight:700, fontFamily:FF, textAlign:'left' }}>
+                            style={{ flex:1, padding:'9px 12px', borderRadius:10, cursor:'pointer',
+                              background:'rgba(255,255,255,0.04)', border:`1px solid ${LINE}`,
+                              color:TEXT, fontSize:13, fontWeight:600, fontFamily:FF, textAlign:'left' }}>
                             {phrase}
                           </motion.button>
                           <motion.button whileTap={{ scale:0.88 }} onClick={()=>deleteMyPhrase(idx)}
-                            style={{ width:32, height:32, borderRadius:10, flexShrink:0, cursor:'pointer',
-                              background:'rgba(246,70,93,0.1)', border:`1px solid rgba(246,70,93,0.25)`,
-                              color:RED, fontSize:13, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</motion.button>
+                            style={{ width:30, height:30, borderRadius:8, flexShrink:0, cursor:'pointer',
+                              background:'rgba(246,70,93,0.08)', border:`1px solid rgba(246,70,93,0.2)`,
+                              color:RED, fontSize:12, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</motion.button>
                         </div>
                       ))}
                       {addingPhrase ? (
-                        <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:4 }}>
+                        <div style={{ display:'flex', gap:5, alignItems:'center', marginTop:3 }}>
                           <input ref={newPhraseRef} value={newPhraseText}
                             onChange={e=>setNewPhraseText(e.target.value)}
                             onKeyDown={e=>{ if(e.key==='Enter') saveNewPhrase(); if(e.key==='Escape'){ setAddingPhrase(false); setNewPhraseText(''); } }}
-                            placeholder="Введите фразу..."
-                            style={{ flex:1, padding:'10px 12px', borderRadius:12, background:'rgba(255,255,255,0.07)',
+                            placeholder="Напишите фразу..."
+                            style={{ flex:1, padding:'9px 11px', borderRadius:10, background:'rgba(255,255,255,0.07)',
                               border:`1px solid ${accent}55`, color:TEXT, fontSize:13, fontFamily:FF, outline:'none' }}
                             autoFocus/>
                           <motion.button whileTap={{ scale:0.9 }} onClick={saveNewPhrase}
-                            style={{ padding:'10px 14px', borderRadius:12, background:`${accent}22`, border:`1px solid ${accent}44`, color:accent, fontSize:13, fontWeight:800, cursor:'pointer' }}>✓</motion.button>
+                            style={{ padding:'9px 13px', borderRadius:10, background:`${accent}22`, border:`1px solid ${accent}44`, color:accent, fontSize:14, fontWeight:900, cursor:'pointer' }}>✓</motion.button>
                           <motion.button whileTap={{ scale:0.9 }} onClick={()=>{ setAddingPhrase(false); setNewPhraseText(''); }}
-                            style={{ padding:'10px 12px', borderRadius:12, background:'rgba(246,70,93,0.1)', border:`1px solid ${RED}33`, color:RED, fontSize:13, cursor:'pointer' }}>✕</motion.button>
+                            style={{ padding:'9px 10px', borderRadius:10, background:'rgba(246,70,93,0.08)', border:`1px solid ${RED}33`, color:RED, fontSize:13, cursor:'pointer' }}>✕</motion.button>
                         </div>
                       ) : (
-                        <motion.button whileTap={{ scale:0.96 }} onClick={()=>{ setAddingPhrase(true); setTimeout(()=>newPhraseRef.current?.focus(),80); }}
-                          style={{ marginTop:4, width:'100%', padding:'11px', borderRadius:12, cursor:'pointer',
-                            border:`1.5px dashed ${accent}44`, background:'transparent',
-                            color:accent, fontSize:13, fontWeight:700, fontFamily:FF }}>
-                          + Добавить свою фразу
+                        <motion.button whileTap={{ scale:0.96 }}
+                          onClick={()=>{ setAddingPhrase(true); setTimeout(()=>newPhraseRef.current?.focus(),80); }}
+                          style={{ marginTop:3, width:'100%', padding:'9px', borderRadius:10, cursor:'pointer',
+                            border:`1.5px dashed ${accent}40`, background:'transparent',
+                            color:accent, fontSize:12, fontWeight:700, fontFamily:FF }}>
+                          + Добавить фразу
                         </motion.button>
                       )}
                     </motion.div>
