@@ -493,23 +493,13 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               </motion.button>
             </div>
 
-            {/* КНОПКИ РЕЖИМА */}
-            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8 }}>
-              <motion.button whileTap={{ scale:0.96 }}
-                onClick={()=>{ if(listening){ stopAll(); } else { startListening(); } }}
-                style={{ padding:'11px 8px',borderRadius:10,cursor:'pointer',fontFamily:FF,
-                  background:listening?`${RED}20`:`${GREEN}15`,
-                  border:`1.5px solid ${listening?RED+'55':GREEN+'44'}`,
-                  color:listening?RED:GREEN,fontSize:12,fontWeight:800 }}>
-                {listening?`⏹ ${t('stop')}`:t('recognize')}
-              </motion.button>
-              <motion.button whileTap={{ scale:0.96 }}
-                onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
-                style={{ padding:'11px 8px',borderRadius:10,cursor:'pointer',fontFamily:FF,
-                  background:`${accent}12`,border:`1.5px solid ${accent}33`,color:accent,fontSize:12,fontWeight:800 }}>
-                {t('write')}
-              </motion.button>
-            </div>
+            {/* КНОПКА НАПИСАТЬ */}
+            <motion.button whileTap={{ scale:0.96 }}
+              onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
+              style={{ width:'100%',padding:'11px 8px',borderRadius:10,cursor:'pointer',fontFamily:FF,marginBottom:8,
+                background:`${accent}12`,border:`1.5px solid ${accent}33`,color:accent,fontSize:12,fontWeight:800 }}>
+              {t('write')}
+            </motion.button>
 
             {/* ══ ЛЕНТА ДИАЛОГА ══ */}
             {messages.length>0&&(
@@ -731,6 +721,29 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             <div style={{ textAlign:'center',fontSize:10,color:SUB,lineHeight:1.5 }}>3 сигнала → голос на языке собеседника</div>
           </div>
         </div>
+      </div>
+
+      {/* ══ ПЛАВАЮЩАЯ КНОПКА СЛУШАТЬ ══ */}
+      <div style={{ position:'absolute',bottom:82,left:0,right:0,display:'flex',justifyContent:'center',zIndex:400,pointerEvents:'none' }}>
+        <motion.button
+          whileTap={{ scale:0.92 }}
+          animate={listening ? {
+            boxShadow:[`0 0 0px ${GREEN}00`,`0 0 32px ${GREEN}cc`,`0 0 0px ${GREEN}00`],
+            scale:[1,1.06,1],
+          } : { boxShadow:`0 6px 28px rgba(0,0,0,0.7)`, scale:1 }}
+          transition={listening ? { repeat:Infinity,duration:1.1 } : { duration:0.2 }}
+          onClick={()=>{ if(listening){ stopAll(); } else { startListening(); } }}
+          style={{ pointerEvents:'auto',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,
+            width:72,height:72,borderRadius:'50%',cursor:'pointer',fontFamily:FF,
+            background:listening
+              ? `radial-gradient(circle at 40% 35%,${RED}cc,#8b0000)`
+              : `radial-gradient(circle at 40% 35%,${GREEN}cc,#067a4e)`,
+            border:`2.5px solid ${listening?RED:GREEN}`,
+            color:'#fff',fontSize:11,fontWeight:900,letterSpacing:'0.03em',
+            boxShadow:listening?`0 0 20px ${RED}88`:`0 6px 28px rgba(0,0,0,0.7)` }}>
+          <span style={{ fontSize:22,lineHeight:1 }}>{listening?'⏹':'🎤'}</span>
+          <span style={{ fontSize:9,opacity:0.92 }}>{listening?t('stop'):t('recognize').replace(/^🎤\s*/,'')}</span>
+        </motion.button>
       </div>
 
       {/* ══ БЕГУНОК МАСШТАБА ══ */}
