@@ -261,6 +261,24 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [newPhraseText, setNewPhraseText] = useState('');
   const newPhraseRef = useRef<HTMLInputElement>(null);
 
+  const [micBoost, setMicBoost] = useState<number>(()=>{ try{ return Math.min(5,Math.max(1,parseInt(localStorage.getItem('acc_boost')||'3'))); }catch{ return 3; } });
+  const [micLevel, setMicLevel] = useState(0);
+  const audioCtxRef  = useRef<AudioContext|null>(null);
+  const gainNodeRef  = useRef<GainNode|null>(null);
+  const analyserRef  = useRef<AnalyserNode|null>(null);
+  const micStreamRef = useRef<MediaStream|null>(null);
+  const boostAnimRef = useRef<number|null>(null);
+
+  const GAIN_MAP = [1, 2, 4, 7, 12] as const;
+  const changeMicBoost = (delta:number) => {
+    setMicBoost(prev=>{
+      const next = Math.min(5,Math.max(1,prev+delta));
+      try{ localStorage.setItem('acc_boost',String(next)); }catch{}
+      if(gainNodeRef.current) gainNodeRef.current.gain.value = GAIN_MAP[next-1];
+      return next;
+    });
+  };
+
   const [zoomLevel, setZoomLevel] = useState<number>(()=>{ try{ return parseFloat(localStorage.getItem('acc_zoom')||'1')||1; }catch{ return 1; } });
   const [theme, setTheme] = useState<'dark'|'light'>(()=>{ try{ return (localStorage.getItem('acc_theme')||'dark') as 'dark'|'light'; }catch{ return 'dark'; } });
   const toggleTheme = () => setTheme(p=>{ const n=p==='dark'?'light':'dark'; try{ localStorage.setItem('acc_theme',n); }catch{} return n; });
@@ -371,17 +389,18 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   }, [apiBase]);
 
   const stopAll = useCallback(()=>{
-    /* Сначала выставляем флаг — onend не будет перезапускать сессию */
     activeRef.current = false;
-    if (recogRef.current) {
-      try { recogRef.current.abort(); } catch {}
-      recogRef.current = null;
-    }
+    if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
     if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
     if (translTimerRef.current) { clearTimeout(translTimerRef.current); translTimerRef.current = null; }
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    setListening(false); setInterim(''); setSpeaking(false);
+    /* Очищаем Web Audio усилитель */
+    if (boostAnimRef.current) { cancelAnimationFrame(boostAnimRef.current); boostAnimRef.current = null; }
+    if (micStreamRef.current) { micStreamRef.current.getTracks().forEach(t=>t.stop()); micStreamRef.current = null; }
+    if (audioCtxRef.current) { try{ audioCtxRef.current.close(); }catch{} audioCtxRef.current = null; }
+    gainNodeRef.current = null; analyserRef.current = null;
+    setListening(false); setInterim(''); setSpeaking(false); setMicLevel(0);
   }, []);
 
   const startListening = useCallback(()=>{
@@ -394,68 +413,109 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     activeRef.current = true;
     setListening(true);
 
-    /* ── Запускаем ОДНУ сессию. onend → перезапустит, если activeRef.current ── */
-    const runSession = () => {
-      if (!activeRef.current) return;
-      const r = new SR() as SpeechAny;
-      recogRef.current = r;
+    const gainValue = GAIN_MAP[micBoost - 1] ?? 4;
 
-      r.lang            = getLang(theirLang).tts; /* язык СОБЕСЕДНИКА */
-      r.interimResults  = true;
-      r.continuous      = false;  /* НЕ continuous — Android ведёт себя правильно */
-      r.maxAlternatives = 1;
-
-      r.onresult = (e: any) => {
+    /* ── Запускаем сессии. onend → перезапустит, если activeRef.current ── */
+    const runSessions = (amplifiedStream: MediaStream|null) => {
+      const runSession = () => {
         if (!activeRef.current) return;
-        let fin = '', tmp = '';
-        for (let i = 0; i < e.results.length; i++) {
-          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
-          else tmp += e.results[i][0].transcript;
-        }
-        if (tmp) setInterim(tmp);
-        if (fin) {
-          /* Добавляем только новый финальный фрагмент через ref (без накопления в замыкании) */
-          const trimmed = fin.trim();
-          accumRef.current = accumRef.current
-            ? accumRef.current + ' ' + trimmed
-            : trimmed;
-          setSpokenText(accumRef.current);
+        const r = new SR() as SpeechAny;
+        recogRef.current = r;
+
+        r.lang            = getLang(theirLang).tts;
+        r.interimResults  = true;
+        r.continuous      = false;
+        r.maxAlternatives = 1;
+
+        /* Передаём усиленный поток в распознаватель (Chrome non-standard) */
+        if (amplifiedStream) { try { (r as any).audioStream = amplifiedStream; } catch {} }
+
+        r.onresult = (e: any) => {
+          if (!activeRef.current) return;
+          let fin = '', tmp = '';
+          for (let i = 0; i < e.results.length; i++) {
+            if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+            else tmp += e.results[i][0].transcript;
+          }
+          if (tmp) setInterim(tmp);
+          if (fin) {
+            const trimmed = fin.trim();
+            accumRef.current = accumRef.current ? accumRef.current + ' ' + trimmed : trimmed;
+            setSpokenText(accumRef.current);
+            setInterim('');
+            if (silenceRef.current) clearTimeout(silenceRef.current);
+            silenceRef.current = setTimeout(()=>{
+              activeRef.current = false;
+              if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
+              setListening(false);
+            }, 3000);
+          }
+        };
+
+        r.onerror = (e: any) => {
           setInterim('');
-
-          /* Таймер тишины: 3 сек без новой речи → остановить */
-          if (silenceRef.current) clearTimeout(silenceRef.current);
-          silenceRef.current = setTimeout(()=>{
+          if (activeRef.current && (e.error === 'no-speech' || e.error === 'aborted')) {
+            setTimeout(runSession, 100);
+          } else {
             activeRef.current = false;
-            if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
             setListening(false);
-          }, 3000);
-        }
-      };
+          }
+        };
 
-      r.onerror = (e: any) => {
-        setInterim('');
-        /* no-speech / aborted — просто перезапускаем сессию */
-        if (activeRef.current && (e.error === 'no-speech' || e.error === 'aborted')) {
-          setTimeout(runSession, 100);
-        } else {
-          activeRef.current = false;
-          setListening(false);
-        }
-      };
+        r.onend = () => {
+          setInterim('');
+          recogRef.current = null;
+          if (activeRef.current) setTimeout(runSession, 80);
+          else setListening(false);
+        };
 
-      r.onend = () => {
-        setInterim('');
-        recogRef.current = null;
-        /* Перезапускаем сессию, если ещё нужно слушать */
-        if (activeRef.current) setTimeout(runSession, 80);
-        else setListening(false);
+        try { r.start(); } catch (_) {}
       };
-
-      try { r.start(); } catch (_) {}
+      runSession();
     };
 
-    runSession();
-  }, [theirLang, stopAll]);
+    /* ── Web Audio: усиливаем микрофон и строим счётчик уровня ── */
+    navigator.mediaDevices.getUserMedia({
+      audio: {
+        autoGainControl:  false,   /* управляем усилением сами */
+        noiseSuppression: false,   /* не глушить тихие/далёкие звуки */
+        echoCancellation: false,
+        channelCount:     1,
+      }
+    }).then(stream => {
+      if (!activeRef.current) { stream.getTracks().forEach(t=>t.stop()); return; }
+      micStreamRef.current = stream;
+      const ctx      = new AudioContext();
+      audioCtxRef.current = ctx;
+      const source   = ctx.createMediaStreamSource(stream);
+      const gain     = ctx.createGain();
+      gain.gain.value = gainValue;
+      gainNodeRef.current = gain;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      analyserRef.current = analyser;
+      const dest = ctx.createMediaStreamDestination();
+      source.connect(gain);
+      gain.connect(analyser);
+      gain.connect(dest);
+
+      /* Счётчик уровня — обновляет полоску громкости */
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteTimeDomainData(buf);
+        let mx = 0;
+        for (let i = 0; i < buf.length; i++) mx = Math.max(mx, Math.abs(buf[i] - 128));
+        setMicLevel(Math.min(100, Math.round((mx / 128) * 100 * Math.sqrt(gainValue))));
+        boostAnimRef.current = requestAnimationFrame(tick);
+      };
+      boostAnimRef.current = requestAnimationFrame(tick);
+
+      runSessions(dest.stream);
+    }).catch(()=>{
+      /* Нет разрешения на getUserMedia — работаем без усилителя */
+      runSessions(null);
+    });
+  }, [theirLang, stopAll, micBoost]);
 
   /* ── Перевод с дебаунсом 450 мс (ждём паузу в речи, а не каждое слово) ── */
   useEffect(()=>{
@@ -608,6 +668,38 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               color:accent, fontSize:12, fontWeight:800 }}>
             {t('write')}
           </motion.button>
+        </div>
+
+        {/* УСИЛИТЕЛЬ МИКРОФОНА */}
+        <div style={{ flexShrink:0, borderRadius:10, border:`1px solid ${LINE}`, background:CARD,
+          padding:'7px 10px', display:'flex', flexDirection:'column', gap:5 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:11, fontWeight:800, color:TEXT }}>🎙 Усилитель</span>
+            <div style={{ flex:1, height:6, borderRadius:3, background:isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.08)', overflow:'hidden' }}>
+              <motion.div
+                animate={{ width:`${micLevel}%` }}
+                transition={{ duration:0.06 }}
+                style={{ height:'100%', borderRadius:3,
+                  background: micLevel > 75 ? RED : micLevel > 40 ? '#f5a623' : GREEN,
+                  minWidth: micLevel > 0 ? 4 : 0 }}/>
+            </div>
+            <span style={{ fontSize:10, color:SUB, fontWeight:700, minWidth:24, textAlign:'right' }}>
+              {['1×','2×','4×','7×','12×'][micBoost-1]}
+            </span>
+            <div style={{ display:'flex', gap:2 }}>
+              <motion.button whileTap={{ scale:0.85 }} onClick={()=>changeMicBoost(-1)}
+                style={{ width:22, height:22, borderRadius:6, border:`1px solid ${LINE}`, background:CARD,
+                  color:TEXT, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900 }}>−</motion.button>
+              <motion.button whileTap={{ scale:0.85 }} onClick={()=>changeMicBoost(+1)}
+                style={{ width:22, height:22, borderRadius:6, border:`1px solid ${LINE}`, background:CARD,
+                  color:TEXT, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900 }}>+</motion.button>
+            </div>
+          </div>
+          {!listening && (
+            <div style={{ fontSize:9, color:SUB, fontStyle:'italic', lineHeight:1.4 }}>
+              Нажмите «Слушать» — усилитель включится. Чем выше ×, тем дальше слышит.
+            </div>
+          )}
         </div>
 
         {/* ══ ЕДИНЫЙ ДИАЛОГ — занимает всё свободное место ══ */}
