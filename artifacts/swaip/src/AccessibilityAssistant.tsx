@@ -466,7 +466,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           </div>
 
           {/* ТЕЛО */}
-          <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',gap:6,padding:'8px 12px 8px' }}
+          <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',gap:4,padding:'6px 10px 6px' }}
             onClick={e=>e.stopPropagation()}>
 
             {/* ВЫБОР ЯЗЫКОВ */}
@@ -495,13 +495,13 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
             {/* КНОПКА НАПИСАТЬ */}
             <motion.button whileTap={{ scale:0.96 }} onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
-              style={{ flexShrink:0,width:'100%',padding:'10px 8px',borderRadius:10,cursor:'pointer',fontFamily:FF,
+              style={{ flexShrink:0,width:'100%',padding:'8px 8px',borderRadius:10,cursor:'pointer',fontFamily:FF,
                 background:`${accent}12`,border:`1.5px solid ${accent}33`,color:accent,fontSize:12,fontWeight:800 }}>
               {t('write')}
             </motion.button>
 
             {/* ══ ДИАЛОГ — flex:1, растягивается, внутри скролл ══ */}
-            <div style={{ flex:1,minHeight:110,borderRadius:12,border:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)',overflow:'hidden',display:'flex',flexDirection:'column' }}>
+            <div style={{ flex:1,minHeight:80,borderRadius:12,border:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)',overflow:'hidden',display:'flex',flexDirection:'column' }}>
               {/* Шапка диалога */}
               <div style={{ flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 10px',borderBottom:`1px solid ${LINE}`,background:'rgba(255,255,255,0.02)' }}>
                 <div style={{ display:'flex',alignItems:'center',gap:6 }}>
@@ -576,7 +576,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             <div style={{ flexShrink:0,borderRadius:12,border:`1px solid ${LINE}`,background:CARD,overflow:'hidden' }}>
               <div style={{ display:'flex',alignItems:'flex-start' }}>
                 <textarea ref={inputRef} value={inputText} onChange={e=>{ setInputText(e.target.value); setOutputText(''); }} placeholder={t('ph')}
-                  style={{ flex:1,height:52,padding:'9px 12px',background:'transparent',border:'none',outline:'none',color:TEXT,fontSize:13,fontFamily:FF,resize:'none',lineHeight:1.5,boxSizing:'border-box' }}/>
+                  style={{ flex:1,height:44,padding:'7px 10px',background:'transparent',border:'none',outline:'none',color:TEXT,fontSize:13,fontFamily:FF,resize:'none',lineHeight:1.5,boxSizing:'border-box' }}/>
                 {inputText&&(
                   <motion.button whileTap={{ scale:0.88 }} onClick={()=>{ setInputText(''); setOutputText(''); }}
                     style={{ width:26,height:26,margin:'8px 8px 0 0',borderRadius:'50%',background:'rgba(246,70,93,0.12)',border:'1px solid rgba(246,70,93,0.25)',color:RED,fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>✕</motion.button>
@@ -598,7 +598,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
             {/* КНОПКА ПЕРЕВЕСТИ */}
             <motion.button whileTap={{ scale:0.97 }} onClick={handleTranslateAndSpeak} disabled={!inputText.trim()||translating}
-              style={{ flexShrink:0,width:'100%',padding:'11px',borderRadius:12,cursor:inputText.trim()?'pointer':'not-allowed',
+              style={{ flexShrink:0,width:'100%',padding:'9px',borderRadius:12,cursor:inputText.trim()?'pointer':'not-allowed',
                 background:inputText.trim()?`linear-gradient(135deg,${accent},${accent}bb)`:'rgba(255,255,255,0.04)',
                 border:`1.5px solid ${inputText.trim()?accent+'66':LINE}`,color:inputText.trim()?'#fff':SUB,
                 fontSize:13,fontWeight:900,fontFamily:FF,letterSpacing:'0.02em',
@@ -609,9 +609,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
             {/* ══ ПАПКИ ФРАЗ ══ */}
             <div style={{ flexShrink:0 }}>
-              <div style={{ fontSize:9,color:SUB,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:5 }}>📂 Готовые фразы</div>
               {/* Табы — горизонтальный скролл */}
-              <div style={{ display:'flex',gap:5,overflowX:'auto',marginBottom:6,padding:'1px 0',scrollbarWidth:'none' as any }}>
+              <div style={{ display:'flex',gap:4,overflowX:'auto',marginBottom:4,padding:'1px 0',scrollbarWidth:'none' as any }}>
                 {PRESET_FOLDERS.map(folder=>(
                   <motion.button key={folder.id} whileTap={{ scale:0.92 }} onClick={()=>setActiveFolder(folder.id)}
                     style={{ padding:'5px 9px',borderRadius:20,flexShrink:0,cursor:'pointer',fontFamily:FF,
@@ -630,7 +629,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                 </motion.button>
               </div>
               {/* Фразы — фиксированная высота, внутри скролл */}
-              <div style={{ maxHeight:82,overflowY:'auto',scrollbarWidth:'none' as any }}>
+              <div style={{ maxHeight:70,overflowY:'auto',scrollbarWidth:'none' as any }}>
                 <AnimatePresence mode="wait">
                   <motion.div key={activeFolder} initial={{ opacity:0,y:3 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} transition={{ duration:0.12 }}>
                     {!isMineFolder&&activeFolderData&&(
@@ -695,7 +694,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             <motion.button whileTap={{ scale:0.97 }} onClick={handleSOS}
               animate={{ boxShadow:sosPending?['0 0 0px rgba(246,70,93,0)','0 0 28px rgba(246,70,93,0.9)','0 0 0px rgba(246,70,93,0)']:'0 4px 18px rgba(246,70,93,0.35)' }}
               transition={{ repeat:sosPending?Infinity:0,duration:0.55 }}
-              style={{ flexShrink:0,width:'100%',padding:'13px',borderRadius:12,cursor:'pointer',
+              style={{ flexShrink:0,width:'100%',padding:'10px',borderRadius:12,cursor:'pointer',
                 background:`linear-gradient(135deg,${RED},#b01222)`,
                 border:`2px solid ${RED}`,color:'#fff',fontSize:14,fontWeight:900,fontFamily:FF,
                 letterSpacing:'0.03em',display:'flex',alignItems:'center',justifyContent:'center',gap:8 }}>
