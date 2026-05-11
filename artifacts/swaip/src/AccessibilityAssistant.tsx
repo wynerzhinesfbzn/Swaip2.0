@@ -424,7 +424,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               toLang: toL,
               ts: Date.now()
             }]);
-            speakText(translated, toL);
+            /* Не озвучиваем во время слушания — микрофон подхватит голос */
           });
         }
       };
@@ -447,7 +447,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     };
 
     runSession();
-  }, [theirLang, myLang, stopAll, speakText]);
+  }, [theirLang, myLang, stopAll]);
 
 
   /* ГЛАВНАЯ КНОПКА: перевести + озвучить → добавляем в диалог */
