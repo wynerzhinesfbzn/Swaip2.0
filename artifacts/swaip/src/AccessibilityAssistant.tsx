@@ -503,15 +503,15 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
             {/* ══ ЛЕНТА ДИАЛОГА ══ */}
             {messages.length>0&&(
-              <div style={{ marginBottom:8 }}>
-                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6 }}>
+              <div style={{ marginBottom:8,borderRadius:12,border:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)',overflow:'hidden' }}>
+                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 10px',borderBottom:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)' }}>
                   <span style={{ fontSize:9,color:SUB,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' }}>💬 Диалог</span>
                   <motion.button whileTap={{ scale:0.88 }} onClick={clearDialog}
                     style={{ fontSize:9,color:SUB,background:'none',border:'none',cursor:'pointer',padding:'2px 6px',borderRadius:6,fontFamily:FF }}>
                     {t('clearDialog')} ✕
                   </motion.button>
                 </div>
-                <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                <div style={{ maxHeight:220,overflowY:'auto',WebkitOverflowScrolling:'touch' as any,display:'flex',flexDirection:'column',gap:8,padding:'8px 10px',scrollbarWidth:'thin' as any,scrollbarColor:'rgba(255,255,255,0.1) transparent' }}>
                   <AnimatePresence initial={false}>
                     {messages.map(msg=>{
                       const isMine=msg.side==='mine';
