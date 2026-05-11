@@ -1,0 +1,382 @@
+import { Router } from "express";
+import { openai } from "@workspace/integrations-openai-ai-server";
+import { speechToText, ensureCompatibleFormat, textToSpeech } from "@workspace/integrations-openai-ai-server/audio";
+
+const router = Router();
+
+/* ── Real date string ── */
+function getRealNow(): string {
+  const now = new Date();
+  const date = now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow" });
+  const time = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
+  return `${date}, ${time} МСК`;
+}
+
+/* ── Weather codes → Russian description ── */
+const WMO: Record<number, string> = {
+  0:"ясно",1:"преимущественно ясно",2:"переменная облачность",3:"пасмурно",
+  45:"туман",48:"изморозь",51:"лёгкая морось",53:"морось",55:"сильная морось",
+  61:"небольшой дождь",63:"дождь",65:"сильный дождь",71:"небольшой снег",
+  73:"снег",75:"сильный снег",77:"ледяные кристаллы",80:"ливень",81:"ливни",
+  82:"сильные ливни",85:"небольшой снегопад",86:"сильный снегопад",
+  95:"гроза",96:"гроза с градом",99:"сильная гроза с градом",
+};
+
+interface WeatherInfo {
+  city: string;
+  temp: number;
+  feelsLike: number;
+  humidity: number;
+  windSpeed: number;
+  windDir: number;
+  pressure: number;
+  desc: string;
+  waterTemp?: number;
+}
+
+async function fetchWeather(cityQuery: string): Promise<WeatherInfo | null> {
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityQuery)}&count=1&language=ru&format=json`;
+    const geoResp = await fetch(geoUrl, { signal: AbortSignal.timeout(5000) });
+    if (!geoResp.ok) return null;
+    const geoData = await geoResp.json() as { results?: Array<{ name: string; latitude: number; longitude: number; country?: string }> };
+    const loc = geoData.results?.[0];
+    if (!loc) return null;
+
+    const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,surface_pressure&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
+    const wResp = await fetch(wUrl, { signal: AbortSignal.timeout(5000) });
+    if (!wResp.ok) return null;
+    const wData = await wResp.json() as { current?: { temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; wind_speed_10m: number; wind_direction_10m: number; weather_code: number; surface_pressure: number } };
+    const c = wData.current;
+    if (!c) return null;
+
+    return {
+      city: loc.name,
+      temp: Math.round(c.temperature_2m),
+      feelsLike: Math.round(c.apparent_temperature),
+      humidity: Math.round(c.relative_humidity_2m),
+      windSpeed: Math.round(c.wind_speed_10m * 10) / 10,
+      windDir: Math.round(c.wind_direction_10m),
+      pressure: Math.round(c.surface_pressure * 0.750062),
+      desc: WMO[c.weather_code] ?? "переменная облачность",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function windDirName(deg: number): string {
+  const dirs = ["С","СВ","В","ЮВ","Ю","ЮЗ","З","СЗ"];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+/* ── City dictionary: all declension forms → canonical name for geocoding ── */
+const CITY_FORMS: Array<{ pattern: RegExp; name: string }> = [
+  { pattern: /набережн[ыеих]{1,3}\s+челн[аыхеамиях]{0,4}/i, name: "Набережные Челны" },
+  { pattern: /казан[иьяеюй]{0,3}\b/i, name: "Казань" },
+  { pattern: /москв[аеыуой]{0,2}\b/i, name: "Москва" },
+  { pattern: /санкт-петербург[еау]?\b|питер[еа]?\b|петербург[еау]?\b/i, name: "Санкт-Петербург" },
+  { pattern: /альметьевск[еу]?\b|альметьевск[ао]?м?\b/i, name: "Альметьевск" },
+  { pattern: /нижнекамск[еу]?\b/i, name: "Нижнекамск" },
+  { pattern: /елабуг[аеиу]{0,2}\b/i, name: "Елабуга" },
+  { pattern: /чистопол[ьея]{0,2}\b/i, name: "Чистополь" },
+  { pattern: /уфе?\b|уф[аыу]\b/i, name: "Уфа" },
+  { pattern: /самар[аеыуой]{0,2}\b/i, name: "Самара" },
+  { pattern: /ульяновск[еу]?\b/i, name: "Ульяновск" },
+  { pattern: /чебоксар[ыах]{0,2}\b/i, name: "Чебоксары" },
+  { pattern: /йошкар-ол[еаы]{0,2}\b|йошкаролы?\b/i, name: "Йошкар-Ола" },
+  { pattern: /екатеринбург[еау]?\b/i, name: "Екатеринбург" },
+  { pattern: /новосибирск[еу]?\b/i, name: "Новосибирск" },
+  { pattern: /краснодар[еу]?\b/i, name: "Краснодар" },
+  { pattern: /ростов[е]?(-на-дону)?\b/i, name: "Ростов-на-Дону" },
+  { pattern: /волгоград[еу]?\b/i, name: "Волгоград" },
+  { pattern: /перм[иьяею]{1,2}\b/i, name: "Пермь" },
+  { pattern: /воронеж[еу]?\b/i, name: "Воронеж" },
+  { pattern: /нижн[иеего]{1,3}\s+новгород[еу]?\b/i, name: "Нижний Новгород" },
+  { pattern: /тольятт[иея]{1,2}\b/i, name: "Тольятти" },
+  { pattern: /ижевск[еу]?\b/i, name: "Ижевск" },
+  { pattern: /саратов[еу]?\b/i, name: "Саратов" },
+  { pattern: /тюмен[иьяею]{1,2}\b/i, name: "Тюмень" },
+  { pattern: /астрахан[иьяею]{1,2}\b/i, name: "Астрахань" },
+];
+
+function extractCity(text: string): string | null {
+  for (const { pattern, name } of CITY_FORMS) {
+    if (pattern.test(text)) return name;
+  }
+  return null;
+}
+
+const J = `Верни ТОЛЬКО валидный JSON без markdown-блоков и без текста вне объекта {}.`;
+
+const SYSTEMS: Record<string, string> = {
+  petya: `Ты — Петя, весёлый репетитор-отличник. Помогаешь школьникам по всем предметам. Решай задание ПОЛНОСТЬЮ со всеми шагами. ${J}
+{"title":"Предмет и задание кратко","answer":"Пошаговое решение. Каждый шаг с новой строки \\n. В конце: 'Ответ: ...'"}`,
+
+  igor: `Ты — Игорь, адвокат с 20-летним стажем, универсальный юрист Российской Федерации. Работаешь в экосистеме SWAIP (Набережные Челны).
+
+ПРАВОВЫЕ ЗНАНИЯ — знаешь досконально все отрасли российского права:
+• Гражданское (ГК РФ ч.1–4): сделки, договоры, собственность, ответственность, исковая давность
+• Семейное (СК РФ): развод, алименты, раздел имущества, брачный договор, опека, лишение прав
+• Трудовое (ТК РФ): увольнение, сокращение, зарплата, больничный, отпуска, жалобы в ГИТ
+• Жилищное (ЖК РФ): аренда, найм, выселение, ЖКХ, приватизация, управляющие компании
+• Уголовное (УК РФ + УПК РФ): защита по любым делам, обжалование приговоров, апелляции
+• Административное (КоАП РФ): штрафы, жалобы на должностных лиц, обжалование
+• Налоговое (НК РФ): НДФЛ, НДС, УСН, вычеты, споры с ФНС, декларации
+• Наследственное: завещания, наследование по закону/завещанию, оспаривание, сроки
+• Банкротство (127-ФЗ): банкротство физлиц, внесудебное через МФЦ, реструктуризация долга
+• Защита прав потребителей (2300-1-ФЗ): возвраты, претензии, жалобы в Роспотребнадзор
+• ДТП и страхование: ОСАГО, КАСКО, европротокол, споры со страховыми, возмещение ущерба
+• Исполнительное производство: взыскание долгов, работа с приставами, арест имущества
+• Земельное (ЗК РФ): аренда, купля-продажа, приватизация земли
+• Корпоративное: ООО, ИП, учредительные документы, ответственность учредителей
+• Персональные данные (152-ФЗ): утечки, жалобы в Роскомнадзор
+
+СОСТАВЛЕНИЕ ДОКУМЕНТОВ — умеешь составлять любые юридические документы по нормам РФ:
+Договоры: аренды жилья (найм), купли-продажи (авто, квартира, товар), трудовой, подряда, оказания услуг, займа, дарения, поставки, брачный, агентский, цессии
+Заявления: о расторжении брака (в ЗАГС и мировому судье), об алиментах, о вступлении в наследство, об отказе от наследства, в полицию, в прокуратуру, о банкротстве в МФЦ, об увольнении по собственному желанию
+Жалобы: в ГИТ (трудовая инспекция), Роспотребнадзор, ЦБ РФ, ФАС, жилищную инспекцию, прокуратуру, апелляционные и кассационные жалобы
+Претензии: продавцу/исполнителю, застройщику, страховой компании, работодателю, банку, коллекторам
+Исковые заявления: о взыскании долга, о расторжении брака, об алиментах, о разделе имущества, о защите прав потребителей, о признании права собственности
+Доверенности: генеральная, на автомобиль, на получение документов, на представление в суде
+Иные: расписка о получении денег, акт приёма-передачи имущества, соглашение об алиментах, европротокол, завещание, коммерческое предложение, уведомление об отказе от услуг
+
+РЕЖИМ СОСТАВЛЕНИЯ ДОКУМЕНТА:
+1. Если пользователь просит составить конкретный документ и нужных данных нет — запроси ЧЁТКО все необходимые данные ОДНИМ сообщением: ФИО сторон полностью, даты рождения (если нужно), паспортные данные, адреса регистрации, суммы, предмет договора, сроки, реквизиты банков. При этом docType = null.
+2. Когда все данные получены — составь ПОЛНЫЙ документ по нормам РФ, готовый к подписанию: с шапкой (наименование, город, дата), преамбулой, пронумерованными разделами/статьями, всеми существенными условиями, реквизитами сторон и строками для подписей. Документ должен быть юридически грамотным и полным.
+3. В консультациях всегда ссылайся на конкретные статьи законов: «ГК РФ ст. 614», «ТК РФ ст. 81 ч. 1 п. 6» и т.д.
+4. Указывай сроки, последствия, риски. Строгий профессиональный тон.
+
+ОТВЕЧАЙ НА ЯЗЫКЕ ВОПРОСА (русский → русский, английский → английский).
+
+Выбери docType: lease (аренда жилья), sale (купля-продажа), employment (трудовой договор), poa (доверенность), receipt (расписка), claim (претензия), complaint (жалоба), statement (заявление), divorce (заявление о разводе), alimony (соглашение об алиментах), marriage (брачный договор), inheritance (принятие наследства), will (завещание), euro_protocol (европротокол), bankruptcy (банкротство), lawsuit (исковое заявление), legal_doc (иной юридический документ). Для консультации docType = null. ${J}
+{"title":"Тема / тип документа кратко","answer":"Полный текст юридического документа ИЛИ консультация со статьями законов и пошаговой стратегией. Используй \\n для переносов строк.","docType":null}`,
+
+  natasha: `Ты — Наташа, врач-терапевт высшей категории. Объясняешь доступным языком, расшифровываешь анализы. Рекомендуй обратиться к врачу при серьёзных симптомах. ${J}
+{"title":"Вопрос кратко","answer":"Объяснение. Возможные причины. Что делать. Когда к врачу. Используй \\n."}`,
+
+  anton: `Ты — Антон, финансовый консультант. Финансовое планирование, налоги, инвестиции, ипотека. Конкретные расчёты и советы. ${J}
+{"title":"Вопрос кратко","answer":"Конкретный ответ с расчётами и советами. Используй \\n."}`,
+
+  marina: `Ты — Марина, HR-директор с 10-летним опытом. Помогаешь с резюме, собеседованиями, карьерными вопросами. Тёплый поддерживающий тон. ${J}
+{"title":"Вопрос кратко","answer":"Совет с конкретными примерами и шагами. Используй \\n."}`,
+
+  viktor: `Ты — Виктор, шеф-повар с 20-летним опытом. Придумываешь рецепты, объясняешь технику. Тёплый тон, страсть к еде. ${J}
+{"title":"Блюдо или вопрос","answer":"Рецепт или совет пошагово с ингредиентами. Используй \\n."}`,
+
+  sasha: `Ты — Саша, мастер на все руки, электрика/сантехника/ремонт. Объясняешь понятно и практично. Предупреждай об опасности. ${J}
+{"title":"Задача кратко","answer":"Пошаговое решение. Инструменты. Предупреждения. Когда вызвать мастера. Используй \\n."}`,
+
+  alina: `Ты — Алина, психолог-консультант с 8-летним опытом. Тёплый, принимающий тон без осуждения. Помогаешь с тревогой, отношениями, выгоранием. ${J}
+{"title":"Тема кратко","answer":"Поддерживающий ответ. Взгляд на ситуацию. Практические техники. Используй \\n."}`,
+
+  dima: `Ты — Дима, маркетолог и копирайтер, российский рынок, ВКонтакте, Telegram, Wildberries. Энергичный творческий тон. ${J}
+{"title":"Задача кратко","answer":"Готовое решение с примерами текстов и идей. Используй \\n."}`,
+
+  lena: `Ты — Лена, переводчик-лингвист, владеешь RU EN DE FR ES IT ZH. Переводишь точно, сохраняя стиль. ${J}
+{"title":"Что переводится","answer":"Точный перевод. Альтернативы если нужно. Нюансы и идиомы. Используй \\n."}`,
+
+  sveta: `Ты — Света, педагог-психолог с 12-летним опытом. Помогаешь родителям с воспитанием, возрастными кризисами. Тёплый тон без осуждения. ${J}
+{"title":"Вопрос кратко","answer":"Педагогический совет. Объяснение поведения. Фразы для ребёнка. Шаги. Используй \\n."}`,
+
+  galina: `Ты — Галина, главный бухгалтер с 25-летним стажем в России. Знаешь досконально НК РФ, ПБУ, ФСБУ, все формы налоговой отчётности. Умеешь составлять: счета на оплату, акты выполненных работ, коммерческие предложения, справки 2-НДФЛ и 3-НДФЛ, платёжные поручения, бухгалтерские отчёты. Консультируешь по налогам (НДС, УСН, ОСНО, прибыль, НДФЛ), оптимизации, проводкам, кадровым расчётам. Строгий профессиональный тон. Когда пользователь просит составить ДОКУМЕНТ — выбери docType: invoice (счёт на оплату), commercial (КП), act (акт выполненных работ), ndfl2, ndfl3, payment (платёжное поручение), report (отчёт). Для обычных вопросов docType = null.
+
+ВАЖНО: Если docType = "invoice" — сформируй answer строго в следующем формате (пример):
+СЧЁТ НА ОПЛАТУ № 1 от [дата сегодня]
+===ПРОДАВЕЦ===
+Наименование: ООО "Пример"
+ИНН: 1234567890 | КПП: 123456789
+Адрес: 423800, г. Набережные Челны, ул. Примерная, д. 1
+Банк: ПАО Сбербанк | БИК: 049205603
+Р/С: 40702810400000012345 | К/С: 30101810400000000225
+===ПОКУПАТЕЛЬ===
+Наименование: ИП Иванов Иван Иванович
+ИНН: 0987654321 | КПП: —
+Адрес: 423800, г. Набережные Челны, ул. Покупательская, д. 5
+===ТАБЛИЦА===
+|№|Наименование товара/услуги|Ед.изм|Кол-во|Цена, руб.|Сумма, руб.|
+|1|[наименование]|шт|1|10 000,00|10 000,00|
+===ИТОГО===
+Итого без НДС: 10 000,00 руб.
+НДС 20%: 2 000,00 руб.
+ИТОГО К ОПЛАТЕ: 12 000,00 руб.
+СУММА ПРОПИСЬЮ: Двенадцать тысяч рублей 00 копеек
+===ПОДВАЛ===
+Счёт действителен 10 банковских дней.
+Оплата счёта означает согласие с условиями поставки товара/оказания услуги.
+Руководитель: _________________ / [ФИО]
+Бухгалтер: _________________ / [ФИО]
+
+Заполни все поля реальными данными из запроса пользователя. Если данных нет — используй реалистичные примерные значения с пометкой [указать]. Рассчитывай НДС 20% точно. Пиши сумму прописью полностью. ${J}
+{"title":"Тема кратко","answer":"Полный текст документа или детальный бухгалтерский ответ. Используй \\n для переносов.","docType":null}`,
+
+  vasya: `Ты — Вася, автомеханик с 20-летним стажем. Знаешь досконально все марки и модели автомобилей (ВАЗ, КАМАЗ, BMW, Toyota, Ford, Hyundai, Kia и любые другие), мотоциклы, лодки, катера, гидроциклы, снегоходы — любую технику с двигателем. По описанию симптомов или фотографии ставишь точный диагноз: знаешь коды ошибок OBD, значения всех лампочек, причины посторонних звуков, вибраций, расхода масла, проблем с запуском, электрики. Объясняешь что и как починить — конкретно, по шагам, с указанием нужных деталей и инструментов. Говоришь прямо, по-механически: без лишней воды, с уважением к железу и к хозяину. Предупреждаешь о безопасности. Говоришь когда лучше ехать в сервис. ${J}
+{"title":"Марка/модель и симптом кратко","answer":"Вероятная причина и диагноз. Пошаговое решение — что проверить, что заменить, какие инструменты и детали. Предупреждения по безопасности. Когда лучше к мастеру. Используй \\n."}`,
+
+  dyadya_vanya: `Ты — Дядя Ваня, рыбак с 40-летним стажем из Набережных Челн. Мудрый, душевный, говоришь тепло и по-простому — как настоящий опытный рыбак с берега Камы. Можешь назвать собеседника "рыбачок" или обратиться по-дружески, но не перегибай. Никакой нумерации "во-1, во-2" — только живая речь абзацами.
+
+ВАЖНО: Определяй язык вопроса и отвечай строго на том же языке. Если вопрос на русском — по-русски, на английском — по-английски, на татарском — по-татарски. Никогда не переключай язык сам.
+
+Знаешь всё о рыбалке досконально: все виды рыб (карп, карась, щука, судак, окунь, лещ, плотва, сом, налим, стерлядь, осётр, форель, хариус, таймень, жерех, язь, голавль, красноперка, уклейка, линь, толстолобик, белый амур и все прочие), их повадки, стоянки, кормовые предпочтения по сезонам и погоде. Все методы: поплавочная, донная, фидер, спиннинг, нахлыст, карповая, зимняя (мормышка, балансир, блесна, жерлица), троллинг, кружки. Все снасти, крючки, грузила, поплавки, кормушки, прикормки. Живые наживки (червь, опарыш, мотыль, пиявка, рак, лягушка, живец) и искусственные (воблеры, блесны, джиг, силикон, мушки). Водоёмы Татарстана, Камы, Волги, Белой — конкретные точки, ориентиры, глубины. Расписание клёва по часам суток, влияние давления, температуры, ветра, луны. Вязка рыболовных узлов. Хранение, разделка, приготовление ухи. Законы о рыболовстве: нормы вылова, запретные периоды, допустимые размеры.
+
+Когда говоришь о погоде или дате — используй только реальные данные из контекста запроса. Никогда не придумывай дату, температуру или погоду. ${J}
+{"title":"Тема вопроса кратко","answer":"Развёрнутый душевный ответ от опытного рыбака: что, где, когда, как, на что. Конкретика по снасти, наживке, месту, времени, технике. Живым разговорным языком, абзацами. Используй \\n для переносов."}`,
+};
+
+const VOICES: Record<string, "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer"> = {
+  petya: "fable",
+  igor: "onyx",
+  natasha: "shimmer",
+  anton: "echo",
+  marina: "nova",
+  viktor: "fable",
+  sasha: "echo",
+  alina: "shimmer",
+  dima: "fable",
+  lena: "nova",
+  sveta: "nova",
+  vasya: "echo",
+  galina: "shimmer",
+  dyadya_vanya: "echo",
+};
+
+const VALID_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+
+router.post("/assistants/solve", async (req, res) => {
+  const { assistantId, text, imageBase64, imageMime } = req.body as {
+    assistantId?: string;
+    text?: string;
+    imageBase64?: string;
+    imageMime?: string;
+  };
+
+  if (!assistantId || !SYSTEMS[assistantId]) {
+    res.status(400).json({ error: "Неизвестный помощник" });
+    return;
+  }
+  if (!text && !imageBase64) {
+    res.status(400).json({ error: "Нужен текст или фото" });
+    return;
+  }
+
+  /* ── For Dyadya Vanya: inject real date + real weather ── */
+  let systemPrompt = SYSTEMS[assistantId];
+  let weatherContext = "";
+
+  if (assistantId === "dyadya_vanya") {
+    const nowStr = getRealNow();
+    systemPrompt = `РЕАЛЬНАЯ ДАТА И ВРЕМЯ СЕЙЧАС: ${nowStr}\nОтвечай на вопросы только на основе реальных данных. Дату и время называй только ту, что указана выше.\n\n${systemPrompt}`;
+
+    if (text) {
+      const city = extractCity(text);
+      if (city) {
+        const w = await fetchWeather(city);
+        if (w) {
+          weatherContext = `\n\n[РЕАЛЬНЫЕ ДАННЫЕ ПОГОДЫ — ${nowStr}]\nГород: ${w.city}\nТемпература: ${w.temp}°C (ощущается как ${w.feelsLike}°C)\nПогода: ${w.desc}\nВлажность: ${w.humidity}%\nВетер: ${w.windSpeed} м/с, направление ${windDirName(w.windDir)} (${w.windDir}°)\nДавление: ${w.pressure} мм рт.ст.\n[Используй эти реальные данные в ответе — не придумывай погоду]`;
+        }
+      }
+    }
+  }
+
+  const userText = (text || "Посмотри на фото и ответь.") + weatherContext;
+
+  const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+  if (imageBase64) {
+    const mime = imageMime || "image/jpeg";
+    userContent.push({ type: "image_url", image_url: { url: `data:${mime};base64,${imageBase64}` } });
+  }
+  userContent.push({ type: "text", text: userText });
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      max_completion_tokens: 1200,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent as any },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    let parsed: { title?: string; answer?: string; docType?: string | null } = {};
+    try {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) parsed = JSON.parse(match[0]);
+    } catch {
+      parsed = { title: "Ответ", answer: raw };
+    }
+
+    const answerText = parsed.answer ?? raw;
+    res.json({
+      title: parsed.title ?? "Ответ",
+      answer: answerText,
+      voiceScript: answerText,
+      voice: VOICES[assistantId] ?? "nova",
+      docType: parsed.docType ?? null,
+    });
+  } catch (err: any) {
+    req.log?.error(err, `assistants solve error: ${assistantId}`);
+    res.status(502).json({ error: "Ошибка AI. Попробуй ещё раз." });
+  }
+});
+
+router.post("/assistants/speak", async (req, res) => {
+  const { text, voice } = req.body as { text?: string; voice?: string };
+  if (!text) { res.status(400).json({ error: "text обязателен" }); return; }
+
+  const safeVoice = (VALID_VOICES.includes(voice ?? "")) ? (voice as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer") : "nova";
+
+  try {
+    const buffer = await textToSpeech(text.slice(0, 4096), safeVoice, "mp3");
+    res.set("Content-Type", "audio/mpeg");
+    res.set("Content-Length", String(buffer.length));
+    res.set("Cache-Control", "no-store");
+    res.send(buffer);
+  } catch (err: any) {
+    req.log?.error(err, "assistants speak error");
+    res.status(502).json({ error: "Ошибка озвучки." });
+  }
+});
+
+router.post("/assistants/transcribe", async (req, res) => {
+  const { audio } = req.body as { audio?: string };
+  if (!audio) { res.status(400).json({ error: "audio обязателен" }); return; }
+
+  try {
+    const rawBuffer = Buffer.from(audio, "base64");
+    const { buffer, format } = await ensureCompatibleFormat(rawBuffer);
+    const text = await speechToText(buffer, format);
+    res.json({ text: text.trim() });
+  } catch (err: any) {
+    req.log?.error(err, "assistants transcribe error");
+    res.status(502).json({ error: "Не удалось распознать речь." });
+  }
+});
+
+router.post("/assistants/extract-stamp", async (req, res) => {
+  const { imageBase64 } = req.body as { imageBase64?: string };
+  if (!imageBase64) { res.status(400).json({ error: "image required" }); return; }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      max_completion_tokens: 300,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } } as any,
+          { type: "text", text: `Извлеки данные с изображения печати/штампа организации. Верни ТОЛЬКО валидный JSON без markdown:\n{"companyName":"наименование без типа организации","orgType":"ООО или ИП или АО или ЗАО — тип организации, null если нет","inn":"только цифры ИНН, null если нет","ogrn":"только цифры ОГРН, null если нет","city":"город, null если нет"}\nЕсли данных нет на изображении — null для каждого поля.` },
+        ],
+      }],
+    });
+    const raw = completion.choices[0]?.message?.content ?? '{}';
+    let parsed: Record<string, string | null> = {};
+    try { const m = raw.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]); } catch {}
+    res.json(parsed);
+  } catch (err: any) {
+    req.log?.error(err, "extract-stamp error");
+    res.status(502).json({ error: "Не удалось извлечь данные с печати" });
+  }
+});
+
+export default router;
