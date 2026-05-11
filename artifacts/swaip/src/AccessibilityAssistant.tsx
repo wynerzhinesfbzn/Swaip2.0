@@ -465,260 +465,238 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             )}
           </div>
 
-          {/* ТЕЛО */}
-          <div style={{ flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch' as any,padding:'10px 12px 16px' }}
+          {/* ТЕЛО — жёсткая колонка, не скроллится */}
+          <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',padding:'8px 12px 10px',gap:6 }}
             onClick={e=>e.stopPropagation()}>
 
             {/* ВЫБОР ЯЗЫКОВ */}
-            <div style={{ display:'flex',gap:6,alignItems:'center',marginBottom:6 }}>
+            <div style={{ flexShrink:0,display:'flex',gap:6,alignItems:'center' }}>
               <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenR(false); }}>
                 <LangPicker value={myLang} open={openL} onOpen={setOpenL} onChange={v=>{ if(!locked){ setMyLang(v); reset(); } }}/>
               </div>
               <motion.button whileTap={{ scale:0.82 }} onClick={swapLangs}
-                style={{ width:34,height:34,borderRadius:10,
-                  background:locked?'rgba(255,255,255,0.03)':`${accent}15`,
-                  border:`1px solid ${locked?LINE:accent+'33'}`,
-                  color:locked?SUB:accent,fontSize:16,cursor:locked?'not-allowed':'pointer',
-                  display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>⇄</motion.button>
+                style={{ width:34,height:34,borderRadius:10,background:locked?'rgba(255,255,255,0.03)':`${accent}15`,
+                  border:`1px solid ${locked?LINE:accent+'33'}`,color:locked?SUB:accent,fontSize:16,
+                  cursor:locked?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>⇄</motion.button>
               <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenL(false); }}>
                 <LangPicker value={theirLang} open={openR} onOpen={setOpenR} onChange={v=>{ if(!locked){ setTheirLang(v); reset(); } }}/>
               </div>
               <motion.button whileTap={{ scale:0.88 }} onClick={()=>setLocked(v=>!v)}
-                style={{ width:34,height:34,borderRadius:10,
-                  background:locked?`${accent}18`:'rgba(255,255,255,0.04)',
-                  border:`1px solid ${locked?accent+'44':LINE}`,
-                  color:locked?accent:SUB,fontSize:14,cursor:'pointer',
+                style={{ width:34,height:34,borderRadius:10,background:locked?`${accent}18`:'rgba(255,255,255,0.04)',
+                  border:`1px solid ${locked?accent+'44':LINE}`,color:locked?accent:SUB,fontSize:14,cursor:'pointer',
                   display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
                 {locked?'🔒':'🔓'}
               </motion.button>
             </div>
 
-            {/* КНОПКА НАПИСАТЬ */}
-            <motion.button whileTap={{ scale:0.96 }}
-              onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
-              style={{ width:'100%',padding:'11px 8px',borderRadius:10,cursor:'pointer',fontFamily:FF,marginBottom:8,
-                background:`${accent}12`,border:`1.5px solid ${accent}33`,color:accent,fontSize:12,fontWeight:800 }}>
-              {t('write')}
-            </motion.button>
-
-            {/* ══ ЛЕНТА ДИАЛОГА ══ */}
-            {messages.length>0&&(
-              <div style={{ marginBottom:8,borderRadius:12,border:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)',overflow:'hidden' }}>
-                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 10px',borderBottom:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)' }}>
+            {/* ══ ОКНО ДИАЛОГА — фиксированное, только внутри скроллится ══ */}
+            <div style={{ flexShrink:0,borderRadius:12,border:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)',overflow:'hidden',display:'flex',flexDirection:'column' }}>
+              {/* шапка диалога */}
+              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'5px 10px',borderBottom:`1px solid ${LINE}`,background:'rgba(255,255,255,0.02)',flexShrink:0 }}>
+                <div style={{ display:'flex',alignItems:'center',gap:6 }}>
                   <span style={{ fontSize:9,color:SUB,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' }}>💬 Диалог</span>
-                  <motion.button whileTap={{ scale:0.88 }} onClick={clearDialog}
-                    style={{ fontSize:9,color:SUB,background:'none',border:'none',cursor:'pointer',padding:'2px 6px',borderRadius:6,fontFamily:FF }}>
-                    {t('clearDialog')} ✕
-                  </motion.button>
+                  {/* живой статус речи в шапке */}
+                  {(interim||(listening&&!spokenText))&&(
+                    <motion.span animate={{ opacity:[1,0.3,1] }} transition={{ repeat:Infinity,duration:0.7 }}
+                      style={{ fontSize:9,color:GREEN,fontWeight:700 }}>● {interim||'...'}</motion.span>
+                  )}
+                  {spokenText&&!interim&&translSpoken&&(
+                    <span style={{ fontSize:9,color:GREEN,fontWeight:700,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{translSpoken}</span>
+                  )}
                 </div>
-                <div style={{ maxHeight:220,overflowY:'auto',WebkitOverflowScrolling:'touch' as any,display:'flex',flexDirection:'column',gap:8,padding:'8px 10px',scrollbarWidth:'thin' as any,scrollbarColor:'rgba(255,255,255,0.1) transparent' }}>
-                  <AnimatePresence initial={false}>
-                    {messages.map(msg=>{
-                      const isMine=msg.side==='mine';
-                      const fromL=getLang(msg.fromLang), toL=getLang(msg.toLang);
-                      return (
-                        <motion.div key={msg.id}
-                          initial={{ opacity:0,y:10,scale:0.95 }} animate={{ opacity:1,y:0,scale:1 }} transition={{ duration:0.22 }}
-                          style={{ display:'flex',flexDirection:'column',alignItems:isMine?'flex-end':'flex-start' }}>
-                          <div style={{ display:'flex',alignItems:'center',gap:4,marginBottom:3,fontSize:9,color:SUB,fontWeight:700,flexDirection:isMine?'row-reverse':'row' }}>
-                            <span>{fromL.flag} {fromL.name}</span><span style={{ opacity:0.35 }}>→</span><span>{toL.flag} {toL.name}</span>
-                            <span style={{ opacity:0.3,marginLeft:4 }}>{fmtTime(msg.ts)}</span>
-                          </div>
-                          <div style={{ maxWidth:'82%',borderRadius:isMine?'14px 14px 4px 14px':'14px 14px 14px 4px',padding:'9px 12px',
-                            background:isMine?`linear-gradient(135deg,${accent}33,${accent}1a)`:'rgba(255,255,255,0.06)',
-                            border:`1px solid ${isMine?accent+'44':LINE}` }}>
-                            <div style={{ fontSize:14,fontWeight:800,color:isMine?accent:TEXT,lineHeight:1.5,marginBottom:4 }}>{msg.translated}</div>
-                            {msg.original!==msg.translated&&(
-                              <div style={{ fontSize:10,color:SUB,fontStyle:'italic',lineHeight:1.4 }}>{fromL.flag} {msg.original}</div>
-                            )}
-                          </div>
-                          <motion.button whileTap={{ scale:0.85 }} onClick={()=>speakText(msg.translated,msg.toLang)}
-                            style={{ marginTop:3,width:24,height:24,borderRadius:'50%',background:'rgba(255,255,255,0.05)',border:`1px solid ${LINE}`,color:SUB,fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>🔊</motion.button>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                  <div ref={dialogEndRef}/>
-                </div>
-              </div>
-            )}
-
-            {/* ЖИВОЙ БЛОК СЛУШАЮ */}
-            {(interim||(listening&&!spokenText))&&(
-              <div style={{ borderRadius:12,border:`1px solid ${LINE}`,background:CARD,marginBottom:8,padding:'10px 12px' }}>
-                <div style={{ fontSize:9,color:SUB,fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:6 }}>
-                  {theirL.flag} {theirL.name} → {myL.flag} {myL.name}
-                </div>
-                <div style={{ fontSize:13,color:SUB,fontStyle:'italic',lineHeight:1.6 }}>{interim||t('speakHere')}</div>
-              </div>
-            )}
-            {spokenText&&!interim&&(
-              <div style={{ borderRadius:12,border:'1px solid rgba(14,203,129,0.25)',background:'rgba(14,203,129,0.05)',marginBottom:8,padding:'10px 12px' }}>
-                <div style={{ fontSize:9,color:SUB,fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:6 }}>{theirL.flag} {theirL.name}</div>
-                {translSpoken?(
-                  <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:16,fontWeight:900,color:GREEN,lineHeight:1.5 }}>{translSpoken}</div>
-                      {theirLang!==myLang&&<div style={{ fontSize:10,color:SUB,marginTop:3,fontStyle:'italic' }}>{theirL.flag} {spokenText}</div>}
-                    </div>
+                <div style={{ display:'flex',alignItems:'center',gap:4 }}>
+                  {spokenText&&translSpoken&&(
                     <motion.button whileTap={{ scale:0.88 }} onClick={()=>speakText(translSpoken,myLang)}
-                      style={{ width:32,height:32,borderRadius:'50%',background:`${GREEN}20`,border:`1px solid ${GREEN}44`,color:GREEN,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>🔊</motion.button>
-                  </div>
-                ):(
-                  <div style={{ fontSize:13,color:SUB,fontStyle:'italic' }}>⏳ {spokenText}</div>
-                )}
+                      style={{ width:20,height:20,borderRadius:'50%',background:`${GREEN}20`,border:`1px solid ${GREEN}44`,color:GREEN,fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>🔊</motion.button>
+                  )}
+                  {messages.length>0&&(
+                    <motion.button whileTap={{ scale:0.88 }} onClick={clearDialog}
+                      style={{ fontSize:9,color:SUB,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',borderRadius:6,fontFamily:FF }}>
+                      {t('clearDialog')} ✕
+                    </motion.button>
+                  )}
+                </div>
               </div>
-            )}
+              {/* сообщения — 155px, внутренний скролл */}
+              <div style={{ height:155,overflowY:'auto',WebkitOverflowScrolling:'touch' as any,
+                display:'flex',flexDirection:'column',gap:7,padding:'7px 10px',
+                scrollbarWidth:'thin' as any,scrollbarColor:'rgba(255,255,255,0.1) transparent' }}>
+                {messages.length===0&&(
+                  <div style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:SUB,fontSize:11,fontStyle:'italic',opacity:0.5 }}>
+                    {theirL.flag} → {myL.flag} &nbsp; Диалог появится здесь
+                  </div>
+                )}
+                <AnimatePresence initial={false}>
+                  {messages.map(msg=>{
+                    const isMine=msg.side==='mine';
+                    const fromL=getLang(msg.fromLang), toL=getLang(msg.toLang);
+                    return (
+                      <motion.div key={msg.id}
+                        initial={{ opacity:0,y:8,scale:0.97 }} animate={{ opacity:1,y:0,scale:1 }} transition={{ duration:0.18 }}
+                        style={{ display:'flex',flexDirection:'column',alignItems:isMine?'flex-end':'flex-start' }}>
+                        <div style={{ display:'flex',alignItems:'center',gap:4,marginBottom:2,fontSize:8,color:SUB,fontWeight:700,flexDirection:isMine?'row-reverse':'row' }}>
+                          <span>{fromL.flag}</span><span style={{ opacity:0.3 }}>→</span><span>{toL.flag}</span>
+                          <span style={{ opacity:0.3 }}>{fmtTime(msg.ts)}</span>
+                        </div>
+                        <div style={{ maxWidth:'85%',borderRadius:isMine?'12px 12px 3px 12px':'12px 12px 12px 3px',padding:'7px 10px',
+                          background:isMine?`linear-gradient(135deg,${accent}33,${accent}1a)`:'rgba(255,255,255,0.06)',
+                          border:`1px solid ${isMine?accent+'44':LINE}` }}>
+                          <div style={{ fontSize:13,fontWeight:800,color:isMine?accent:TEXT,lineHeight:1.4 }}>{msg.translated}</div>
+                          {msg.original!==msg.translated&&(
+                            <div style={{ fontSize:9,color:SUB,fontStyle:'italic',marginTop:2 }}>{fromL.flag} {msg.original}</div>
+                          )}
+                        </div>
+                        <motion.button whileTap={{ scale:0.85 }} onClick={()=>speakText(msg.translated,msg.toLang)}
+                          style={{ marginTop:2,width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,0.05)',border:`1px solid ${LINE}`,color:SUB,fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>🔊</motion.button>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+                <div ref={dialogEndRef}/>
+              </div>
+            </div>
 
-            {/* ПОЛЕ ВВОДА */}
-            <div style={{ borderRadius:12,border:`1px solid ${LINE}`,background:CARD,marginBottom:6,overflow:'hidden' }}>
+            {/* ПОЛЕ ВВОДА + ПЕРЕВОД */}
+            <div style={{ flexShrink:0,borderRadius:12,border:`1px solid ${LINE}`,background:CARD,overflow:'hidden' }}>
               <div style={{ display:'flex',alignItems:'flex-start' }}>
                 <textarea ref={inputRef} value={inputText} onChange={e=>{ setInputText(e.target.value); setOutputText(''); }} placeholder={t('ph')}
-                  style={{ flex:1,minHeight:60,padding:'10px 12px',background:'transparent',border:'none',outline:'none',color:TEXT,fontSize:14,fontFamily:FF,resize:'none',lineHeight:1.6,boxSizing:'border-box' }}/>
+                  style={{ flex:1,height:52,padding:'8px 10px',background:'transparent',border:'none',outline:'none',color:TEXT,fontSize:13,fontFamily:FF,resize:'none',lineHeight:1.5,boxSizing:'border-box' }}/>
                 {inputText&&(
                   <motion.button whileTap={{ scale:0.88 }} onClick={()=>{ setInputText(''); setOutputText(''); }}
-                    style={{ width:26,height:26,margin:'9px 9px 0 0',borderRadius:'50%',background:'rgba(246,70,93,0.12)',border:'1px solid rgba(246,70,93,0.25)',color:RED,fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>✕</motion.button>
+                    style={{ width:24,height:24,margin:'7px 7px 0 0',borderRadius:'50%',background:'rgba(246,70,93,0.12)',border:'1px solid rgba(246,70,93,0.25)',color:RED,fontSize:10,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>✕</motion.button>
                 )}
               </div>
               {(outputText||translating)&&(
-                <div style={{ borderTop:`1px solid ${LINE}`,padding:'8px 12px',background:'rgba(255,255,255,0.02)',display:'flex',alignItems:'center',gap:8 }}>
+                <div style={{ borderTop:`1px solid ${LINE}`,padding:'6px 10px',background:'rgba(255,255,255,0.02)',display:'flex',alignItems:'center',gap:6 }}>
                   <div style={{ flex:1 }}>
-                    {translating?<div style={{ color:SUB,fontSize:11,fontStyle:'italic' }}>{t('translating')}</div>
-                      :<div style={{ fontSize:15,fontWeight:800,color:accent,lineHeight:1.5 }}>{outputText}</div>}
+                    {translating
+                      ?<div style={{ color:SUB,fontSize:10,fontStyle:'italic' }}>{t('translating')}</div>
+                      :<div style={{ fontSize:13,fontWeight:800,color:accent,lineHeight:1.4 }}>{outputText}</div>}
                   </div>
                   {!translating&&outputText&&(
                     <motion.button whileTap={{ scale:0.88 }} onClick={()=>speakText(outputText,theirLang)}
-                      style={{ width:32,height:32,borderRadius:'50%',background:`${accent}20`,border:`1px solid ${accent}44`,color:accent,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>🔊</motion.button>
+                      style={{ width:28,height:28,borderRadius:'50%',background:`${accent}20`,border:`1px solid ${accent}44`,color:accent,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>🔊</motion.button>
                   )}
                 </div>
               )}
             </div>
 
-            {/* КНОПКА ПЕРЕВЕСТИ */}
-            <motion.button whileTap={{ scale:0.97 }} onClick={handleTranslateAndSpeak} disabled={!inputText.trim()||translating}
-              style={{ width:'100%',padding:'13px',borderRadius:12,cursor:inputText.trim()?'pointer':'not-allowed',
-                background:inputText.trim()?`linear-gradient(135deg,${accent},${accent}bb)`:'rgba(255,255,255,0.04)',
-                border:`1.5px solid ${inputText.trim()?accent+'66':LINE}`,color:inputText.trim()?'#fff':SUB,
-                fontSize:14,fontWeight:900,fontFamily:FF,letterSpacing:'0.02em',marginBottom:10,
-                display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-                boxShadow:inputText.trim()?`0 4px 20px ${accent}44`:'none',transition:'all 0.2s' }}>
-              {translating?`⏳ ${t('translating')}`:t('translate')}
-            </motion.button>
+            {/* КНОПКИ: НАПИСАТЬ + ПЕРЕВЕСТИ */}
+            <div style={{ flexShrink:0,display:'flex',gap:6 }}>
+              <motion.button whileTap={{ scale:0.96 }}
+                onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
+                style={{ flex:'0 0 auto',padding:'10px 14px',borderRadius:10,cursor:'pointer',fontFamily:FF,
+                  background:`${accent}12`,border:`1.5px solid ${accent}33`,color:accent,fontSize:12,fontWeight:800 }}>
+                {t('write')}
+              </motion.button>
+              <motion.button whileTap={{ scale:0.97 }} onClick={handleTranslateAndSpeak} disabled={!inputText.trim()||translating}
+                style={{ flex:1,padding:'10px',borderRadius:10,cursor:inputText.trim()?'pointer':'not-allowed',
+                  background:inputText.trim()?`linear-gradient(135deg,${accent},${accent}bb)`:'rgba(255,255,255,0.04)',
+                  border:`1.5px solid ${inputText.trim()?accent+'66':LINE}`,color:inputText.trim()?'#fff':SUB,
+                  fontSize:12,fontWeight:900,fontFamily:FF,
+                  boxShadow:inputText.trim()?`0 3px 14px ${accent}44`:'none',transition:'all 0.2s' }}>
+                {translating?`⏳`:t('translate')}
+              </motion.button>
+            </div>
 
             {/* ══ ПАПКИ ФРАЗ ══ */}
-            <div style={{ marginBottom:10 }}>
+            <div style={{ flexShrink:0,minHeight:0,display:'flex',flexDirection:'column',gap:5 }}>
               {/* Метка */}
-              <div style={{ fontSize:9,color:SUB,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:6 }}>
-                📂 Готовые фразы
-              </div>
-
-              {/* Табы папок — горизонтальный скролл */}
-              <div style={{ display:'flex',gap:5,overflowX:'auto',marginBottom:8,padding:'2px 0',scrollbarWidth:'none' as any }}>
+              <div style={{ fontSize:9,color:SUB,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' }}>📂 Готовые фразы</div>
+              {/* Табы */}
+              <div style={{ display:'flex',gap:5,overflowX:'auto',padding:'1px 0',scrollbarWidth:'none' as any }}>
                 {PRESET_FOLDERS.map(folder=>(
-                  <motion.button key={folder.id} whileTap={{ scale:0.92 }}
-                    onClick={()=>setActiveFolder(folder.id)}
-                    style={{ padding:'6px 10px',borderRadius:20,flexShrink:0,cursor:'pointer',fontFamily:FF,
+                  <motion.button key={folder.id} whileTap={{ scale:0.92 }} onClick={()=>setActiveFolder(folder.id)}
+                    style={{ padding:'5px 9px',borderRadius:20,flexShrink:0,cursor:'pointer',fontFamily:FF,
                       background:activeFolder===folder.id?`${accent}22`:'rgba(255,255,255,0.05)',
                       border:`1.5px solid ${activeFolder===folder.id?accent+'55':LINE}`,
-                      color:activeFolder===folder.id?accent:SUB,fontSize:11,fontWeight:700,
-                      whiteSpace:'nowrap',transition:'all 0.15s' }}>
+                      color:activeFolder===folder.id?accent:SUB,fontSize:10,fontWeight:700,whiteSpace:'nowrap',transition:'all 0.15s' }}>
                     {folder.icon} {folder.label}
                   </motion.button>
                 ))}
-                {/* Моя папка */}
-                <motion.button whileTap={{ scale:0.92 }}
-                  onClick={()=>setActiveFolder('mine')}
-                  style={{ padding:'6px 10px',borderRadius:20,flexShrink:0,cursor:'pointer',fontFamily:FF,
+                <motion.button whileTap={{ scale:0.92 }} onClick={()=>setActiveFolder('mine')}
+                  style={{ padding:'5px 9px',borderRadius:20,flexShrink:0,cursor:'pointer',fontFamily:FF,
                     background:activeFolder==='mine'?`${accent}22`:'rgba(255,255,255,0.05)',
                     border:`1.5px solid ${activeFolder==='mine'?accent+'55':LINE}`,
-                    color:activeFolder==='mine'?accent:SUB,fontSize:11,fontWeight:700,
-                    whiteSpace:'nowrap',transition:'all 0.15s' }}>
+                    color:activeFolder==='mine'?accent:SUB,fontSize:10,fontWeight:700,whiteSpace:'nowrap',transition:'all 0.15s' }}>
                   {t('myFolder')}
                 </motion.button>
               </div>
-
-              {/* Содержимое папки */}
-              <AnimatePresence mode="wait">
-                <motion.div key={activeFolder} initial={{ opacity:0,y:4 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} transition={{ duration:0.15 }}>
-
-                  {!isMineFolder&&activeFolderData&&(
-                    <div style={{ display:'flex',flexWrap:'wrap',gap:5 }}>
-                      {activeFolderData.phrases.map(phrase=>(
-                        <motion.button key={phrase} whileTap={{ scale:0.91 }}
-                          onClick={()=>handlePhraseClick(phrase)}
-                          style={{ padding:'7px 12px',borderRadius:20,border:`1px solid ${LINE}`,
-                            background:'rgba(255,255,255,0.05)',color:TEXT,fontSize:11,fontWeight:700,
-                            cursor:'pointer',fontFamily:FF }}>
-                          {phrase}
-                        </motion.button>
-                      ))}
-                    </div>
-                  )}
-
-                  {isMineFolder&&(
-                    <div>
-                      {/* Фразы пользователя */}
-                      {myPhrases.length===0&&!addingPhrase&&(
-                        <div style={{ fontSize:11,color:SUB,fontStyle:'italic',textAlign:'center',padding:'10px 0' }}>
-                          {t('emptyFolder')}
-                        </div>
-                      )}
-                      <div style={{ display:'flex',flexWrap:'wrap',gap:5,marginBottom:myPhrases.length>0?8:0 }}>
-                        {myPhrases.map((phrase,idx)=>(
-                          <div key={idx} style={{ display:'flex',alignItems:'center',gap:0 }}>
-                            <motion.button whileTap={{ scale:0.91 }}
-                              onClick={()=>handlePhraseClick(phrase)}
-                              style={{ padding:'7px 12px',borderRadius:'20px 0 0 20px',border:`1px solid ${LINE}`,borderRight:'none',
-                                background:'rgba(255,255,255,0.05)',color:TEXT,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:FF }}>
-                              {phrase}
-                            </motion.button>
-                            <motion.button whileTap={{ scale:0.88 }} onClick={()=>deleteMyPhrase(idx)}
-                              style={{ padding:'7px 7px',borderRadius:'0 20px 20px 0',border:`1px solid ${LINE}`,
-                                background:'rgba(246,70,93,0.08)',color:RED,fontSize:10,cursor:'pointer' }}>✕</motion.button>
-                          </div>
+              {/* Содержимое папки — фиксированная высота, скролл внутри */}
+              <div style={{ height:88,overflowY:'auto',WebkitOverflowScrolling:'touch' as any,scrollbarWidth:'none' as any }}>
+                <AnimatePresence mode="wait">
+                  <motion.div key={activeFolder} initial={{ opacity:0,y:3 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} transition={{ duration:0.12 }}>
+                    {!isMineFolder&&activeFolderData&&(
+                      <div style={{ display:'flex',flexWrap:'wrap',gap:5 }}>
+                        {activeFolderData.phrases.map(phrase=>(
+                          <motion.button key={phrase} whileTap={{ scale:0.91 }} onClick={()=>handlePhraseClick(phrase)}
+                            style={{ padding:'6px 11px',borderRadius:20,border:`1px solid ${LINE}`,
+                              background:'rgba(255,255,255,0.05)',color:TEXT,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:FF }}>
+                            {phrase}
+                          </motion.button>
                         ))}
                       </div>
-
-                      {/* Добавление фразы */}
-                      {addingPhrase?(
-                        <div style={{ display:'flex',gap:5,alignItems:'center' }}>
-                          <input ref={newPhraseRef} value={newPhraseText}
-                            onChange={e=>setNewPhraseText(e.target.value)}
-                            onKeyDown={e=>{ if(e.key==='Enter') saveNewPhrase(); if(e.key==='Escape'){ setAddingPhrase(false); setNewPhraseText(''); } }}
-                            placeholder={t('phInput')}
-                            style={{ flex:1,padding:'8px 12px',borderRadius:10,background:'rgba(255,255,255,0.06)',
-                              border:`1px solid ${accent}55`,color:TEXT,fontSize:12,fontFamily:FF,outline:'none' }}
-                            autoFocus/>
-                          <motion.button whileTap={{ scale:0.9 }} onClick={saveNewPhrase}
-                            style={{ padding:'8px 12px',borderRadius:10,background:`${accent}22`,border:`1px solid ${accent}44`,color:accent,fontSize:12,fontWeight:800,cursor:'pointer' }}>✓</motion.button>
-                          <motion.button whileTap={{ scale:0.9 }} onClick={()=>{ setAddingPhrase(false); setNewPhraseText(''); }}
-                            style={{ padding:'8px 10px',borderRadius:10,background:'rgba(246,70,93,0.1)',border:`1px solid ${RED}33`,color:RED,fontSize:12,cursor:'pointer' }}>✕</motion.button>
+                    )}
+                    {isMineFolder&&(
+                      <div>
+                        {myPhrases.length===0&&!addingPhrase&&(
+                          <div style={{ fontSize:11,color:SUB,fontStyle:'italic',textAlign:'center',padding:'8px 0' }}>{t('emptyFolder')}</div>
+                        )}
+                        <div style={{ display:'flex',flexWrap:'wrap',gap:5,marginBottom:myPhrases.length>0?6:0 }}>
+                          {myPhrases.map((phrase,idx)=>(
+                            <div key={idx} style={{ display:'flex',alignItems:'center' }}>
+                              <motion.button whileTap={{ scale:0.91 }} onClick={()=>handlePhraseClick(phrase)}
+                                style={{ padding:'6px 11px',borderRadius:'20px 0 0 20px',border:`1px solid ${LINE}`,borderRight:'none',
+                                  background:'rgba(255,255,255,0.05)',color:TEXT,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:FF }}>
+                                {phrase}
+                              </motion.button>
+                              <motion.button whileTap={{ scale:0.88 }} onClick={()=>deleteMyPhrase(idx)}
+                                style={{ padding:'6px 7px',borderRadius:'0 20px 20px 0',border:`1px solid ${LINE}`,
+                                  background:'rgba(246,70,93,0.08)',color:RED,fontSize:10,cursor:'pointer' }}>✕</motion.button>
+                            </div>
+                          ))}
                         </div>
-                      ):(
-                        <motion.button whileTap={{ scale:0.94 }} onClick={()=>setAddingPhrase(true)}
-                          style={{ padding:'7px 14px',borderRadius:20,border:`1.5px dashed ${accent}44`,
-                            background:'transparent',color:accent,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:FF }}>
-                          {t('addPhrase')}
-                        </motion.button>
-                      )}
-                    </div>
-                  )}
-
-                </motion.div>
-              </AnimatePresence>
+                        {addingPhrase?(
+                          <div style={{ display:'flex',gap:5,alignItems:'center' }}>
+                            <input ref={newPhraseRef} value={newPhraseText}
+                              onChange={e=>setNewPhraseText(e.target.value)}
+                              onKeyDown={e=>{ if(e.key==='Enter') saveNewPhrase(); if(e.key==='Escape'){ setAddingPhrase(false); setNewPhraseText(''); } }}
+                              placeholder={t('phInput')}
+                              style={{ flex:1,padding:'6px 10px',borderRadius:10,background:'rgba(255,255,255,0.06)',
+                                border:`1px solid ${accent}55`,color:TEXT,fontSize:12,fontFamily:FF,outline:'none' }}
+                              autoFocus/>
+                            <motion.button whileTap={{ scale:0.9 }} onClick={saveNewPhrase}
+                              style={{ padding:'6px 10px',borderRadius:10,background:`${accent}22`,border:`1px solid ${accent}44`,color:accent,fontSize:12,fontWeight:800,cursor:'pointer' }}>✓</motion.button>
+                            <motion.button whileTap={{ scale:0.9 }} onClick={()=>{ setAddingPhrase(false); setNewPhraseText(''); }}
+                              style={{ padding:'6px 8px',borderRadius:10,background:'rgba(246,70,93,0.1)',border:`1px solid ${RED}33`,color:RED,fontSize:12,cursor:'pointer' }}>✕</motion.button>
+                          </div>
+                        ):(
+                          <motion.button whileTap={{ scale:0.94 }} onClick={()=>setAddingPhrase(true)}
+                            style={{ padding:'6px 12px',borderRadius:20,border:`1.5px dashed ${accent}44`,
+                              background:'transparent',color:accent,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:FF }}>
+                            {t('addPhrase')}
+                          </motion.button>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
 
             {/* SOS */}
-            <motion.button whileTap={{ scale:0.97 }} onClick={handleSOS}
-              animate={{ boxShadow:sosPending?['0 0 0px rgba(246,70,93,0)','0 0 28px rgba(246,70,93,0.9)','0 0 0px rgba(246,70,93,0)']:'0 4px 18px rgba(246,70,93,0.35)' }}
-              transition={{ repeat:sosPending?Infinity:0,duration:0.55 }}
-              style={{ width:'100%',padding:'15px',borderRadius:14,cursor:'pointer',
-                background:`linear-gradient(135deg,${RED},#b01222)`,
-                border:`2px solid ${RED}`,color:'#fff',fontSize:15,fontWeight:900,fontFamily:FF,
-                letterSpacing:'0.03em',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:6 }}>
-              {t('sos')}
-            </motion.button>
-            <div style={{ textAlign:'center',fontSize:10,color:SUB,lineHeight:1.5 }}>3 сигнала → голос на языке собеседника</div>
+            <div style={{ flexShrink:0 }}>
+              <motion.button whileTap={{ scale:0.97 }} onClick={handleSOS}
+                animate={{ boxShadow:sosPending?['0 0 0px rgba(246,70,93,0)','0 0 24px rgba(246,70,93,0.9)','0 0 0px rgba(246,70,93,0)']:'0 3px 14px rgba(246,70,93,0.35)' }}
+                transition={{ repeat:sosPending?Infinity:0,duration:0.55 }}
+                style={{ width:'100%',padding:'12px',borderRadius:12,cursor:'pointer',
+                  background:`linear-gradient(135deg,${RED},#b01222)`,
+                  border:`2px solid ${RED}`,color:'#fff',fontSize:14,fontWeight:900,fontFamily:FF,
+                  letterSpacing:'0.03em',display:'flex',alignItems:'center',justifyContent:'center',gap:8 }}>
+                {t('sos')}
+              </motion.button>
+            </div>
+
           </div>
         </div>
       </div>
