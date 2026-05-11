@@ -421,7 +421,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
       r.onresult = (e: any) => {
         if (!activeRef.current) return;
         let fin = '', tmp = '';
-        for (let i = 0; i < e.results.length; i++) {
+        /* e.resultIndex — начало новых результатов, не перечитываем старые */
+        for (let i = e.resultIndex; i < e.results.length; i++) {
           if (e.results[i].isFinal) fin += e.results[i][0].transcript;
           else tmp += e.results[i][0].transcript;
         }
