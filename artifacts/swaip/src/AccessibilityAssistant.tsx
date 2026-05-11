@@ -398,7 +398,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
       r.lang            = getLang(theirLang).tts; /* язык СОБЕСЕДНИКА */
       r.interimResults  = true;
-      r.continuous      = false;  /* НЕ continuous — Android ведёт себя правильно */
+      r.continuous      = true;   /* держим сессию открытой — не рвём на части */
       r.maxAlternatives = 1;
 
       r.onresult = (e: any) => {
@@ -416,6 +416,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             : trimmed;
           setSpokenText(accumRef.current);
           setInterim('');
+          /* Сбрасываем таймер тишины каждый раз при новом слове */
           if (silenceRef.current) clearTimeout(silenceRef.current);
           silenceRef.current = setTimeout(()=>{
             activeRef.current = false;
@@ -427,19 +428,16 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
       r.onerror = (e: any) => {
         setInterim('');
-        if (activeRef.current && (e.error === 'no-speech' || e.error === 'aborted')) {
-          setTimeout(runSession, 100);
-        } else {
-          activeRef.current = false;
-          setListening(false);
-        }
+        /* Не перезапускаем — пусть пользователь жмёт «Слушать» сам */
+        activeRef.current = false;
+        setListening(false);
       };
 
       r.onend = () => {
         setInterim('');
         recogRef.current = null;
-        if (activeRef.current) setTimeout(runSession, 80);
-        else setListening(false);
+        /* Не перезапускаем автоматически */
+        setListening(false);
       };
 
       try { r.start(); } catch (_) {}
