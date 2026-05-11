@@ -421,7 +421,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             activeRef.current = false;
             if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
             setListening(false);
-          }, 3000);
+          }, 6000);
         }
       };
 
