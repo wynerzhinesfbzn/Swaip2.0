@@ -132,12 +132,19 @@ function speakViaProxy(text: string, ttsLang: string, apiBase: string) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   const url = `${apiBase}/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(ttsLang)}`;
   const audio = new Audio(url);
-  audio.volume = 1.0;
+  audio.crossOrigin = 'anonymous';
   currentAudio = audio;
-  audio.play().catch(() => {
-    /* Fallback: Web Speech API */
-    speakWebSpeech(text, ttsLang);
-  });
+  /* Web Audio усилитель: 2.5× громче стационарно */
+  audio.addEventListener('canplay', ()=>{
+    try {
+      const ctx = new AudioContext();
+      const src  = ctx.createMediaElementSource(audio);
+      const gain = ctx.createGain();
+      gain.gain.value = 2.5;
+      src.connect(gain); gain.connect(ctx.destination);
+    } catch {}
+  }, { once: true });
+  audio.play().catch(() => { speakWebSpeech(text, ttsLang); });
 }
 
 function speakWebSpeech(text: string, ttsLang: string, voices: SpeechSynthesisVoice[] = []) {
@@ -362,11 +369,21 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     setSpeaking(true);
     const url = `${apiBase}/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(ttsLang)}`;
     const audio = new Audio(url);
-    audio.volume = 1.0;
+    audio.crossOrigin = 'anonymous';
     currentAudio = audio;
     const done = () => { setSpeaking(false); if (currentAudio === audio) currentAudio = null; };
-    audio.onended  = done;
-    audio.onerror  = () => { done(); speakWebSpeech(text, ttsLang, voicesRef.current); };
+    audio.onended = done;
+    audio.onerror = () => { done(); speakWebSpeech(text, ttsLang, voicesRef.current); };
+    /* Web Audio усилитель: 2.5× громче стационарно */
+    audio.addEventListener('canplay', ()=>{
+      try {
+        const ctx  = new AudioContext();
+        const src  = ctx.createMediaElementSource(audio);
+        const gain = ctx.createGain();
+        gain.gain.value = 2.5;
+        src.connect(gain); gain.connect(ctx.destination);
+      } catch {}
+    }, { once: true });
     audio.play().catch(() => { done(); speakWebSpeech(text, ttsLang, voicesRef.current); });
   }, [apiBase]);
 
