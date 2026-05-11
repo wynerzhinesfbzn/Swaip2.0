@@ -501,7 +501,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             </motion.button>
 
             {/* ══ ДИАЛОГ — flex:1, растягивается, внутри скролл ══ */}
-            <div style={{ flex:1,minHeight:0,borderRadius:12,border:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)',overflow:'hidden',display:'flex',flexDirection:'column' }}>
+            <div style={{ flex:1,minHeight:110,borderRadius:12,border:`1px solid ${LINE}`,background:'rgba(255,255,255,0.03)',overflow:'hidden',display:'flex',flexDirection:'column' }}>
               {/* Шапка диалога */}
               <div style={{ flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 10px',borderBottom:`1px solid ${LINE}`,background:'rgba(255,255,255,0.02)' }}>
                 <div style={{ display:'flex',alignItems:'center',gap:6 }}>
