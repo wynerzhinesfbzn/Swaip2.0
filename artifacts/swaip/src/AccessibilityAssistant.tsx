@@ -261,6 +261,13 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [newPhraseText, setNewPhraseText] = useState('');
   const newPhraseRef = useRef<HTMLInputElement>(null);
 
+  const [zoomLevel, setZoomLevel] = useState<number>(()=>{ try{ return parseFloat(localStorage.getItem('acc_zoom')||'1')||1; }catch{ return 1; } });
+  const pinchRef = useRef<{ dist:number; zoom:number }|null>(null);
+  const getTouchDist = (t:React.TouchList) => { const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); };
+  const onPinchStart = (e:React.TouchEvent) => { if(e.touches.length===2) pinchRef.current={ dist:getTouchDist(e.touches), zoom:zoomLevel }; };
+  const onPinchMove  = (e:React.TouchEvent) => { if(e.touches.length===2 && pinchRef.current){ const s=getTouchDist(e.touches)/pinchRef.current.dist; setZoomLevel(Math.min(2.0,Math.max(0.6,pinchRef.current.zoom*s))); } };
+  const onPinchEnd   = () => { if(pinchRef.current){ try{ localStorage.setItem('acc_zoom', String(zoomLevel)); }catch{} pinchRef.current=null; } };
+
   const recogRef      = useRef<SpeechAny>(null);
   const silenceRef    = useRef<ReturnType<typeof setTimeout>|null>(null);
   const translTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -494,8 +501,12 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
   return (
     <div style={{ position:'fixed', inset:0, background:BG, color:TEXT, fontFamily:FF,
-      display:'flex', flexDirection:'column', zIndex:300, overflow:'hidden' }}
-      onClick={()=>{ setOpenL(false); setOpenR(false); }}>
+      display:'flex', flexDirection:'column', zIndex:300, overflow:'hidden',
+      zoom: zoomLevel } as React.CSSProperties}
+      onClick={()=>{ setOpenL(false); setOpenR(false); }}
+      onTouchStart={onPinchStart}
+      onTouchMove={onPinchMove}
+      onTouchEnd={onPinchEnd}>
 
       {/* ХЕДЕР */}
       <div style={{ padding:'46px 14px 10px', display:'flex', alignItems:'center', gap:10,
@@ -648,7 +659,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                         {msg.translated}
                       </div>
                       {msg.original !== msg.translated && (
-                        <div style={{ fontSize:10, color:SUB, fontStyle:'italic', marginTop:3, lineHeight:1.4 }}>
+                        <div style={{ fontSize:13, color:SUB, fontStyle:'italic', marginTop:4, lineHeight:1.45 }}>
                           {fromL.flag} {msg.original}
                         </div>
                       )}
