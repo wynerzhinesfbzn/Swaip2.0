@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /* ═══════════ ЯЗЫКИ ═══════════ */
-/* gtrans = код для Google Translate API, tts = код для Google TTS */
 const LANGUAGES = [
   { code:'ru', name:'Русский',     flag:'🇷🇺', gtrans:'ru',    tts:'ru-RU' },
   { code:'en', name:'English',     flag:'🇬🇧', gtrans:'en',    tts:'en-GB' },
@@ -38,7 +37,7 @@ const LANGUAGES = [
 type Lang = typeof LANGUAGES[0];
 function getLang(code: string): Lang { return LANGUAGES.find(l=>l.code===code)||LANGUAGES[0]; }
 
-/* ═══════════ ЛОКАЛИЗАЦИЯ UI — все 30 языков ═══════════ */
+/* ═══════════ ЛОКАЛИЗАЦИЯ UI ═══════════ */
 type K = 'title'|'recognize'|'write'|'translate'|'sos'|'lock'|'translating'|'listening'|'ph'|'hello'|'thanks'|'wait'|'dunno'|'help'|'stop'|'speakHere';
 const UI: Record<string, Record<K,string>> = {
   ru:{ title:'Я СЛЫШУ',       recognize:'🎤 Слушать речь',         write:'✏️ Написать',          translate:'🔊 Перевести и озвучить',   sos:'🆘 ПОДАТЬ СИГНАЛ О ПОМОЩИ', lock:'Зафиксировать языки',   translating:'Перевод...',         listening:'Слушаю...',       ph:'Введите текст...',      hello:'Здравствуйте', thanks:'Спасибо',       wait:'Подождите',      dunno:'Не понимаю',      help:'Помогите мне',  stop:'Стоп',    speakHere:'Говорите — текст появится здесь...' },
@@ -109,7 +108,7 @@ const SOS_MSG: Record<string,string> = {
 };
 function getSosMsg(lang: string): string { return SOS_MSG[lang]||SOS_MSG['en']; }
 
-/* ═══════════ GOOGLE TRANSLATE — все языковые пары ═══════════ */
+/* ═══════════ GOOGLE TRANSLATE ═══════════ */
 async function translateText(text: string, fromCode: string, toCode: string): Promise<string> {
   if (fromCode===toCode || !text.trim()) return text;
   const sl = getLang(fromCode).gtrans;
@@ -118,13 +117,12 @@ async function translateText(text: string, fromCode: string, toCode: string): Pr
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
     const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
     const d = await r.json();
-    /* Ответ: [[[фрагмент, оригинал, ...], ...], ...] */
     const translated = (d[0] as any[])?.map((x:any)=>x[0]).join('') || '';
     return translated || text;
   } catch { return text; }
 }
 
-/* ═══════════ TTS — Google профессиональный голос через прокси ═══════════ */
+/* ═══════════ TTS ═══════════ */
 let currentAudio: HTMLAudioElement|null = null;
 
 function speakViaProxy(text: string, ttsLang: string, apiBase: string) {
@@ -134,10 +132,7 @@ function speakViaProxy(text: string, ttsLang: string, apiBase: string) {
   const audio = new Audio(url);
   audio.volume = 1.0;
   currentAudio = audio;
-  audio.play().catch(() => {
-    /* Fallback: Web Speech API */
-    speakWebSpeech(text, ttsLang);
-  });
+  audio.play().catch(() => { speakWebSpeech(text, ttsLang); });
 }
 
 function speakWebSpeech(text: string, ttsLang: string, voices: SpeechSynthesisVoice[] = []) {
@@ -218,6 +213,15 @@ function LangPicker({ value, onChange, open, onOpen }: {
   );
 }
 
+/* ═══════════ SCALE LIMITS ═══════════ */
+const SCALE_MIN = 1.0;
+const SCALE_MAX = 2.0;
+const SCALE_DEFAULT = 1.0;
+
+function clampScale(v: number) {
+  return Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(v * 20) / 20));
+}
+
 /* ═══════════ ГЛАВНЫЙ КОМПОНЕНТ ═══════════ */
 interface Props { onBack:()=>void; accent:string; apiBase?:string; }
 type SpeechAny = any;
@@ -238,17 +242,54 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [outputText, setOutputText] = useState('');
   const [translating, setTranslating] = useState(false);
   const [sosPending, setSosPending]   = useState(false);
-  const [speaking, setSpeaking]       = useState(false); /* горит зелёная лампочка при TTS */
+  const [speaking, setSpeaking]       = useState(false);
+
+  /* ── МАСШТАБ — сохраняется в localStorage ── */
+  const [scale, setScale] = useState<number>(() => {
+    try {
+      const s = parseFloat(localStorage.getItem('acc_scale') || '');
+      return isNaN(s) ? SCALE_DEFAULT : clampScale(s);
+    } catch { return SCALE_DEFAULT; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('acc_scale', String(scale)); } catch {}
+  }, [scale]);
+
+  /* ── PINCH-TO-ZOOM ── */
+  const pinchRef = useRef<{ dist: number; baseScale: number } | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchRef.current = { dist: Math.hypot(dx, dy), baseScale: scale };
+    }
+  }, [scale]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchRef.current) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const newDist = Math.hypot(dx, dy);
+      const ratio = newDist / pinchRef.current.dist;
+      setScale(clampScale(pinchRef.current.baseScale * ratio));
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    pinchRef.current = null;
+  }, []);
 
   const recogRef      = useRef<SpeechAny>(null);
   const silenceRef    = useRef<ReturnType<typeof setTimeout>|null>(null);
   const translTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const activeRef     = useRef(false);   /* флаг: нужно ли продолжать слушать */
-  const accumRef      = useRef('');      /* накопленный финальный текст (мутируемый) */
+  const activeRef     = useRef(false);
+  const accumRef      = useRef('');
   const inputRef      = useRef<HTMLTextAreaElement>(null);
   const voicesRef     = useRef<SpeechSynthesisVoice[]>([]);
 
-  /* Предзагрузка Web Speech голосов (fallback) */
   useEffect(()=>{
     if (!('speechSynthesis' in window)) return;
     const load = () => { const v=window.speechSynthesis.getVoices(); if(v.length>0) voicesRef.current=v; };
@@ -280,7 +321,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     setMyLang(theirLang); setTheirLang(myLang); reset();
   };
 
-  /* Говорим — бэкенд-прокси Google TTS, fallback Web Speech + зелёная лампочка */
   const speakText = useCallback((text: string, langCode: string) => {
     if (!text.trim()) return;
     const ttsLang = getLang(langCode).tts;
@@ -297,7 +337,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   }, [apiBase]);
 
   const stopAll = useCallback(()=>{
-    /* Сначала выставляем флаг — onend не будет перезапускать сессию */
     activeRef.current = false;
     if (recogRef.current) {
       try { recogRef.current.abort(); } catch {}
@@ -320,15 +359,14 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     activeRef.current = true;
     setListening(true);
 
-    /* ── Запускаем ОДНУ сессию. onend → перезапустит, если activeRef.current ── */
     const runSession = () => {
       if (!activeRef.current) return;
       const r = new SR() as SpeechAny;
       recogRef.current = r;
 
-      r.lang            = getLang(theirLang).tts; /* язык СОБЕСЕДНИКА */
+      r.lang            = getLang(theirLang).tts;
       r.interimResults  = true;
-      r.continuous      = false;  /* НЕ continuous — Android ведёт себя правильно */
+      r.continuous      = false;
       r.maxAlternatives = 1;
 
       r.onresult = (e: any) => {
@@ -340,15 +378,12 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         }
         if (tmp) setInterim(tmp);
         if (fin) {
-          /* Добавляем только новый финальный фрагмент через ref (без накопления в замыкании) */
           const trimmed = fin.trim();
           accumRef.current = accumRef.current
             ? accumRef.current + ' ' + trimmed
             : trimmed;
           setSpokenText(accumRef.current);
           setInterim('');
-
-          /* Таймер тишины: 3 сек без новой речи → остановить */
           if (silenceRef.current) clearTimeout(silenceRef.current);
           silenceRef.current = setTimeout(()=>{
             activeRef.current = false;
@@ -360,7 +395,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
       r.onerror = (e: any) => {
         setInterim('');
-        /* no-speech / aborted — просто перезапускаем сессию */
         if (activeRef.current && (e.error === 'no-speech' || e.error === 'aborted')) {
           setTimeout(runSession, 100);
         } else {
@@ -372,7 +406,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
       r.onend = () => {
         setInterim('');
         recogRef.current = null;
-        /* Перезапускаем сессию, если ещё нужно слушать */
         if (activeRef.current) setTimeout(runSession, 80);
         else setListening(false);
       };
@@ -383,7 +416,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     runSession();
   }, [theirLang, stopAll]);
 
-  /* ── Перевод с дебаунсом 450 мс (ждём паузу в речи, а не каждое слово) ── */
   useEffect(()=>{
     if (!spokenText.trim()) return;
     if (translTimerRef.current) clearTimeout(translTimerRef.current);
@@ -393,7 +425,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     return ()=>{ if (translTimerRef.current) clearTimeout(translTimerRef.current); };
   }, [spokenText, theirLang, myLang]);
 
-  /* ГЛАВНАЯ КНОПКА: перевести + озвучить */
   const handleTranslateAndSpeak = useCallback(async()=>{
     if (!inputText.trim()) return;
     setTranslating(true);
@@ -403,7 +434,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     speakText(tr, theirLang);
   }, [inputText, myLang, theirLang, speakText]);
 
-  /* БЫСТРЫЕ ФРАЗЫ → язык собеседника */
   const quickPhrase = useCallback(async(phrase:string)=>{
     setInputText(phrase); setOutputText('');
     setTranslating(true);
@@ -413,7 +443,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     speakText(tr, theirLang);
   }, [myLang, theirLang, speakText]);
 
-  /* SOS */
   const handleSOS = useCallback(()=>{
     if (sosPending) return;
     setSosPending(true);
@@ -434,241 +463,330 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const theirL = getLang(theirLang);
   const quickPhrases = [t('hello'), t('thanks'), t('wait'), t('dunno'), t('help')];
 
+  /* ── процент масштаба для отображения ── */
+  const scalePercent = Math.round(scale * 100);
+
   return (
-    <div style={{ position:'fixed', inset:0, background:BG, color:TEXT, fontFamily:FF,
-      display:'flex', flexDirection:'column', zIndex:300, overflow:'hidden' }}
-      onClick={()=>{ setOpenL(false); setOpenR(false); }}>
+    <div
+      style={{ position:'fixed', inset:0, background:BG, color:TEXT, fontFamily:FF,
+        display:'flex', flexDirection:'column', zIndex:300, overflow:'hidden' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onClick={()=>{ setOpenL(false); setOpenR(false); }}
+    >
 
-      {/* ХЕДЕР */}
-      <div style={{ padding:'46px 14px 10px', display:'flex', alignItems:'center', gap:10,
-        borderBottom:`1px solid ${LINE}`, background:'rgba(9,9,15,0.98)',
-        backdropFilter:'blur(20px)', flexShrink:0 }}>
-        <motion.button whileTap={{ scale:0.88 }} onClick={()=>{ stopAll(); onBack(); }}
-          style={{ width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.07)',
-            border:`1px solid ${LINE}`, color:TEXT, fontSize:15, cursor:'pointer',
-            display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          ←
-        </motion.button>
-        <div style={{ fontSize:16, fontWeight:900, letterSpacing:'0.05em', flex:1 }}>👁 {t('title')}</div>
+      {/* ── МАСШТАБИРУЕМАЯ ОБЛАСТЬ ── */}
+      <div style={{ flex:1, overflow:'hidden', position:'relative' }}>
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: `${(100 / scale).toFixed(4)}%`,
+          height: `${(100 / scale).toFixed(4)}%`,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
 
-        {/* Зелёная лампочка: идёт распознавание речи */}
-        {listening&&(
-          <motion.div animate={{ opacity:[1,0.2,1] }} transition={{ repeat:Infinity, duration:0.8 }}
-            style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px',
-              borderRadius:20, background:'rgba(14,203,129,0.12)', border:'1px solid rgba(14,203,129,0.35)',
-              fontSize:10, color:GREEN, fontWeight:800 }}>
-            <div style={{ width:7, height:7, borderRadius:'50%', background:GREEN,
-              boxShadow:`0 0 6px ${GREEN}` }}/>
-            {t('listening')}
-          </motion.div>
-        )}
+          {/* ХЕДЕР */}
+          <div style={{ padding:'46px 14px 10px', display:'flex', alignItems:'center', gap:10,
+            borderBottom:`1px solid ${LINE}`, background:'rgba(9,9,15,0.98)',
+            backdropFilter:'blur(20px)', flexShrink:0 }}>
+            <motion.button whileTap={{ scale:0.88 }} onClick={()=>{ stopAll(); onBack(); }}
+              style={{ width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.07)',
+                border:`1px solid ${LINE}`, color:TEXT, fontSize:15, cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              ←
+            </motion.button>
+            <div style={{ fontSize:16, fontWeight:900, letterSpacing:'0.05em', flex:1 }}>👁 {t('title')}</div>
 
-        {/* Зелёная лампочка: играет озвучка */}
-        {speaking&&!listening&&(
-          <motion.div animate={{ opacity:[1,0.2,1] }} transition={{ repeat:Infinity, duration:0.6 }}
-            style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px',
-              borderRadius:20, background:'rgba(14,203,129,0.12)', border:'1px solid rgba(14,203,129,0.35)',
-              fontSize:10, color:GREEN, fontWeight:800 }}>
-            <div style={{ width:7, height:7, borderRadius:'50%', background:GREEN,
-              boxShadow:`0 0 6px ${GREEN}` }}/>
-            🔊
-          </motion.div>
-        )}
-      </div>
+            {listening&&(
+              <motion.div animate={{ opacity:[1,0.2,1] }} transition={{ repeat:Infinity, duration:0.8 }}
+                style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px',
+                  borderRadius:20, background:'rgba(14,203,129,0.12)', border:'1px solid rgba(14,203,129,0.35)',
+                  fontSize:10, color:GREEN, fontWeight:800 }}>
+                <div style={{ width:7, height:7, borderRadius:'50%', background:GREEN, boxShadow:`0 0 6px ${GREEN}` }}/>
+                {t('listening')}
+              </motion.div>
+            )}
 
-      {/* ТЕЛО */}
-      <div style={{ flex:1, overflowY:'auto', WebkitOverflowScrolling:'touch' as any, padding:'10px 12px 16px' }}
-        onClick={e=>e.stopPropagation()}>
-
-        {/* ВЫБОР ЯЗЫКОВ */}
-        <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6 }}>
-          <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenR(false); }}>
-            <LangPicker value={myLang} open={openL} onOpen={setOpenL}
-              onChange={v=>{ if(!locked){ setMyLang(v); reset(); } }}/>
+            {speaking&&!listening&&(
+              <motion.div animate={{ opacity:[1,0.2,1] }} transition={{ repeat:Infinity, duration:0.6 }}
+                style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px',
+                  borderRadius:20, background:'rgba(14,203,129,0.12)', border:'1px solid rgba(14,203,129,0.35)',
+                  fontSize:10, color:GREEN, fontWeight:800 }}>
+                <div style={{ width:7, height:7, borderRadius:'50%', background:GREEN, boxShadow:`0 0 6px ${GREEN}` }}/>
+                🔊
+              </motion.div>
+            )}
           </div>
-          <motion.button whileTap={{ scale:0.82 }} onClick={swapLangs}
-            style={{ width:34, height:34, borderRadius:10,
-              background:locked?'rgba(255,255,255,0.03)':`${accent}15`,
-              border:`1px solid ${locked?LINE:accent+'33'}`,
-              color:locked?SUB:accent, fontSize:16, cursor:locked?'not-allowed':'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            ⇄
-          </motion.button>
-          <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenL(false); }}>
-            <LangPicker value={theirLang} open={openR} onOpen={setOpenR}
-              onChange={v=>{ if(!locked){ setTheirLang(v); reset(); } }}/>
-          </div>
-          <motion.button whileTap={{ scale:0.88 }} onClick={()=>setLocked(v=>!v)}
-            style={{ width:34, height:34, borderRadius:10,
-              background:locked?`${accent}18`:'rgba(255,255,255,0.04)',
-              border:`1px solid ${locked?accent+'44':LINE}`,
-              color:locked?accent:SUB, fontSize:14, cursor:'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            {locked?'🔒':'🔓'}
-          </motion.button>
-        </div>
 
-        {/* КНОПКИ РЕЖИМА */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8 }}>
-          <motion.button whileTap={{ scale:0.96 }}
-            onClick={()=>{ if(listening){ stopAll(); } else { startListening(); } }}
-            style={{ padding:'11px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
-              background:listening?`${RED}20`:`${GREEN}15`,
-              border:`1.5px solid ${listening?RED+'55':GREEN+'44'}`,
-              color:listening?RED:GREEN, fontSize:12, fontWeight:800 }}>
-            {listening ? `⏹ ${t('stop')}` : t('recognize')}
-          </motion.button>
-          <motion.button whileTap={{ scale:0.96 }}
-            onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
-            style={{ padding:'11px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
-              background:`${accent}12`, border:`1.5px solid ${accent}33`,
-              color:accent, fontSize:12, fontWeight:800 }}>
-            {t('write')}
-          </motion.button>
-        </div>
+          {/* ТЕЛО */}
+          <div style={{ flex:1, overflowY:'auto', WebkitOverflowScrolling:'touch' as any, padding:'10px 12px 16px' }}
+            onClick={e=>e.stopPropagation()}>
 
-        {/* БЛОК СЛУШАЮ */}
-        {(spokenText||interim||listening) && (
-          <div style={{ borderRadius:12, border:`1px solid ${LINE}`, background:CARD,
-            marginBottom:8, padding:'10px 12px' }}>
-            {/* Метка: слушаем речь на языке собеседника */}
-            <div style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.07em',
-              textTransform:'uppercase', marginBottom:6 }}>
-              {theirL.flag} {theirL.name} → {myL.flag} {myL.name}
+            {/* ВЫБОР ЯЗЫКОВ */}
+            <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6 }}>
+              <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenR(false); }}>
+                <LangPicker value={myLang} open={openL} onOpen={setOpenL}
+                  onChange={v=>{ if(!locked){ setMyLang(v); reset(); } }}/>
+              </div>
+              <motion.button whileTap={{ scale:0.82 }} onClick={swapLangs}
+                style={{ width:34, height:34, borderRadius:10,
+                  background:locked?'rgba(255,255,255,0.03)':`${accent}15`,
+                  border:`1px solid ${locked?LINE:accent+'33'}`,
+                  color:locked?SUB:accent, fontSize:16, cursor:locked?'not-allowed':'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                ⇄
+              </motion.button>
+              <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenL(false); }}>
+                <LangPicker value={theirLang} open={openR} onOpen={setOpenR}
+                  onChange={v=>{ if(!locked){ setTheirLang(v); reset(); } }}/>
+              </div>
+              <motion.button whileTap={{ scale:0.88 }} onClick={()=>setLocked(v=>!v)}
+                style={{ width:34, height:34, borderRadius:10,
+                  background:locked?`${accent}18`:'rgba(255,255,255,0.04)',
+                  border:`1px solid ${locked?accent+'44':LINE}`,
+                  color:locked?accent:SUB, fontSize:14, cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                {locked?'🔒':'🔓'}
+              </motion.button>
             </div>
 
-            {/* Промежуточный текст (пока говорят) */}
-            {interim && !translSpoken && (
-              <div style={{ fontSize:13, color:SUB, fontStyle:'italic', lineHeight:1.6 }}>
-                {interim}
+            {/* КНОПКИ РЕЖИМА */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8 }}>
+              <motion.button whileTap={{ scale:0.96 }}
+                onClick={()=>{ if(listening){ stopAll(); } else { startListening(); } }}
+                style={{ padding:'11px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
+                  background:listening?`${RED}20`:`${GREEN}15`,
+                  border:`1.5px solid ${listening?RED+'55':GREEN+'44'}`,
+                  color:listening?RED:GREEN, fontSize:12, fontWeight:800 }}>
+                {listening ? `⏹ ${t('stop')}` : t('recognize')}
+              </motion.button>
+              <motion.button whileTap={{ scale:0.96 }}
+                onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
+                style={{ padding:'11px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
+                  background:`${accent}12`, border:`1.5px solid ${accent}33`,
+                  color:accent, fontSize:12, fontWeight:800 }}>
+                {t('write')}
+              </motion.button>
+            </div>
+
+            {/* БЛОК СЛУШАЮ */}
+            {(spokenText||interim||listening) && (
+              <div style={{ borderRadius:12, border:`1px solid ${LINE}`, background:CARD,
+                marginBottom:8, padding:'10px 12px' }}>
+                <div style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.07em',
+                  textTransform:'uppercase', marginBottom:6 }}>
+                  {theirL.flag} {theirL.name} → {myL.flag} {myL.name}
+                </div>
+                {interim && !translSpoken && (
+                  <div style={{ fontSize:13, color:SUB, fontStyle:'italic', lineHeight:1.6 }}>{interim}</div>
+                )}
+                {translSpoken ? (
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:17, fontWeight:900, color:accent, lineHeight:1.5 }}>{translSpoken}</div>
+                      {spokenText && theirLang !== myLang && (
+                        <div style={{ fontSize:10, color:SUB, marginTop:3, fontStyle:'italic' }}>
+                          {theirL.name}: {spokenText}
+                        </div>
+                      )}
+                    </div>
+                    <motion.button whileTap={{ scale:0.88 }}
+                      onClick={()=>speakText(translSpoken, myLang)}
+                      style={{ width:32, height:32, borderRadius:'50%', background:`${accent}20`,
+                        border:`1px solid ${accent}44`, color:accent, fontSize:15, cursor:'pointer',
+                        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      🔊
+                    </motion.button>
+                  </div>
+                ) : (
+                  !interim && (
+                    <div style={{ fontSize:13, color:TEXT, lineHeight:1.6 }}>
+                      {spokenText
+                        ? <span style={{ color:SUB, fontStyle:'italic' }}>⏳ {spokenText}</span>
+                        : <span style={{ color:SUB, fontStyle:'italic' }}>{t('speakHere')}</span>
+                      }
+                    </div>
+                  )
+                )}
               </div>
             )}
 
-            {/* Если перевод готов — показываем ТОЛЬКО его крупно */}
-            {translSpoken ? (
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:17, fontWeight:900, color:accent, lineHeight:1.5 }}>
-                    {translSpoken}
+            {/* ПОЛЕ ВВОДА */}
+            <div style={{ borderRadius:12, border:`1px solid ${LINE}`, background:CARD,
+              marginBottom:6, overflow:'hidden' }}>
+              <div style={{ display:'flex', alignItems:'flex-start' }}>
+                <textarea ref={inputRef} value={inputText}
+                  onChange={e=>{ setInputText(e.target.value); setOutputText(''); }}
+                  placeholder={t('ph')}
+                  style={{ flex:1, minHeight:64, padding:'10px 12px', background:'transparent',
+                    border:'none', outline:'none', color:TEXT, fontSize:14, fontFamily:FF,
+                    resize:'none', lineHeight:1.6, boxSizing:'border-box' }}/>
+                {inputText&&(
+                  <motion.button whileTap={{ scale:0.88 }}
+                    onClick={()=>{ setInputText(''); setOutputText(''); }}
+                    style={{ width:26, height:26, margin:'9px 9px 0 0', borderRadius:'50%',
+                      background:'rgba(246,70,93,0.12)', border:'1px solid rgba(246,70,93,0.25)',
+                      color:RED, fontSize:11, cursor:'pointer',
+                      display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    ✕
+                  </motion.button>
+                )}
+              </div>
+              {(outputText||translating)&&(
+                <div style={{ borderTop:`1px solid ${LINE}`, padding:'8px 12px',
+                  background:'rgba(255,255,255,0.02)', display:'flex', alignItems:'center', gap:8 }}>
+                  <div style={{ flex:1 }}>
+                    {translating
+                      ? <div style={{ color:SUB, fontSize:11, fontStyle:'italic' }}>{t('translating')}</div>
+                      : <div style={{ fontSize:15, fontWeight:800, color:accent, lineHeight:1.5 }}>{outputText}</div>
+                    }
                   </div>
-                  {/* Оригинал — мелко, для справки */}
-                  {spokenText && theirLang !== myLang && (
-                    <div style={{ fontSize:10, color:SUB, marginTop:3, fontStyle:'italic' }}>
-                      {theirL.name}: {spokenText}
-                    </div>
+                  {!translating&&outputText&&(
+                    <motion.button whileTap={{ scale:0.88 }}
+                      onClick={()=>speakText(outputText, theirLang)}
+                      style={{ width:32, height:32, borderRadius:'50%', background:`${accent}20`,
+                        border:`1px solid ${accent}44`, color:accent, fontSize:15, cursor:'pointer',
+                        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      🔊
+                    </motion.button>
                   )}
                 </div>
-                <motion.button whileTap={{ scale:0.88 }}
-                  onClick={()=>speakText(translSpoken, myLang)}
-                  style={{ width:32, height:32, borderRadius:'50%', background:`${accent}20`,
-                    border:`1px solid ${accent}44`, color:accent, fontSize:15, cursor:'pointer',
-                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  🔊
-                </motion.button>
-              </div>
-            ) : (
-              /* Перевод ещё грузится — показываем оригинал */
-              !interim && (
-                <div style={{ fontSize:13, color:TEXT, lineHeight:1.6 }}>
-                  {spokenText
-                    ? <span style={{ color:SUB, fontStyle:'italic' }}>⏳ {spokenText}</span>
-                    : <span style={{ color:SUB, fontStyle:'italic' }}>{t('speakHere')}</span>
-                  }
-                </div>
-              )
-            )}
-          </div>
-        )}
-
-        {/* ПОЛЕ ВВОДА */}
-        <div style={{ borderRadius:12, border:`1px solid ${LINE}`, background:CARD,
-          marginBottom:6, overflow:'hidden' }}>
-          <div style={{ display:'flex', alignItems:'flex-start' }}>
-            <textarea ref={inputRef} value={inputText}
-              onChange={e=>{ setInputText(e.target.value); setOutputText(''); }}
-              placeholder={t('ph')}
-              style={{ flex:1, minHeight:64, padding:'10px 12px', background:'transparent',
-                border:'none', outline:'none', color:TEXT, fontSize:14, fontFamily:FF,
-                resize:'none', lineHeight:1.6, boxSizing:'border-box' }}/>
-            {inputText&&(
-              <motion.button whileTap={{ scale:0.88 }}
-                onClick={()=>{ setInputText(''); setOutputText(''); }}
-                style={{ width:26, height:26, margin:'9px 9px 0 0', borderRadius:'50%',
-                  background:'rgba(246,70,93,0.12)', border:'1px solid rgba(246,70,93,0.25)',
-                  color:RED, fontSize:11, cursor:'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                ✕
-              </motion.button>
-            )}
-          </div>
-          {(outputText||translating)&&(
-            <div style={{ borderTop:`1px solid ${LINE}`, padding:'8px 12px',
-              background:'rgba(255,255,255,0.02)', display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ flex:1 }}>
-                {translating
-                  ? <div style={{ color:SUB, fontSize:11, fontStyle:'italic' }}>{t('translating')}</div>
-                  : <div style={{ fontSize:15, fontWeight:800, color:accent, lineHeight:1.5 }}>{outputText}</div>
-                }
-              </div>
-              {!translating&&outputText&&(
-                <motion.button whileTap={{ scale:0.88 }}
-                  onClick={()=>speakText(outputText, theirLang)}
-                  style={{ width:32, height:32, borderRadius:'50%', background:`${accent}20`,
-                    border:`1px solid ${accent}44`, color:accent, fontSize:15, cursor:'pointer',
-                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  🔊
-                </motion.button>
               )}
             </div>
-          )}
-        </div>
 
-        {/* КНОПКА ПЕРЕВЕСТИ И ОЗВУЧИТЬ */}
-        <motion.button whileTap={{ scale:0.97 }} onClick={handleTranslateAndSpeak}
-          disabled={!inputText.trim()||translating}
-          style={{ width:'100%', padding:'13px', borderRadius:12,
-            cursor:inputText.trim()?'pointer':'not-allowed',
-            background:inputText.trim()
-              ?`linear-gradient(135deg,${accent},${accent}bb)`
-              :'rgba(255,255,255,0.04)',
-            border:`1.5px solid ${inputText.trim()?accent+'66':LINE}`,
-            color:inputText.trim()?'#fff':SUB,
-            fontSize:14, fontWeight:900, fontFamily:FF, letterSpacing:'0.02em',
-            marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-            boxShadow:inputText.trim()?`0 4px 20px ${accent}44`:'none', transition:'all 0.2s' }}>
-          {translating ? `⏳ ${t('translating')}` : t('translate')}
-        </motion.button>
-
-        {/* БЫСТРЫЕ ФРАЗЫ */}
-        <div style={{ display:'flex', gap:5, overflowX:'auto', marginBottom:10,
-          padding:'1px 0', scrollbarWidth:'none' as any }}>
-          {quickPhrases.map(phrase=>(
-            <motion.button key={phrase} whileTap={{ scale:0.92 }} onClick={()=>quickPhrase(phrase)}
-              style={{ padding:'6px 11px', borderRadius:20, border:`1px solid ${LINE}`,
-                background:'rgba(255,255,255,0.05)', color:TEXT, fontSize:11, fontWeight:700,
-                cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, fontFamily:FF }}>
-              {phrase}
+            {/* КНОПКА ПЕРЕВЕСТИ И ОЗВУЧИТЬ */}
+            <motion.button whileTap={{ scale:0.97 }} onClick={handleTranslateAndSpeak}
+              disabled={!inputText.trim()||translating}
+              style={{ width:'100%', padding:'13px', borderRadius:12,
+                cursor:inputText.trim()?'pointer':'not-allowed',
+                background:inputText.trim()
+                  ?`linear-gradient(135deg,${accent},${accent}bb)`
+                  :'rgba(255,255,255,0.04)',
+                border:`1.5px solid ${inputText.trim()?accent+'66':LINE}`,
+                color:inputText.trim()?'#fff':SUB,
+                fontSize:14, fontWeight:900, fontFamily:FF, letterSpacing:'0.02em',
+                marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                boxShadow:inputText.trim()?`0 4px 20px ${accent}44`:'none', transition:'all 0.2s' }}>
+              {translating ? `⏳ ${t('translating')}` : t('translate')}
             </motion.button>
-          ))}
+
+            {/* БЫСТРЫЕ ФРАЗЫ */}
+            <div style={{ display:'flex', gap:5, overflowX:'auto', marginBottom:10,
+              padding:'1px 0', scrollbarWidth:'none' as any }}>
+              {quickPhrases.map(phrase=>(
+                <motion.button key={phrase} whileTap={{ scale:0.92 }} onClick={()=>quickPhrase(phrase)}
+                  style={{ padding:'6px 11px', borderRadius:20, border:`1px solid ${LINE}`,
+                    background:'rgba(255,255,255,0.05)', color:TEXT, fontSize:11, fontWeight:700,
+                    cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, fontFamily:FF }}>
+                  {phrase}
+                </motion.button>
+              ))}
+            </div>
+
+            {/* SOS */}
+            <motion.button whileTap={{ scale:0.97 }} onClick={handleSOS}
+              animate={{ boxShadow: sosPending
+                ? ['0 0 0px rgba(246,70,93,0)','0 0 28px rgba(246,70,93,0.9)','0 0 0px rgba(246,70,93,0)']
+                : '0 4px 18px rgba(246,70,93,0.35)' }}
+              transition={{ repeat:sosPending?Infinity:0, duration:0.55 }}
+              style={{ width:'100%', padding:'15px', borderRadius:14, cursor:'pointer',
+                background:`linear-gradient(135deg,${RED},#b01222)`,
+                border:`2px solid ${RED}`, color:'#fff', fontSize:15, fontWeight:900, fontFamily:FF,
+                letterSpacing:'0.03em', display:'flex', alignItems:'center', justifyContent:'center',
+                gap:8, marginBottom:6 }}>
+              {t('sos')}
+            </motion.button>
+            <div style={{ textAlign:'center', fontSize:10, color:SUB, lineHeight:1.5 }}>
+              3 сигнала → голос на языке собеседника
+            </div>
+          </div>
+
+        </div>{/* конец масштабируемой области */}
+      </div>
+
+      {/* ══ БЕГУНОК МАСШТАБА — вне масштабируемой зоны, всегда снизу ══ */}
+      <div style={{
+        flexShrink: 0,
+        background: 'rgba(9,9,15,0.97)',
+        borderTop: `1px solid ${LINE}`,
+        padding: '8px 16px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+      }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:2 }}>
+          <span style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+            🔍 Масштаб
+          </span>
+          <span style={{ fontSize:11, color: scale > 1 ? accent : SUB, fontWeight:800 }}>
+            {scalePercent}%
+          </span>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          {/* Кнопка уменьшить */}
+          <button
+            onClick={() => setScale(s => clampScale(s - 0.1))}
+            style={{
+              width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`,
+              color: TEXT, fontSize: 14, cursor: 'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>−</button>
+
+          {/* Сам бегунок */}
+          <div style={{ flex:1, position:'relative', height:24, display:'flex', alignItems:'center' }}>
+            {/* Трек */}
+            <div style={{
+              position:'absolute', left:0, right:0, height:4, borderRadius:2,
+              background: 'rgba(255,255,255,0.08)',
+            }}/>
+            {/* Заполненная часть */}
+            <div style={{
+              position:'absolute', left:0,
+              width: `${((scale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100}%`,
+              height:4, borderRadius:2,
+              background: `linear-gradient(90deg, ${accent}88, ${accent})`,
+              transition: 'width 0.05s',
+            }}/>
+            <input
+              type="range"
+              min={SCALE_MIN}
+              max={SCALE_MAX}
+              step={0.05}
+              value={scale}
+              onChange={e => setScale(clampScale(parseFloat(e.target.value)))}
+              style={{
+                position:'absolute', left:0, right:0, width:'100%',
+                appearance:'none', WebkitAppearance:'none',
+                background:'transparent', cursor:'pointer', height:24, margin:0,
+              }}
+            />
+          </div>
+
+          {/* Кнопка увеличить */}
+          <button
+            onClick={() => setScale(s => clampScale(s + 0.1))}
+            style={{
+              width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`,
+              color: TEXT, fontSize: 14, cursor: 'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>+</button>
         </div>
 
-        {/* SOS */}
-        <motion.button whileTap={{ scale:0.97 }} onClick={handleSOS}
-          animate={{ boxShadow: sosPending
-            ? ['0 0 0px rgba(246,70,93,0)','0 0 28px rgba(246,70,93,0.9)','0 0 0px rgba(246,70,93,0)']
-            : '0 4px 18px rgba(246,70,93,0.35)' }}
-          transition={{ repeat:sosPending?Infinity:0, duration:0.55 }}
-          style={{ width:'100%', padding:'15px', borderRadius:14, cursor:'pointer',
-            background:`linear-gradient(135deg,${RED},#b01222)`,
-            border:`2px solid ${RED}`, color:'#fff', fontSize:15, fontWeight:900, fontFamily:FF,
-            letterSpacing:'0.03em', display:'flex', alignItems:'center', justifyContent:'center',
-            gap:8, marginBottom:6 }}>
-          {t('sos')}
-        </motion.button>
-        <div style={{ textAlign:'center', fontSize:10, color:SUB, lineHeight:1.5 }}>
-          3 сигнала → голос на языке собеседника
-        </div>
+        {/* Подсказка при дефолтном масштабе */}
+        {scale === SCALE_DEFAULT && (
+          <div style={{ textAlign:'center', fontSize:9, color:SUB, marginTop:1 }}>
+            Сдвиньте вправо или раздвиньте пальцами для увеличения
+          </div>
+        )}
       </div>
+
     </div>
   );
 }
