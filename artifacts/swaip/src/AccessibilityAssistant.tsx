@@ -262,6 +262,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const newPhraseRef = useRef<HTMLInputElement>(null);
 
   const [zoomLevel, setZoomLevel] = useState<number>(()=>{ try{ return parseFloat(localStorage.getItem('acc_zoom')||'1')||1; }catch{ return 1; } });
+  const [theme, setTheme] = useState<'dark'|'light'>(()=>{ try{ return (localStorage.getItem('acc_theme')||'dark') as 'dark'|'light'; }catch{ return 'dark'; } });
+  const toggleTheme = () => setTheme(p=>{ const n=p==='dark'?'light':'dark'; try{ localStorage.setItem('acc_theme',n); }catch{} return n; });
   const pinchRef = useRef<{ dist:number; zoom:number }|null>(null);
   const getTouchDist = (t:React.TouchList) => { const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); };
   const onPinchStart = (e:React.TouchEvent) => { if(e.touches.length===2) pinchRef.current={ dist:getTouchDist(e.touches), zoom:zoomLevel }; };
@@ -303,13 +305,20 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const openFolder = (id: string) => setActiveFolder(prev=>prev===id ? null : id);
 
   const FF   = '"Montserrat",sans-serif';
-  const BG   = '#09090f';
-  const CARD = 'rgba(255,255,255,0.05)';
-  const LINE = 'rgba(255,255,255,0.09)';
-  const TEXT = '#e8e8f6';
-  const SUB  = 'rgba(220,220,245,0.4)';
-  const GREEN = '#0ecb81';
-  const RED   = '#f6465d';
+  const isDark = theme === 'dark';
+  const BG    = isDark ? '#09090f'              : '#f0f3fc';
+  const CARD  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
+  const LINE  = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.10)';
+  const TEXT  = isDark ? '#e8e8f6'              : '#0d0d1a';
+  const SUB   = isDark ? 'rgba(220,220,245,0.4)' : 'rgba(20,20,60,0.42)';
+  const GREEN = isDark ? '#0ecb81'              : '#00a060';
+  const RED   = isDark ? '#f6465d'              : '#d9182e';
+  const HDRBG = isDark ? 'rgba(9,9,15,0.98)'   : 'rgba(240,243,252,0.98)';
+  const DLGBG = isDark ? 'rgba(255,255,255,0.02)': 'rgba(0,0,0,0.02)';
+  const SHEETBG=isDark ? 'rgba(14,14,22,0.97)' : 'rgba(236,240,255,0.98)';
+  const THEIRSBUBBLE = isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)';
+  const THEIRSTEXT   = isDark?TEXT:'#0d0d1a';
+  const SCROLLCLR    = isDark?'rgba(255,255,255,0.08) transparent':'rgba(0,0,0,0.1) transparent';
 
   const t = (k:K) => ui(myLang, k);
 
@@ -510,15 +519,22 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
       {/* ХЕДЕР */}
       <div style={{ padding:'46px 14px 10px', display:'flex', alignItems:'center', gap:10,
-        borderBottom:`1px solid ${LINE}`, background:'rgba(9,9,15,0.98)',
+        borderBottom:`1px solid ${LINE}`, background:HDRBG,
         backdropFilter:'blur(20px)', flexShrink:0 }}>
         <motion.button whileTap={{ scale:0.88 }} onClick={()=>{ stopAll(); onBack(); }}
-          style={{ width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.07)',
+          style={{ width:34, height:34, borderRadius:'50%', background:CARD,
             border:`1px solid ${LINE}`, color:TEXT, fontSize:15, cursor:'pointer',
             display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           ←
         </motion.button>
-        <div style={{ fontSize:16, fontWeight:900, letterSpacing:'0.05em', flex:1 }}>👁 {t('title')}</div>
+        <div style={{ fontSize:16, fontWeight:900, letterSpacing:'0.05em', flex:1, color:TEXT }}>👁 {t('title')}</div>
+        {/* Переключатель темы */}
+        <motion.button whileTap={{ scale:0.88 }} onClick={e=>{ e.stopPropagation(); toggleTheme(); }}
+          title={isDark?'Светлая тема':'Тёмная тема'}
+          style={{ width:36, height:36, borderRadius:10, background:CARD, border:`1px solid ${LINE}`,
+            color:TEXT, fontSize:16, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          {isDark ? '☀️' : '🌙'}
+        </motion.button>
 
         {/* Зелёная лампочка: идёт распознавание речи */}
         {listening&&(
@@ -596,11 +612,11 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
         {/* ══ ЕДИНЫЙ ДИАЛОГ — занимает всё свободное место ══ */}
         <div style={{ flex:1, minHeight:0, borderRadius:12, border:`1px solid ${LINE}`,
-          background:'rgba(255,255,255,0.02)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+          background:DLGBG, overflow:'hidden', display:'flex', flexDirection:'column' }}>
 
           {/* Шапка диалога */}
           <div style={{ flexShrink:0, display:'flex', alignItems:'center', justifyContent:'space-between',
-            padding:'6px 10px', borderBottom:`1px solid ${LINE}`, background:'rgba(255,255,255,0.02)' }}>
+            padding:'6px 10px', borderBottom:`1px solid ${LINE}`, background:DLGBG }}>
             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
               <span style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>💬 Диалог</span>
               {listening && (
@@ -626,7 +642,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           {/* Сообщения */}
           <div style={{ flex:1, minHeight:0, overflowY:'auto', WebkitOverflowScrolling:'touch' as any,
             display:'flex', flexDirection:'column', gap:8, padding:'10px',
-            scrollbarWidth:'thin' as any, scrollbarColor:'rgba(255,255,255,0.1) transparent' }}>
+            scrollbarWidth:'thin' as any, scrollbarColor:SCROLLCLR }}>
 
             {messages.length===0 && !listening && (
               <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
@@ -653,9 +669,10 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                     </div>
                     <div style={{ maxWidth:'86%', borderRadius:isMine?'14px 14px 4px 14px':'14px 14px 14px 4px',
                       padding:'10px 13px',
-                      background:isMine?`linear-gradient(135deg,${accent}44,${accent}22)`:'rgba(255,255,255,0.07)',
-                      border:`1px solid ${isMine?accent+'55':LINE}` }}>
-                      <div style={{ fontSize:15, fontWeight:800, color:isMine?accent:TEXT, lineHeight:1.5 }}>
+                      background:isMine?`linear-gradient(135deg,${accent}55,${accent}33)`:THEIRSBUBBLE,
+                      border:`1px solid ${isMine?accent+'66':LINE}`,
+                      boxShadow:isDark?'none':'0 1px 4px rgba(0,0,0,0.08)' }}>
+                      <div style={{ fontSize:15, fontWeight:800, color:isMine?( isDark?accent:'#fff'):THEIRSTEXT, lineHeight:1.5 }}>
                         {msg.translated}
                       </div>
                       {msg.original !== msg.translated && (
@@ -763,9 +780,9 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
               transition={{ type:'spring', damping:32, stiffness:360 }}
               style={{ position:'absolute', bottom:0, left:0, right:0, maxHeight:'46%',
-                background:'rgba(14,14,22,0.97)', borderTop:`1px solid ${LINE}`,
+                background:SHEETBG, borderTop:`1px solid ${LINE}`,
                 borderRadius:'16px 16px 0 0', display:'flex', flexDirection:'column', zIndex:460,
-                boxShadow:'0 -6px 30px rgba(0,0,0,0.55)', backdropFilter:'blur(12px)' }}>
+                boxShadow:`0 -6px 30px ${isDark?'rgba(0,0,0,0.55)':'rgba(0,0,0,0.15)'}`, backdropFilter:'blur(12px)' }}>
 
               {/* Ручка */}
               <div style={{ width:32, height:3, background:'rgba(255,255,255,0.15)', borderRadius:2, margin:'8px auto 0' }}/>
