@@ -38,38 +38,38 @@ type Lang = typeof LANGUAGES[0];
 function getLang(code: string): Lang { return LANGUAGES.find(l=>l.code===code)||LANGUAGES[0]; }
 
 /* ═══════════ ЛОКАЛИЗАЦИЯ UI ═══════════ */
-type K = 'title'|'recognize'|'write'|'translate'|'sos'|'lock'|'translating'|'listening'|'ph'|'hello'|'thanks'|'wait'|'dunno'|'help'|'stop'|'speakHere';
+type K = 'title'|'recognize'|'write'|'translate'|'sos'|'lock'|'translating'|'listening'|'ph'|'hello'|'thanks'|'wait'|'dunno'|'help'|'stop'|'speakHere'|'clearDialog';
 const UI: Record<string, Record<K,string>> = {
-  ru:{ title:'Я СЛЫШУ',       recognize:'🎤 Слушать речь',         write:'✏️ Написать',          translate:'🔊 Перевести и озвучить',   sos:'🆘 ПОДАТЬ СИГНАЛ О ПОМОЩИ', lock:'Зафиксировать языки',   translating:'Перевод...',         listening:'Слушаю...',       ph:'Введите текст...',      hello:'Здравствуйте', thanks:'Спасибо',       wait:'Подождите',      dunno:'Не понимаю',      help:'Помогите мне',  stop:'Стоп',    speakHere:'Говорите — текст появится здесь...' },
-  en:{ title:'I HEAR',        recognize:'🎤 Listen',                write:'✏️ Write',              translate:'🔊 Translate & Speak',      sos:"🆘 CALL FOR HELP",           lock:'Lock languages',         translating:'Translating...',     listening:'Listening...',    ph:'Type here...',          hello:'Hello',        thanks:'Thank you',     wait:'Please wait',    dunno:"Don't understand", help:'Help me',       stop:'Stop',    speakHere:'Speak — text appears here...' },
-  de:{ title:'ICH HÖRE',      recognize:'🎤 Zuhören',               write:'✏️ Schreiben',          translate:'🔊 Übersetzen & Vorlesen',  sos:'🆘 HILFERUF',                lock:'Sprachpaar sperren',     translating:'Übersetze...',       listening:'Höre zu...',      ph:'Text eingeben...',      hello:'Hallo',        thanks:'Danke',         wait:'Bitte warten',   dunno:'Verstehe nicht',   help:'Hilfe',         stop:'Stop',    speakHere:'Sprechen Sie...' },
-  fr:{ title:"J'ENTENDS",     recognize:'🎤 Écouter',               write:'✏️ Écrire',             translate:'🔊 Traduire et Lire',       sos:"🆘 APPEL À L'AIDE",          lock:'Verrouiller',            translating:'Traduction...',      listening:"J'écoute...",     ph:'Tapez ici...',          hello:'Bonjour',      thanks:'Merci',         wait:'Attendez',       dunno:'Pas compris',      help:'Aidez-moi',     stop:'Stop',    speakHere:'Parlez...' },
-  es:{ title:'YO ESCUCHO',    recognize:'🎤 Escuchar',              write:'✏️ Escribir',           translate:'🔊 Traducir y Leer',        sos:'🆘 PEDIR AYUDA',             lock:'Fijar idiomas',          translating:'Traduciendo...',     listening:'Escuchando...',   ph:'Escribe aquí...',       hello:'Hola',         thanks:'Gracias',       wait:'Espere',         dunno:'No entiendo',      help:'Ayuda',         stop:'Parar',   speakHere:'Hable...' },
-  zh:{ title:'我听到了',       recognize:'🎤 聆听',                  write:'✏️ 输入',               translate:'🔊 翻译并朗读',              sos:'🆘 紧急求助',                 lock:'锁定语言对',              translating:'翻译中...',          listening:'聆听中...',       ph:'在此输入...',           hello:'您好',         thanks:'谢谢',          wait:'请等待',         dunno:'不明白',           help:'请帮助',        stop:'停止',    speakHere:'请说话...' },
-  uk:{ title:'Я ЧУЮ',         recognize:'🎤 Слухати',               write:'✏️ Написати',           translate:'🔊 Перекласти і озвучити',  sos:'🆘 СИГНАЛ ПРО ДОПОМОГУ',    lock:'Зафіксувати мови',       translating:'Переклад...',        listening:'Слухаю...',       ph:'Введіть текст...',      hello:'Здрастуйте',   thanks:'Дякую',         wait:'Зачекайте',      dunno:'Не розумію',       help:'Допоможіть',    stop:'Стоп',    speakHere:'Говоріть...' },
-  ja:{ title:'聴こえます',     recognize:'🎤 聞く',                  write:'✏️ 書く',               translate:'🔊 翻訳して読む',            sos:'🆘 助けを呼ぶ',               lock:'言語を固定',              translating:'翻訳中...',          listening:'聞いています...',  ph:'ここに入力...',        hello:'こんにちは',     thanks:'ありがとう',     wait:'お待ちください',  dunno:'分かりません',     help:'助けてください', stop:'止まれ',  speakHere:'話してください...' },
-  ko:{ title:'들립니다',       recognize:'🎤 듣기',                  write:'✏️ 쓰기',               translate:'🔊 번역 및 읽기',            sos:'🆘 도움 요청',               lock:'언어 고정',               translating:'번역 중...',         listening:'듣는 중...',      ph:'여기에 입력...',        hello:'안녕하세요',     thanks:'감사합니다',     wait:'기다려주세요',   dunno:'모르겠습니다',     help:'도와주세요',    stop:'정지',    speakHere:'말씀하세요...' },
-  ar:{ title:'أسمعك',         recognize:'🎤 استمع',                 write:'✏️ اكتب',               translate:'🔊 ترجم واقرأ',             sos:'🆘 اطلب المساعدة',           lock:'تثبيت اللغات',           translating:'جارٍ الترجمة...',   listening:'أستمع...',        ph:'اكتب هنا...',           hello:'مرحبا',        thanks:'شكرا',          wait:'انتظر',          dunno:'لا أفهم',          help:'ساعدني',        stop:'وقف',     speakHere:'تحدث...' },
-  pt:{ title:'EU OUÇO',       recognize:'🎤 Ouvir',                 write:'✏️ Escrever',           translate:'🔊 Traduzir e Ler',         sos:'🆘 PEDIR SOCORRO',           lock:'Fixar idiomas',          translating:'Traduzindo...',      listening:'Ouvindo...',      ph:'Digite aqui...',        hello:'Olá',          thanks:'Obrigado',      wait:'Aguarde',        dunno:'Não entendo',      help:'Me ajude',      stop:'Parar',   speakHere:'Fale...' },
-  it:{ title:'SENTO',         recognize:'🎤 Ascolta',               write:'✏️ Scrivi',             translate:'🔊 Traduci e Leggi',        sos:'🆘 CHIEDI AIUTO',            lock:'Blocca lingue',          translating:'Traduzione...',      listening:'Ascolto...',      ph:'Scrivi qui...',         hello:'Salve',        thanks:'Grazie',        wait:'Attendi',        dunno:'Non capisco',      help:'Aiutami',       stop:'Stop',    speakHere:'Parla...' },
-  hi:{ title:'मैं सुनता हूँ', recognize:'🎤 सुनें',                write:'✏️ लिखें',             translate:'🔊 अनुवाद और पढ़ें',        sos:'🆘 सहायता माँगें',           lock:'भाषाएँ लॉक करें',         translating:'अनुवाद हो रहा है...', listening:'सुन रहा हूँ...', ph:'यहाँ लिखें...',       hello:'नमस्ते',       thanks:'धन्यवाद',       wait:'रुकिए',          dunno:'समझ नहीं आया',    help:'मदद करें',      stop:'रोकें',   speakHere:'बोलिए...' },
-  tr:{ title:'DUYUYORUM',     recognize:'🎤 Dinle',                 write:'✏️ Yaz',                translate:'🔊 Çevir ve Oku',           sos:'🆘 YARDIM İSTE',             lock:'Dilleri kilitle',        translating:'Çevriliyor...',      listening:'Dinliyorum...',   ph:'Buraya yaz...',         hello:'Merhaba',      thanks:'Teşekkürler',   wait:'Bekleyin',       dunno:'Anlamıyorum',      help:'Bana yardım et', stop:'Dur',    speakHere:'Konuşun...' },
-  pl:{ title:'SŁYSZĘ',        recognize:'🎤 Słuchaj',               write:'✏️ Pisz',               translate:'🔊 Tłumacz i Czytaj',       sos:'🆘 WOŁAJ POMOCY',            lock:'Zablokuj języki',        translating:'Tłumaczenie...',     listening:'Słucham...',      ph:'Wpisz tutaj...',        hello:'Dzień dobry',  thanks:'Dziękuję',      wait:'Proszę czekać',  dunno:'Nie rozumiem',     help:'Pomocy',        stop:'Stop',    speakHere:'Mów...' },
-  nl:{ title:'IK HOOR',       recognize:'🎤 Luisteren',             write:'✏️ Schrijven',          translate:'🔊 Vertalen & Lezen',       sos:'🆘 ROEP HULP',               lock:'Talen vergrendelen',     translating:'Vertaling...',       listening:'Luisteren...',    ph:'Typ hier...',           hello:'Hallo',        thanks:'Dankjewel',     wait:'Even wachten',   dunno:'Begrijp niet',     help:'Help me',       stop:'Stop',    speakHere:'Spreek...' },
-  sv:{ title:'JAG HÖR',       recognize:'🎤 Lyssna',                write:'✏️ Skriv',              translate:'🔊 Översätt & Läs',         sos:'🆘 BE OM HJÄLP',             lock:'Lås språk',              translating:'Översätter...',      listening:'Lyssnar...',      ph:'Skriv här...',          hello:'Hej',          thanks:'Tack',          wait:'Vänta',          dunno:'Förstår inte',     help:'Hjälp mig',     stop:'Stopp',   speakHere:'Tala...' },
-  no:{ title:'JEG HØRER',     recognize:'🎤 Lytt',                  write:'✏️ Skriv',              translate:'🔊 Oversett & Les',         sos:'🆘 BE OM HJELP',             lock:'Lås språk',              translating:'Oversetter...',      listening:'Lytter...',       ph:'Skriv her...',          hello:'Hei',          thanks:'Takk',          wait:'Vent',           dunno:'Forstår ikke',     help:'Hjelp meg',     stop:'Stopp',   speakHere:'Snakk...' },
-  da:{ title:'JEG HØRER',     recognize:'🎤 Lyt',                   write:'✏️ Skriv',              translate:'🔊 Oversæt & Læs',          sos:'🆘 BED OM HJÆLP',            lock:'Lås sprog',              translating:'Oversætter...',      listening:'Lytter...',       ph:'Skriv her...',          hello:'Hej',          thanks:'Tak',           wait:'Vent',           dunno:'Forstår ikke',     help:'Hjælp mig',     stop:'Stop',    speakHere:'Tal...' },
-  fi:{ title:'KUULEN',        recognize:'🎤 Kuuntele',              write:'✏️ Kirjoita',           translate:'🔊 Käännä & Lue',           sos:'🆘 PYYDÄ APUA',              lock:'Lukitse kielet',         translating:'Käännetään...',      listening:'Kuuntelen...',    ph:'Kirjoita tähän...',     hello:'Hei',          thanks:'Kiitos',        wait:'Odota',          dunno:'En ymmärrä',       help:'Auta minua',    stop:'Lopeta',  speakHere:'Puhu...' },
-  cs:{ title:'SLYŠÍM',        recognize:'🎤 Poslouchat',            write:'✏️ Psát',               translate:'🔊 Přeložit & Přečíst',     sos:'🆘 ZAVOLAT POMOC',           lock:'Uzamknout jazyky',       translating:'Překlad...',         listening:'Poslouchám...',   ph:'Pište zde...',          hello:'Dobrý den',    thanks:'Děkuji',        wait:'Počkejte',       dunno:'Nerozumím',        help:'Pomozte mi',    stop:'Stop',    speakHere:'Mluvte...' },
-  ro:{ title:'AUD',           recognize:'🎤 Ascultă',               write:'✏️ Scrie',              translate:'🔊 Traduce & Citește',      sos:'🆘 CERE AJUTOR',             lock:'Blochează limbi',        translating:'Traducere...',       listening:'Ascult...',       ph:'Scrie aici...',         hello:'Bună ziua',    thanks:'Mulțumesc',     wait:'Așteptați',      dunno:'Nu înțeleg',       help:'Ajutați-mă',    stop:'Stop',    speakHere:'Vorbiți...' },
-  hu:{ title:'HALLOM',        recognize:'🎤 Hallgat',               write:'✏️ Írni',               translate:'🔊 Fordítás & Felolvasás',  sos:'🆘 SEGÍTSÉG KÉRÉS',          lock:'Zárolj nyelveket',       translating:'Fordítás...',        listening:'Hallgatom...',    ph:'Írj ide...',            hello:'Jó napot',     thanks:'Köszönöm',      wait:'Várjon',         dunno:'Nem értem',        help:'Segítsen',      stop:'Állj',    speakHere:'Beszéljen...' },
-  th:{ title:'ฉันได้ยิน',     recognize:'🎤 ฟัง',                  write:'✏️ เขียน',              translate:'🔊 แปลและอ่าน',             sos:'🆘 ขอความช่วยเหลือ',         lock:'ล็อคภาษา',               translating:'กำลังแปล...',       listening:'กำลังฟัง...',    ph:'พิมพ์ที่นี่...',       hello:'สวัสดี',       thanks:'ขอบคุณ',        wait:'รอสักครู่',      dunno:'ไม่เข้าใจ',        help:'ช่วยด้วย',      stop:'หยุด',    speakHere:'พูดได้เลย...' },
-  vi:{ title:'TÔI NGHE',      recognize:'🎤 Nghe',                  write:'✏️ Viết',               translate:'🔊 Dịch & Đọc',             sos:'🆘 KÊU CỨU',                 lock:'Khóa ngôn ngữ',          translating:'Đang dịch...',       listening:'Đang nghe...',    ph:'Nhập tại đây...',       hello:'Xin chào',     thanks:'Cảm ơn',        wait:'Xin chờ',        dunno:'Không hiểu',       help:'Giúp tôi',      stop:'Dừng',    speakHere:'Hãy nói...' },
-  id:{ title:'SAYA DENGAR',   recognize:'🎤 Dengarkan',             write:'✏️ Tulis',              translate:'🔊 Terjemahkan & Baca',     sos:'🆘 MINTA BANTUAN',           lock:'Kunci bahasa',           translating:'Menerjemahkan...',   listening:'Mendengarkan...',  ph:'Ketik di sini...',     hello:'Halo',         thanks:'Terima kasih',  wait:'Tunggu',         dunno:'Tidak mengerti',   help:'Tolong saya',   stop:'Berhenti', speakHere:'Bicaralah...' },
-  el:{ title:'ΑΚΟΥΩ',         recognize:'🎤 Άκου',                  write:'✏️ Γράψε',              translate:'🔊 Μετάφρασε & Διάβασε',   sos:'🆘 ΖΗΤΗΣΕ ΒΟΗΘΕΙΑ',         lock:'Κλείδωσε γλώσσες',       translating:'Μετάφραση...',       listening:'Ακούω...',        ph:'Γράψε εδώ...',          hello:'Γεια σας',     thanks:'Ευχαριστώ',     wait:'Περιμένετε',     dunno:'Δεν καταλαβαίνω',  help:'Βοηθήστε με',   stop:'Στοπ',    speakHere:'Μιλήστε...' },
-  bg:{ title:'ЧУВАМ',         recognize:'🎤 Слушай',                write:'✏️ Пиши',               translate:'🔊 Преведи и Прочети',      sos:'🆘 ИЗВИКАЙ ПОМОЩ',           lock:'Заключи езици',          translating:'Превод...',          listening:'Слушам...',       ph:'Пишете тук...',         hello:'Здравейте',    thanks:'Благодаря',     wait:'Изчакайте',      dunno:'Не разбирам',      help:'Помогнете ми',  stop:'Стоп',    speakHere:'Говорете...' },
-  he:{ title:'אני שומע',      recognize:'🎤 הקשב',                  write:'✏️ כתוב',               translate:'🔊 תרגם וקרא',             sos:'🆘 בקש עזרה',                lock:'נעל שפות',               translating:'מתרגם...',           listening:'מקשיב...',        ph:'הקלד כאן...',           hello:'שלום',         thanks:'תודה',          wait:'המתן',           dunno:'לא מבין',          help:'עזור לי',       stop:'עצור',    speakHere:'דבר...' },
-  fa:{ title:'می‌شنوم',       recognize:'🎤 گوش کن',               write:'✏️ بنویس',              translate:'🔊 ترجمه و بخوان',          sos:'🆘 درخواست کمک',             lock:'قفل زبان‌ها',            translating:'در حال ترجمه...',   listening:'گوش می‌دهم...', ph:'اینجا بنویس...',       hello:'سلام',         thanks:'ممنون',         wait:'صبر کنید',       dunno:'نمی‌فهمم',         help:'کمکم کنید',     stop:'بایست',   speakHere:'صحبت کنید...' },
+  ru:{ title:'Я СЛЫШУ', recognize:'🎤 Слушать речь', write:'✏️ Написать', translate:'🔊 Перевести и озвучить', sos:'🆘 ПОДАТЬ СИГНАЛ О ПОМОЩИ', lock:'Зафиксировать языки', translating:'Перевод...', listening:'Слушаю...', ph:'Введите текст...', hello:'Здравствуйте', thanks:'Спасибо', wait:'Подождите', dunno:'Не понимаю', help:'Помогите мне', stop:'Стоп', speakHere:'Говорите — текст появится здесь...', clearDialog:'Очистить диалог' },
+  en:{ title:'I HEAR', recognize:'🎤 Listen', write:'✏️ Write', translate:'🔊 Translate & Speak', sos:"🆘 CALL FOR HELP", lock:'Lock languages', translating:'Translating...', listening:'Listening...', ph:'Type here...', hello:'Hello', thanks:'Thank you', wait:'Please wait', dunno:"Don't understand", help:'Help me', stop:'Stop', speakHere:'Speak — text appears here...', clearDialog:'Clear dialog' },
+  de:{ title:'ICH HÖRE', recognize:'🎤 Zuhören', write:'✏️ Schreiben', translate:'🔊 Übersetzen & Vorlesen', sos:'🆘 HILFERUF', lock:'Sprachpaar sperren', translating:'Übersetze...', listening:'Höre zu...', ph:'Text eingeben...', hello:'Hallo', thanks:'Danke', wait:'Bitte warten', dunno:'Verstehe nicht', help:'Hilfe', stop:'Stop', speakHere:'Sprechen Sie...', clearDialog:'Dialog löschen' },
+  fr:{ title:"J'ENTENDS", recognize:'🎤 Écouter', write:'✏️ Écrire', translate:'🔊 Traduire et Lire', sos:"🆘 APPEL À L'AIDE", lock:'Verrouiller', translating:'Traduction...', listening:"J'écoute...", ph:'Tapez ici...', hello:'Bonjour', thanks:'Merci', wait:'Attendez', dunno:'Pas compris', help:'Aidez-moi', stop:'Stop', speakHere:'Parlez...', clearDialog:'Effacer' },
+  es:{ title:'YO ESCUCHO', recognize:'🎤 Escuchar', write:'✏️ Escribir', translate:'🔊 Traducir y Leer', sos:'🆘 PEDIR AYUDA', lock:'Fijar idiomas', translating:'Traduciendo...', listening:'Escuchando...', ph:'Escribe aquí...', hello:'Hola', thanks:'Gracias', wait:'Espere', dunno:'No entiendo', help:'Ayuda', stop:'Parar', speakHere:'Hable...', clearDialog:'Borrar diálogo' },
+  zh:{ title:'我听到了', recognize:'🎤 聆听', write:'✏️ 输入', translate:'🔊 翻译并朗读', sos:'🆘 紧急求助', lock:'锁定语言对', translating:'翻译中...', listening:'聆听中...', ph:'在此输入...', hello:'您好', thanks:'谢谢', wait:'请等待', dunno:'不明白', help:'请帮助', stop:'停止', speakHere:'请说话...', clearDialog:'清除对话' },
+  uk:{ title:'Я ЧУЮ', recognize:'🎤 Слухати', write:'✏️ Написати', translate:'🔊 Перекласти і озвучити', sos:'🆘 СИГНАЛ ПРО ДОПОМОГУ', lock:'Зафіксувати мови', translating:'Переклад...', listening:'Слухаю...', ph:'Введіть текст...', hello:'Здрастуйте', thanks:'Дякую', wait:'Зачекайте', dunno:'Не розумію', help:'Допоможіть', stop:'Стоп', speakHere:'Говоріть...', clearDialog:'Очистити' },
+  ja:{ title:'聴こえます', recognize:'🎤 聞く', write:'✏️ 書く', translate:'🔊 翻訳して読む', sos:'🆘 助けを呼ぶ', lock:'言語を固定', translating:'翻訳中...', listening:'聞いています...', ph:'ここに入力...', hello:'こんにちは', thanks:'ありがとう', wait:'お待ちください', dunno:'分かりません', help:'助けてください', stop:'止まれ', speakHere:'話してください...', clearDialog:'削除' },
+  ko:{ title:'들립니다', recognize:'🎤 듣기', write:'✏️ 쓰기', translate:'🔊 번역 및 읽기', sos:'🆘 도움 요청', lock:'언어 고정', translating:'번역 중...', listening:'듣는 중...', ph:'여기에 입력...', hello:'안녕하세요', thanks:'감사합니다', wait:'기다려주세요', dunno:'모르겠습니다', help:'도와주세요', stop:'정지', speakHere:'말씀하세요...', clearDialog:'삭제' },
+  ar:{ title:'أسمعك', recognize:'🎤 استمع', write:'✏️ اكتب', translate:'🔊 ترجم واقرأ', sos:'🆘 اطلب المساعدة', lock:'تثبيت اللغات', translating:'جارٍ الترجمة...', listening:'أستمع...', ph:'اكتب هنا...', hello:'مرحبا', thanks:'شكرا', wait:'انتظر', dunno:'لا أفهم', help:'ساعدني', stop:'وقف', speakHere:'تحدث...', clearDialog:'مسح' },
+  pt:{ title:'EU OUÇO', recognize:'🎤 Ouvir', write:'✏️ Escrever', translate:'🔊 Traduzir e Ler', sos:'🆘 PEDIR SOCORRO', lock:'Fixar idiomas', translating:'Traduzindo...', listening:'Ouvindo...', ph:'Digite aqui...', hello:'Olá', thanks:'Obrigado', wait:'Aguarde', dunno:'Não entendo', help:'Me ajude', stop:'Parar', speakHere:'Fale...', clearDialog:'Limpar' },
+  it:{ title:'SENTO', recognize:'🎤 Ascolta', write:'✏️ Scrivi', translate:'🔊 Traduci e Leggi', sos:'🆘 CHIEDI AIUTO', lock:'Blocca lingue', translating:'Traduzione...', listening:'Ascolto...', ph:'Scrivi qui...', hello:'Salve', thanks:'Grazie', wait:'Attendi', dunno:'Non capisco', help:'Aiutami', stop:'Stop', speakHere:'Parla...', clearDialog:'Cancella' },
+  hi:{ title:'मैं सुनता हूँ', recognize:'🎤 सुनें', write:'✏️ लिखें', translate:'🔊 अनुवाद और पढ़ें', sos:'🆘 सहायता माँगें', lock:'भाषाएँ लॉक करें', translating:'अनुवाद हो रहा है...', listening:'सुन रहा हूँ...', ph:'यहाँ लिखें...', hello:'नमस्ते', thanks:'धन्यवाद', wait:'रुकिए', dunno:'समझ नहीं आया', help:'मदद करें', stop:'रोकें', speakHere:'बोलिए...', clearDialog:'हटाएं' },
+  tr:{ title:'DUYUYORUM', recognize:'🎤 Dinle', write:'✏️ Yaz', translate:'🔊 Çevir ve Oku', sos:'🆘 YARDIM İSTE', lock:'Dilleri kilitle', translating:'Çevriliyor...', listening:'Dinliyorum...', ph:'Buraya yaz...', hello:'Merhaba', thanks:'Teşekkürler', wait:'Bekleyin', dunno:'Anlamıyorum', help:'Bana yardım et', stop:'Dur', speakHere:'Konuşun...', clearDialog:'Temizle' },
+  pl:{ title:'SŁYSZĘ', recognize:'🎤 Słuchaj', write:'✏️ Pisz', translate:'🔊 Tłumacz i Czytaj', sos:'🆘 WOŁAJ POMOCY', lock:'Zablokuj języki', translating:'Tłumaczenie...', listening:'Słucham...', ph:'Wpisz tutaj...', hello:'Dzień dobry', thanks:'Dziękuję', wait:'Proszę czekać', dunno:'Nie rozumiem', help:'Pomocy', stop:'Stop', speakHere:'Mów...', clearDialog:'Wyczyść' },
+  nl:{ title:'IK HOOR', recognize:'🎤 Luisteren', write:'✏️ Schrijven', translate:'🔊 Vertalen & Lezen', sos:'🆘 ROEP HULP', lock:'Talen vergrendelen', translating:'Vertaling...', listening:'Luisteren...', ph:'Typ hier...', hello:'Hallo', thanks:'Dankjewel', wait:'Even wachten', dunno:'Begrijp niet', help:'Help me', stop:'Stop', speakHere:'Spreek...', clearDialog:'Wissen' },
+  sv:{ title:'JAG HÖR', recognize:'🎤 Lyssna', write:'✏️ Skriv', translate:'🔊 Översätt & Läs', sos:'🆘 BE OM HJÄLP', lock:'Lås språk', translating:'Översätter...', listening:'Lyssnar...', ph:'Skriv här...', hello:'Hej', thanks:'Tack', wait:'Vänta', dunno:'Förstår inte', help:'Hjälp mig', stop:'Stopp', speakHere:'Tala...', clearDialog:'Rensa' },
+  no:{ title:'JEG HØRER', recognize:'🎤 Lytt', write:'✏️ Skriv', translate:'🔊 Oversett & Les', sos:'🆘 BE OM HJELP', lock:'Lås språk', translating:'Oversetter...', listening:'Lytter...', ph:'Skriv her...', hello:'Hei', thanks:'Takk', wait:'Vent', dunno:'Forstår ikke', help:'Hjelp meg', stop:'Stopp', speakHere:'Snakk...', clearDialog:'Slett' },
+  da:{ title:'JEG HØRER', recognize:'🎤 Lyt', write:'✏️ Skriv', translate:'🔊 Oversæt & Læs', sos:'🆘 BED OM HJÆLP', lock:'Lås sprog', translating:'Oversætter...', listening:'Lytter...', ph:'Skriv her...', hello:'Hej', thanks:'Tak', wait:'Vent', dunno:'Forstår ikke', help:'Hjælp mig', stop:'Stop', speakHere:'Tal...', clearDialog:'Ryd' },
+  fi:{ title:'KUULEN', recognize:'🎤 Kuuntele', write:'✏️ Kirjoita', translate:'🔊 Käännä & Lue', sos:'🆘 PYYDÄ APUA', lock:'Lukitse kielet', translating:'Käännetään...', listening:'Kuuntelen...', ph:'Kirjoita tähän...', hello:'Hei', thanks:'Kiitos', wait:'Odota', dunno:'En ymmärrä', help:'Auta minua', stop:'Lopeta', speakHere:'Puhu...', clearDialog:'Tyhjennä' },
+  cs:{ title:'SLYŠÍM', recognize:'🎤 Poslouchat', write:'✏️ Psát', translate:'🔊 Přeložit & Přečíst', sos:'🆘 ZAVOLAT POMOC', lock:'Uzamknout jazyky', translating:'Překlad...', listening:'Poslouchám...', ph:'Pište zde...', hello:'Dobrý den', thanks:'Děkuji', wait:'Počkejte', dunno:'Nerozumím', help:'Pomozte mi', stop:'Stop', speakHere:'Mluvte...', clearDialog:'Smazat' },
+  ro:{ title:'AUD', recognize:'🎤 Ascultă', write:'✏️ Scrie', translate:'🔊 Traduce & Citește', sos:'🆘 CERE AJUTOR', lock:'Blochează limbi', translating:'Traducere...', listening:'Ascult...', ph:'Scrie aici...', hello:'Bună ziua', thanks:'Mulțumesc', wait:'Așteptați', dunno:'Nu înțeleg', help:'Ajutați-mă', stop:'Stop', speakHere:'Vorbiți...', clearDialog:'Șterge' },
+  hu:{ title:'HALLOM', recognize:'🎤 Hallgat', write:'✏️ Írni', translate:'🔊 Fordítás & Felolvasás', sos:'🆘 SEGÍTSÉG KÉRÉS', lock:'Zárolj nyelveket', translating:'Fordítás...', listening:'Hallgatom...', ph:'Írj ide...', hello:'Jó napot', thanks:'Köszönöm', wait:'Várjon', dunno:'Nem értem', help:'Segítsen', stop:'Állj', speakHere:'Beszéljen...', clearDialog:'Töröl' },
+  th:{ title:'ฉันได้ยิน', recognize:'🎤 ฟัง', write:'✏️ เขียน', translate:'🔊 แปลและอ่าน', sos:'🆘 ขอความช่วยเหลือ', lock:'ล็อคภาษา', translating:'กำลังแปล...', listening:'กำลังฟัง...', ph:'พิมพ์ที่นี่...', hello:'สวัสดี', thanks:'ขอบคุณ', wait:'รอสักครู่', dunno:'ไม่เข้าใจ', help:'ช่วยด้วย', stop:'หยุด', speakHere:'พูดได้เลย...', clearDialog:'ล้าง' },
+  vi:{ title:'TÔI NGHE', recognize:'🎤 Nghe', write:'✏️ Viết', translate:'🔊 Dịch & Đọc', sos:'🆘 KÊU CỨU', lock:'Khóa ngôn ngữ', translating:'Đang dịch...', listening:'Đang nghe...', ph:'Nhập tại đây...', hello:'Xin chào', thanks:'Cảm ơn', wait:'Xin chờ', dunno:'Không hiểu', help:'Giúp tôi', stop:'Dừng', speakHere:'Hãy nói...', clearDialog:'Xóa' },
+  id:{ title:'SAYA DENGAR', recognize:'🎤 Dengarkan', write:'✏️ Tulis', translate:'🔊 Terjemahkan & Baca', sos:'🆘 MINTA BANTUAN', lock:'Kunci bahasa', translating:'Menerjemahkan...', listening:'Mendengarkan...', ph:'Ketik di sini...', hello:'Halo', thanks:'Terima kasih', wait:'Tunggu', dunno:'Tidak mengerti', help:'Tolong saya', stop:'Berhenti', speakHere:'Bicaralah...', clearDialog:'Hapus' },
+  el:{ title:'ΑΚΟΥΩ', recognize:'🎤 Άκου', write:'✏️ Γράψε', translate:'🔊 Μετάφρασε & Διάβασε', sos:'🆘 ΖΗΤΗΣΕ ΒΟΗΘΕΙΑ', lock:'Κλείδωσε γλώσσες', translating:'Μετάφραση...', listening:'Ακούω...', ph:'Γράψε εδώ...', hello:'Γεια σας', thanks:'Ευχαριστώ', wait:'Περιμένετε', dunno:'Δεν καταλαβαίνω', help:'Βοηθήστε με', stop:'Στοπ', speakHere:'Μιλήστε...', clearDialog:'Διαγραφή' },
+  bg:{ title:'ЧУВАМ', recognize:'🎤 Слушай', write:'✏️ Пиши', translate:'🔊 Преведи и Прочети', sos:'🆘 ИЗВИКАЙ ПОМОЩ', lock:'Заключи езици', translating:'Превод...', listening:'Слушам...', ph:'Пишете тук...', hello:'Здравейте', thanks:'Благодаря', wait:'Изчакайте', dunno:'Не разбирам', help:'Помогнете ми', stop:'Стоп', speakHere:'Говорете...', clearDialog:'Изчисти' },
+  he:{ title:'אני שומע', recognize:'🎤 הקשב', write:'✏️ כתוב', translate:'🔊 תרגם וקרא', sos:'🆘 בקש עזרה', lock:'נעל שפות', translating:'מתרגם...', listening:'מקשיב...', ph:'הקלד כאן...', hello:'שלום', thanks:'תודה', wait:'המתן', dunno:'לא מבין', help:'עזור לי', stop:'עצור', speakHere:'דבר...', clearDialog:'מחק' },
+  fa:{ title:'می‌شنوم', recognize:'🎤 گوش کن', write:'✏️ بنویس', translate:'🔊 ترجمه و بخوان', sos:'🆘 درخواست کمک', lock:'قفل زبان‌ها', translating:'در حال ترجمه...', listening:'گوش می‌دهم...', ph:'اینجا بنویس...', hello:'سلام', thanks:'ممنون', wait:'صبر کنید', dunno:'نمی‌فهمم', help:'کمکم کنید', stop:'بایست', speakHere:'صحبت کنید...', clearDialog:'پاک کردن' },
 };
 function ui(lang: string, key: K): string { return (UI[lang]||UI['en'])[key]||UI['en'][key]; }
 
@@ -141,9 +141,7 @@ function speakWebSpeech(text: string, ttsLang: string, voices: SpeechSynthesisVo
   ss.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = ttsLang;
-  utter.rate = 0.88;
-  utter.volume = 1.0;
-  utter.pitch = 1.0;
+  utter.rate = 0.88; utter.volume = 1.0; utter.pitch = 1.0;
   const prefix = ttsLang.split('-')[0];
   const vList = voices.length > 0 ? voices : ss.getVoices();
   const match =
@@ -213,13 +211,26 @@ function LangPicker({ value, onChange, open, onOpen }: {
   );
 }
 
-/* ═══════════ SCALE LIMITS ═══════════ */
+/* ═══════════ МАСШТАБ ═══════════ */
 const SCALE_MIN = 1.0;
 const SCALE_MAX = 2.0;
 const SCALE_DEFAULT = 1.0;
+function clampScale(v: number) { return Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(v*20)/20)); }
 
-function clampScale(v: number) {
-  return Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(v * 20) / 20));
+/* ═══════════ ТИП СООБЩЕНИЯ ДИАЛОГА ═══════════ */
+type DialogMessage = {
+  id: string;
+  side: 'theirs' | 'mine';  /* theirs = распознанная речь; mine = набранный текст */
+  original: string;          /* исходный текст */
+  translated: string;        /* перевод */
+  fromLang: string;
+  toLang: string;
+  ts: number;
+};
+
+function fmtTime(ts: number): string {
+  const d = new Date(ts);
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
 
 /* ═══════════ ГЛАВНЫЙ КОМПОНЕНТ ═══════════ */
@@ -233,73 +244,107 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [openL, setOpenL]         = useState(false);
   const [openR, setOpenR]         = useState(false);
 
-  const [listening, setListening]     = useState(false);
-  const [spokenText, setSpokenText]   = useState('');
-  const [interim, setInterim]         = useState('');
+  const [listening, setListening]       = useState(false);
+  const [spokenText, setSpokenText]     = useState('');
+  const [interim, setInterim]           = useState('');
   const [translSpoken, setTranslSpoken] = useState('');
 
-  const [inputText, setInputText]   = useState('');
-  const [outputText, setOutputText] = useState('');
+  const [inputText, setInputText]     = useState('');
+  const [outputText, setOutputText]   = useState('');
   const [translating, setTranslating] = useState(false);
   const [sosPending, setSosPending]   = useState(false);
   const [speaking, setSpeaking]       = useState(false);
 
-  /* ── МАСШТАБ — сохраняется в localStorage ── */
+  /* ── ДИАЛОГ ── */
+  const [messages, setMessages] = useState<DialogMessage[]>(() => {
+    try {
+      const s = localStorage.getItem('acc_dialog');
+      return s ? JSON.parse(s) : [];
+    } catch { return []; }
+  });
+  const dialogEndRef = useRef<HTMLDivElement>(null);
+
+  const addMessage = useCallback((msg: Omit<DialogMessage,'id'|'ts'>) => {
+    const newMsg: DialogMessage = { ...msg, id: Math.random().toString(36).slice(2), ts: Date.now() };
+    setMessages(prev => {
+      const updated = [...prev, newMsg].slice(-200);
+      try { localStorage.setItem('acc_dialog', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  }, []);
+
+  const clearDialog = useCallback(() => {
+    setMessages([]);
+    try { localStorage.removeItem('acc_dialog'); } catch {}
+  }, []);
+
+  /* Автоскролл к последнему сообщению */
+  useEffect(() => {
+    dialogEndRef.current?.scrollIntoView({ behavior:'smooth' });
+  }, [messages]);
+
+  /* Добавляем распознанное сообщение когда listening → false и есть переведённый текст */
+  const prevListeningRef = useRef(false);
+  useEffect(() => {
+    if (prevListeningRef.current && !listening) {
+      /* Берём актуальные значения через ref чтобы не захватывать в замыкание */
+      const spoken = spokenText.trim();
+      const transl = translSpoken.trim();
+      if (spoken && transl) {
+        addMessage({ side:'theirs', original: spoken, translated: transl, fromLang: theirLang, toLang: myLang });
+        setSpokenText(''); setInterim(''); setTranslSpoken('');
+      }
+    }
+    prevListeningRef.current = listening;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listening]);
+
+  /* ── МАСШТАБ ── */
   const [scale, setScale] = useState<number>(() => {
     try {
-      const s = parseFloat(localStorage.getItem('acc_scale') || '');
+      const s = parseFloat(localStorage.getItem('acc_scale')||'');
       return isNaN(s) ? SCALE_DEFAULT : clampScale(s);
     } catch { return SCALE_DEFAULT; }
   });
-
-  useEffect(() => {
-    try { localStorage.setItem('acc_scale', String(scale)); } catch {}
-  }, [scale]);
+  useEffect(()=>{ try{ localStorage.setItem('acc_scale', String(scale)); }catch{} }, [scale]);
 
   /* ── PINCH-TO-ZOOM ── */
-  const pinchRef = useRef<{ dist: number; baseScale: number } | null>(null);
-
+  const pinchRef = useRef<{ dist:number; baseScale:number }|null>(null);
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
+    if (e.touches.length===2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchRef.current = { dist: Math.hypot(dx, dy), baseScale: scale };
+      pinchRef.current = { dist: Math.hypot(dx,dy), baseScale: scale };
     }
   }, [scale]);
-
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinchRef.current) {
+    if (e.touches.length===2 && pinchRef.current) {
       e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const newDist = Math.hypot(dx, dy);
-      const ratio = newDist / pinchRef.current.dist;
-      setScale(clampScale(pinchRef.current.baseScale * ratio));
+      setScale(clampScale(pinchRef.current.baseScale * (Math.hypot(dx,dy)/pinchRef.current.dist)));
     }
   }, []);
+  const handleTouchEnd = useCallback(() => { pinchRef.current = null; }, []);
 
-  const handleTouchEnd = useCallback(() => {
-    pinchRef.current = null;
-  }, []);
-
-  const recogRef      = useRef<SpeechAny>(null);
-  const silenceRef    = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const recogRef       = useRef<SpeechAny>(null);
+  const silenceRef     = useRef<ReturnType<typeof setTimeout>|null>(null);
   const translTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const activeRef     = useRef(false);
-  const accumRef      = useRef('');
-  const inputRef      = useRef<HTMLTextAreaElement>(null);
-  const voicesRef     = useRef<SpeechSynthesisVoice[]>([]);
+  const activeRef      = useRef(false);
+  const accumRef       = useRef('');
+  const inputRef       = useRef<HTMLTextAreaElement>(null);
+  const voicesRef      = useRef<SpeechSynthesisVoice[]>([]);
 
   useEffect(()=>{
     if (!('speechSynthesis' in window)) return;
-    const load = () => { const v=window.speechSynthesis.getVoices(); if(v.length>0) voicesRef.current=v; };
+    const load=()=>{ const v=window.speechSynthesis.getVoices(); if(v.length>0) voicesRef.current=v; };
     load();
-    window.speechSynthesis.addEventListener('voiceschanged', load);
-    return ()=>window.speechSynthesis.removeEventListener('voiceschanged', load);
-  }, []);
+    window.speechSynthesis.addEventListener('voiceschanged',load);
+    return ()=>window.speechSynthesis.removeEventListener('voiceschanged',load);
+  },[]);
 
-  useEffect(()=>{ try{ localStorage.setItem('acc_myLang', myLang); }catch{} }, [myLang]);
-  useEffect(()=>{ try{ localStorage.setItem('acc_theirLang', theirLang); }catch{} }, [theirLang]);
+  useEffect(()=>{ try{ localStorage.setItem('acc_myLang',myLang); }catch{} },[myLang]);
+  useEffect(()=>{ try{ localStorage.setItem('acc_theirLang',theirLang); }catch{} },[theirLang]);
 
   const FF   = '"Montserrat",sans-serif';
   const BG   = '#09090f';
@@ -310,161 +355,135 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const GREEN = '#0ecb81';
   const RED   = '#f6465d';
 
-  const t = (k:K) => ui(myLang, k);
+  const t = (k:K) => ui(myLang,k);
 
-  const reset = () => {
-    setSpokenText(''); setInterim(''); setTranslSpoken('');
-    setInputText(''); setOutputText('');
-  };
-  const swapLangs = () => {
-    if (locked) return;
-    setMyLang(theirLang); setTheirLang(myLang); reset();
-  };
+  const reset=()=>{ setSpokenText(''); setInterim(''); setTranslSpoken(''); setInputText(''); setOutputText(''); };
+  const swapLangs=()=>{ if(locked) return; setMyLang(theirLang); setTheirLang(myLang); reset(); };
 
-  const speakText = useCallback((text: string, langCode: string) => {
-    if (!text.trim()) return;
-    const ttsLang = getLang(langCode).tts;
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  const speakText = useCallback((text:string,langCode:string)=>{
+    if(!text.trim()) return;
+    const ttsLang=getLang(langCode).tts;
+    if(currentAudio){ currentAudio.pause(); currentAudio=null; }
     setSpeaking(true);
-    const url = `${apiBase}/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(ttsLang)}`;
-    const audio = new Audio(url);
-    audio.volume = 1.0;
-    currentAudio = audio;
-    const done = () => { setSpeaking(false); if (currentAudio === audio) currentAudio = null; };
-    audio.onended  = done;
-    audio.onerror  = () => { done(); speakWebSpeech(text, ttsLang, voicesRef.current); };
-    audio.play().catch(() => { done(); speakWebSpeech(text, ttsLang, voicesRef.current); });
-  }, [apiBase]);
+    const url=`${apiBase}/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(ttsLang)}`;
+    const audio=new Audio(url); audio.volume=1.0; currentAudio=audio;
+    const done=()=>{ setSpeaking(false); if(currentAudio===audio) currentAudio=null; };
+    audio.onended=done;
+    audio.onerror=()=>{ done(); speakWebSpeech(text,ttsLang,voicesRef.current); };
+    audio.play().catch(()=>{ done(); speakWebSpeech(text,ttsLang,voicesRef.current); });
+  },[apiBase]);
 
-  const stopAll = useCallback(()=>{
-    activeRef.current = false;
-    if (recogRef.current) {
-      try { recogRef.current.abort(); } catch {}
-      recogRef.current = null;
-    }
-    if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
-    if (translTimerRef.current) { clearTimeout(translTimerRef.current); translTimerRef.current = null; }
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  const stopAll=useCallback(()=>{
+    activeRef.current=false;
+    if(recogRef.current){ try{ recogRef.current.abort(); }catch{} recogRef.current=null; }
+    if(silenceRef.current){ clearTimeout(silenceRef.current); silenceRef.current=null; }
+    if(translTimerRef.current){ clearTimeout(translTimerRef.current); translTimerRef.current=null; }
+    if(currentAudio){ currentAudio.pause(); currentAudio=null; }
+    if('speechSynthesis' in window) window.speechSynthesis.cancel();
     setListening(false); setInterim(''); setSpeaking(false);
-  }, []);
+  },[]);
 
-  const startListening = useCallback(()=>{
-    const SR = (window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
-    if (!SR) { alert('Используйте Chrome для распознавания речи'); return; }
-
+  const startListening=useCallback(()=>{
+    const SR=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
+    if(!SR){ alert('Используйте Chrome для распознавания речи'); return; }
     stopAll();
     setSpokenText(''); setInterim(''); setTranslSpoken('');
-    accumRef.current = '';
-    activeRef.current = true;
+    accumRef.current='';
+    activeRef.current=true;
     setListening(true);
 
-    const runSession = () => {
-      if (!activeRef.current) return;
-      const r = new SR() as SpeechAny;
-      recogRef.current = r;
+    const runSession=()=>{
+      if(!activeRef.current) return;
+      const r=new SR() as SpeechAny;
+      recogRef.current=r;
+      r.lang=getLang(theirLang).tts;
+      r.interimResults=true; r.continuous=false; r.maxAlternatives=1;
 
-      r.lang            = getLang(theirLang).tts;
-      r.interimResults  = true;
-      r.continuous      = false;
-      r.maxAlternatives = 1;
-
-      r.onresult = (e: any) => {
-        if (!activeRef.current) return;
-        let fin = '', tmp = '';
-        for (let i = 0; i < e.results.length; i++) {
-          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
-          else tmp += e.results[i][0].transcript;
+      r.onresult=(e:any)=>{
+        if(!activeRef.current) return;
+        let fin='',tmp='';
+        for(let i=0;i<e.results.length;i++){
+          if(e.results[i].isFinal) fin+=e.results[i][0].transcript;
+          else tmp+=e.results[i][0].transcript;
         }
-        if (tmp) setInterim(tmp);
-        if (fin) {
-          const trimmed = fin.trim();
-          accumRef.current = accumRef.current
-            ? accumRef.current + ' ' + trimmed
-            : trimmed;
+        if(tmp) setInterim(tmp);
+        if(fin){
+          const trimmed=fin.trim();
+          accumRef.current=accumRef.current?accumRef.current+' '+trimmed:trimmed;
           setSpokenText(accumRef.current);
           setInterim('');
-          if (silenceRef.current) clearTimeout(silenceRef.current);
-          silenceRef.current = setTimeout(()=>{
-            activeRef.current = false;
-            if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
+          if(silenceRef.current) clearTimeout(silenceRef.current);
+          silenceRef.current=setTimeout(()=>{
+            activeRef.current=false;
+            if(recogRef.current){ try{ recogRef.current.abort(); }catch{} recogRef.current=null; }
             setListening(false);
-          }, 3000);
+          },3000);
         }
       };
-
-      r.onerror = (e: any) => {
+      r.onerror=(e:any)=>{
         setInterim('');
-        if (activeRef.current && (e.error === 'no-speech' || e.error === 'aborted')) {
-          setTimeout(runSession, 100);
-        } else {
-          activeRef.current = false;
-          setListening(false);
-        }
+        if(activeRef.current&&(e.error==='no-speech'||e.error==='aborted')) setTimeout(runSession,100);
+        else{ activeRef.current=false; setListening(false); }
       };
-
-      r.onend = () => {
-        setInterim('');
-        recogRef.current = null;
-        if (activeRef.current) setTimeout(runSession, 80);
+      r.onend=()=>{
+        setInterim(''); recogRef.current=null;
+        if(activeRef.current) setTimeout(runSession,80);
         else setListening(false);
       };
-
-      try { r.start(); } catch (_) {}
+      try{ r.start(); }catch(_){}
     };
-
     runSession();
-  }, [theirLang, stopAll]);
+  },[theirLang,stopAll]);
 
   useEffect(()=>{
-    if (!spokenText.trim()) return;
-    if (translTimerRef.current) clearTimeout(translTimerRef.current);
-    translTimerRef.current = setTimeout(()=>{
-      translateText(spokenText, theirLang, myLang).then(setTranslSpoken);
-    }, 450);
-    return ()=>{ if (translTimerRef.current) clearTimeout(translTimerRef.current); };
-  }, [spokenText, theirLang, myLang]);
+    if(!spokenText.trim()) return;
+    if(translTimerRef.current) clearTimeout(translTimerRef.current);
+    translTimerRef.current=setTimeout(()=>{
+      translateText(spokenText,theirLang,myLang).then(setTranslSpoken);
+    },450);
+    return ()=>{ if(translTimerRef.current) clearTimeout(translTimerRef.current); };
+  },[spokenText,theirLang,myLang]);
 
-  const handleTranslateAndSpeak = useCallback(async()=>{
-    if (!inputText.trim()) return;
+  const handleTranslateAndSpeak=useCallback(async()=>{
+    if(!inputText.trim()) return;
+    const text=inputText.trim();
     setTranslating(true);
-    const tr = await translateText(inputText, myLang, theirLang);
+    const tr=await translateText(text,myLang,theirLang);
     setOutputText(tr);
     setTranslating(false);
-    speakText(tr, theirLang);
-  }, [inputText, myLang, theirLang, speakText]);
+    speakText(tr,theirLang);
+    /* Добавляем в диалог */
+    addMessage({ side:'mine', original:text, translated:tr, fromLang:myLang, toLang:theirLang });
+    setInputText(''); setOutputText('');
+  },[inputText,myLang,theirLang,speakText,addMessage]);
 
-  const quickPhrase = useCallback(async(phrase:string)=>{
+  const quickPhrase=useCallback(async(phrase:string)=>{
     setInputText(phrase); setOutputText('');
     setTranslating(true);
-    const tr = await translateText(phrase, myLang, theirLang);
+    const tr=await translateText(phrase,myLang,theirLang);
     setOutputText(tr);
     setTranslating(false);
-    speakText(tr, theirLang);
-  }, [myLang, theirLang, speakText]);
+    speakText(tr,theirLang);
+    addMessage({ side:'mine', original:phrase, translated:tr, fromLang:myLang, toLang:theirLang });
+  },[myLang,theirLang,speakText,addMessage]);
 
-  const handleSOS = useCallback(()=>{
-    if (sosPending) return;
+  const handleSOS=useCallback(()=>{
+    if(sosPending) return;
     setSosPending(true);
-    const sosText = getSosMsg(theirLang);
-    const ttsLang = getLang(theirLang).tts;
-    try {
-      const ctx = new AudioContext();
-      [0,0.7,1.4].forEach(t=>{
-        playBeep(ctx, 880, ctx.currentTime+t, 0.5);
-        playBeep(ctx, 1320, ctx.currentTime+t+0.15, 0.35);
-      });
-      setTimeout(()=>speakViaProxy(sosText, ttsLang, apiBase), 2300);
-    } catch { speakViaProxy(sosText, ttsLang, apiBase); }
-    setTimeout(()=>setSosPending(false), 7000);
-  }, [theirLang, sosPending, apiBase]);
+    const sosText=getSosMsg(theirLang);
+    const ttsLang=getLang(theirLang).tts;
+    try{
+      const ctx=new AudioContext();
+      [0,0.7,1.4].forEach(t=>{ playBeep(ctx,880,ctx.currentTime+t,0.5); playBeep(ctx,1320,ctx.currentTime+t+0.15,0.35); });
+      setTimeout(()=>speakViaProxy(sosText,ttsLang,apiBase),2300);
+    }catch{ speakViaProxy(sosText,ttsLang,apiBase); }
+    setTimeout(()=>setSosPending(false),7000);
+  },[theirLang,sosPending,apiBase]);
 
   const myL    = getLang(myLang);
   const theirL = getLang(theirLang);
-  const quickPhrases = [t('hello'), t('thanks'), t('wait'), t('dunno'), t('help')];
-
-  /* ── процент масштаба для отображения ── */
-  const scalePercent = Math.round(scale * 100);
+  const quickPhrases=[t('hello'),t('thanks'),t('wait'),t('dunno'),t('help')];
+  const scalePercent=Math.round(scale*100);
 
   return (
     <div
@@ -475,19 +494,15 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
       onTouchEnd={handleTouchEnd}
       onClick={()=>{ setOpenL(false); setOpenR(false); }}
     >
-
       {/* ── МАСШТАБИРУЕМАЯ ОБЛАСТЬ ── */}
       <div style={{ flex:1, overflow:'hidden', position:'relative' }}>
         <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: `${(100 / scale).toFixed(4)}%`,
-          height: `${(100 / scale).toFixed(4)}%`,
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-          display: 'flex',
-          flexDirection: 'column',
+          position:'absolute', top:0, left:0,
+          width:`${(100/scale).toFixed(4)}%`,
+          height:`${(100/scale).toFixed(4)}%`,
+          transform:`scale(${scale})`,
+          transformOrigin:'top left',
+          display:'flex', flexDirection:'column',
         }}>
 
           {/* ХЕДЕР */}
@@ -497,9 +512,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             <motion.button whileTap={{ scale:0.88 }} onClick={()=>{ stopAll(); onBack(); }}
               style={{ width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.07)',
                 border:`1px solid ${LINE}`, color:TEXT, fontSize:15, cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              ←
-            </motion.button>
+                display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>←</motion.button>
             <div style={{ fontSize:16, fontWeight:900, letterSpacing:'0.05em', flex:1 }}>👁 {t('title')}</div>
 
             {listening&&(
@@ -511,7 +524,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                 {t('listening')}
               </motion.div>
             )}
-
             {speaking&&!listening&&(
               <motion.div animate={{ opacity:[1,0.2,1] }} transition={{ repeat:Infinity, duration:0.6 }}
                 style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px',
@@ -538,9 +550,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                   background:locked?'rgba(255,255,255,0.03)':`${accent}15`,
                   border:`1px solid ${locked?LINE:accent+'33'}`,
                   color:locked?SUB:accent, fontSize:16, cursor:locked?'not-allowed':'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                ⇄
-              </motion.button>
+                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>⇄</motion.button>
               <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenL(false); }}>
                 <LangPicker value={theirLang} open={openR} onOpen={setOpenR}
                   onChange={v=>{ if(!locked){ setTheirLang(v); reset(); } }}/>
@@ -563,7 +573,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                   background:listening?`${RED}20`:`${GREEN}15`,
                   border:`1.5px solid ${listening?RED+'55':GREEN+'44'}`,
                   color:listening?RED:GREEN, fontSize:12, fontWeight:800 }}>
-                {listening ? `⏹ ${t('stop')}` : t('recognize')}
+                {listening?`⏹ ${t('stop')}`:t('recognize')}
               </motion.button>
               <motion.button whileTap={{ scale:0.96 }}
                 onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
@@ -574,44 +584,128 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               </motion.button>
             </div>
 
-            {/* БЛОК СЛУШАЮ */}
-            {(spokenText||interim||listening) && (
+            {/* ══ ЛЕНТА ДИАЛОГА ══ */}
+            {messages.length > 0 && (
+              <div style={{ marginBottom:8 }}>
+                {/* Заголовок + очистить */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                  <span style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+                    💬 Диалог
+                  </span>
+                  <motion.button whileTap={{ scale:0.88 }} onClick={clearDialog}
+                    style={{ fontSize:9, color:SUB, background:'none', border:'none', cursor:'pointer',
+                      padding:'2px 6px', borderRadius:6, fontFamily:FF }}>
+                    {t('clearDialog')} ✕
+                  </motion.button>
+                </div>
+
+                {/* Сообщения */}
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <AnimatePresence initial={false}>
+                    {messages.map(msg => {
+                      const isMine = msg.side === 'mine';
+                      const fromL  = getLang(msg.fromLang);
+                      const toL    = getLang(msg.toLang);
+                      return (
+                        <motion.div key={msg.id}
+                          initial={{ opacity:0, y:10, scale:0.95 }}
+                          animate={{ opacity:1, y:0, scale:1 }}
+                          transition={{ duration:0.22 }}
+                          style={{ display:'flex', flexDirection:'column',
+                            alignItems: isMine ? 'flex-end' : 'flex-start' }}>
+
+                          {/* Метка языка + время */}
+                          <div style={{ display:'flex', alignItems:'center', gap:4,
+                            marginBottom:3, fontSize:9, color:SUB, fontWeight:700,
+                            flexDirection: isMine ? 'row-reverse' : 'row' }}>
+                            <span>{fromL.flag} {fromL.name}</span>
+                            <span style={{ opacity:0.35 }}>→</span>
+                            <span>{toL.flag} {toL.name}</span>
+                            <span style={{ opacity:0.3, marginLeft:4 }}>{fmtTime(msg.ts)}</span>
+                          </div>
+
+                          {/* Пузырь */}
+                          <div style={{
+                            maxWidth:'82%', borderRadius: isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                            padding:'9px 12px',
+                            background: isMine
+                              ? `linear-gradient(135deg, ${accent}33, ${accent}1a)`
+                              : 'rgba(255,255,255,0.06)',
+                            border: `1px solid ${isMine ? accent+'44' : LINE}`,
+                          }}>
+                            {/* Перевод — главный текст */}
+                            <div style={{ fontSize:14, fontWeight:800,
+                              color: isMine ? accent : TEXT, lineHeight:1.5, marginBottom:4 }}>
+                              {msg.translated}
+                            </div>
+                            {/* Оригинал — мелко */}
+                            {msg.original !== msg.translated && (
+                              <div style={{ fontSize:10, color:SUB, fontStyle:'italic', lineHeight:1.4 }}>
+                                {fromL.flag} {msg.original}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Кнопка повторить озвучку */}
+                          <motion.button whileTap={{ scale:0.85 }}
+                            onClick={()=>speakText(msg.translated, msg.toLang)}
+                            style={{ marginTop:3, width:24, height:24, borderRadius:'50%',
+                              background:'rgba(255,255,255,0.05)', border:`1px solid ${LINE}`,
+                              color:SUB, fontSize:11, cursor:'pointer',
+                              display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            🔊
+                          </motion.button>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                  <div ref={dialogEndRef}/>
+                </div>
+              </div>
+            )}
+
+            {/* ЖИВОЙ БЛОК СЛУШАЮ (показываем пока идёт распознавание) */}
+            {(interim || (listening && !spokenText)) && (
               <div style={{ borderRadius:12, border:`1px solid ${LINE}`, background:CARD,
                 marginBottom:8, padding:'10px 12px' }}>
                 <div style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.07em',
                   textTransform:'uppercase', marginBottom:6 }}>
                   {theirL.flag} {theirL.name} → {myL.flag} {myL.name}
                 </div>
-                {interim && !translSpoken && (
+                {interim ? (
                   <div style={{ fontSize:13, color:SUB, fontStyle:'italic', lineHeight:1.6 }}>{interim}</div>
+                ) : (
+                  <div style={{ fontSize:13, color:SUB, fontStyle:'italic', lineHeight:1.6 }}>{t('speakHere')}</div>
                 )}
+              </div>
+            )}
+
+            {/* ЖИВОЙ БЛОК: накоплена речь, идёт перевод */}
+            {spokenText && !interim && (
+              <div style={{ borderRadius:12, border:`1px solid rgba(14,203,129,0.25)`,
+                background:'rgba(14,203,129,0.05)', marginBottom:8, padding:'10px 12px' }}>
+                <div style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.07em',
+                  textTransform:'uppercase', marginBottom:6 }}>
+                  {theirL.flag} {theirL.name}
+                </div>
                 {translSpoken ? (
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:17, fontWeight:900, color:accent, lineHeight:1.5 }}>{translSpoken}</div>
-                      {spokenText && theirLang !== myLang && (
+                      <div style={{ fontSize:16, fontWeight:900, color:GREEN, lineHeight:1.5 }}>{translSpoken}</div>
+                      {theirLang!==myLang&&(
                         <div style={{ fontSize:10, color:SUB, marginTop:3, fontStyle:'italic' }}>
-                          {theirL.name}: {spokenText}
+                          {theirL.flag} {spokenText}
                         </div>
                       )}
                     </div>
                     <motion.button whileTap={{ scale:0.88 }}
-                      onClick={()=>speakText(translSpoken, myLang)}
-                      style={{ width:32, height:32, borderRadius:'50%', background:`${accent}20`,
-                        border:`1px solid ${accent}44`, color:accent, fontSize:15, cursor:'pointer',
-                        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      🔊
-                    </motion.button>
+                      onClick={()=>speakText(translSpoken,myLang)}
+                      style={{ width:32, height:32, borderRadius:'50%', background:`${GREEN}20`,
+                        border:`1px solid ${GREEN}44`, color:GREEN, fontSize:15, cursor:'pointer',
+                        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>🔊</motion.button>
                   </div>
                 ) : (
-                  !interim && (
-                    <div style={{ fontSize:13, color:TEXT, lineHeight:1.6 }}>
-                      {spokenText
-                        ? <span style={{ color:SUB, fontStyle:'italic' }}>⏳ {spokenText}</span>
-                        : <span style={{ color:SUB, fontStyle:'italic' }}>{t('speakHere')}</span>
-                      }
-                    </div>
-                  )
+                  <div style={{ fontSize:13, color:SUB, fontStyle:'italic' }}>⏳ {spokenText}</div>
                 )}
               </div>
             )}
@@ -623,7 +717,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                 <textarea ref={inputRef} value={inputText}
                   onChange={e=>{ setInputText(e.target.value); setOutputText(''); }}
                   placeholder={t('ph')}
-                  style={{ flex:1, minHeight:64, padding:'10px 12px', background:'transparent',
+                  style={{ flex:1, minHeight:60, padding:'10px 12px', background:'transparent',
                     border:'none', outline:'none', color:TEXT, fontSize:14, fontFamily:FF,
                     resize:'none', lineHeight:1.6, boxSizing:'border-box' }}/>
                 {inputText&&(
@@ -632,9 +726,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                     style={{ width:26, height:26, margin:'9px 9px 0 0', borderRadius:'50%',
                       background:'rgba(246,70,93,0.12)', border:'1px solid rgba(246,70,93,0.25)',
                       color:RED, fontSize:11, cursor:'pointer',
-                      display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    ✕
-                  </motion.button>
+                      display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>✕</motion.button>
                 )}
               </div>
               {(outputText||translating)&&(
@@ -642,18 +734,16 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                   background:'rgba(255,255,255,0.02)', display:'flex', alignItems:'center', gap:8 }}>
                   <div style={{ flex:1 }}>
                     {translating
-                      ? <div style={{ color:SUB, fontSize:11, fontStyle:'italic' }}>{t('translating')}</div>
-                      : <div style={{ fontSize:15, fontWeight:800, color:accent, lineHeight:1.5 }}>{outputText}</div>
+                      ?<div style={{ color:SUB, fontSize:11, fontStyle:'italic' }}>{t('translating')}</div>
+                      :<div style={{ fontSize:15, fontWeight:800, color:accent, lineHeight:1.5 }}>{outputText}</div>
                     }
                   </div>
                   {!translating&&outputText&&(
                     <motion.button whileTap={{ scale:0.88 }}
-                      onClick={()=>speakText(outputText, theirLang)}
+                      onClick={()=>speakText(outputText,theirLang)}
                       style={{ width:32, height:32, borderRadius:'50%', background:`${accent}20`,
                         border:`1px solid ${accent}44`, color:accent, fontSize:15, cursor:'pointer',
-                        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      🔊
-                    </motion.button>
+                        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>🔊</motion.button>
                   )}
                 </div>
               )}
@@ -664,15 +754,13 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               disabled={!inputText.trim()||translating}
               style={{ width:'100%', padding:'13px', borderRadius:12,
                 cursor:inputText.trim()?'pointer':'not-allowed',
-                background:inputText.trim()
-                  ?`linear-gradient(135deg,${accent},${accent}bb)`
-                  :'rgba(255,255,255,0.04)',
+                background:inputText.trim()?`linear-gradient(135deg,${accent},${accent}bb)`:'rgba(255,255,255,0.04)',
                 border:`1.5px solid ${inputText.trim()?accent+'66':LINE}`,
                 color:inputText.trim()?'#fff':SUB,
                 fontSize:14, fontWeight:900, fontFamily:FF, letterSpacing:'0.02em',
                 marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:8,
                 boxShadow:inputText.trim()?`0 4px 20px ${accent}44`:'none', transition:'all 0.2s' }}>
-              {translating ? `⏳ ${t('translating')}` : t('translate')}
+              {translating?`⏳ ${t('translating')}`:t('translate')}
             </motion.button>
 
             {/* БЫСТРЫЕ ФРАЗЫ */}
@@ -691,8 +779,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             {/* SOS */}
             <motion.button whileTap={{ scale:0.97 }} onClick={handleSOS}
               animate={{ boxShadow: sosPending
-                ? ['0 0 0px rgba(246,70,93,0)','0 0 28px rgba(246,70,93,0.9)','0 0 0px rgba(246,70,93,0)']
-                : '0 4px 18px rgba(246,70,93,0.35)' }}
+                ?['0 0 0px rgba(246,70,93,0)','0 0 28px rgba(246,70,93,0.9)','0 0 0px rgba(246,70,93,0)']
+                :'0 4px 18px rgba(246,70,93,0.35)' }}
               transition={{ repeat:sosPending?Infinity:0, duration:0.55 }}
               style={{ width:'100%', padding:'15px', borderRadius:14, cursor:'pointer',
                 background:`linear-gradient(135deg,${RED},#b01222)`,
@@ -705,88 +793,47 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               3 сигнала → голос на языке собеседника
             </div>
           </div>
-
-        </div>{/* конец масштабируемой области */}
+        </div>
       </div>
 
-      {/* ══ БЕГУНОК МАСШТАБА — вне масштабируемой зоны, всегда снизу ══ */}
-      <div style={{
-        flexShrink: 0,
-        background: 'rgba(9,9,15,0.97)',
-        borderTop: `1px solid ${LINE}`,
-        padding: '8px 16px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-      }}>
+      {/* ══ БЕГУНОК МАСШТАБА ══ */}
+      <div style={{ flexShrink:0, background:'rgba(9,9,15,0.97)', borderTop:`1px solid ${LINE}`,
+        padding:'8px 16px 14px', display:'flex', flexDirection:'column', gap:4 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:2 }}>
           <span style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>
             🔍 Масштаб
           </span>
-          <span style={{ fontSize:11, color: scale > 1 ? accent : SUB, fontWeight:800 }}>
-            {scalePercent}%
-          </span>
+          <span style={{ fontSize:11, color:scale>1?accent:SUB, fontWeight:800 }}>{scalePercent}%</span>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          {/* Кнопка уменьшить */}
-          <button
-            onClick={() => setScale(s => clampScale(s - 0.1))}
-            style={{
-              width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-              background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`,
-              color: TEXT, fontSize: 14, cursor: 'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center',
-            }}>−</button>
-
-          {/* Сам бегунок */}
+          <button onClick={()=>setScale(s=>clampScale(s-0.1))}
+            style={{ width:26, height:26, borderRadius:8, flexShrink:0,
+              background:'rgba(255,255,255,0.06)', border:`1px solid ${LINE}`,
+              color:TEXT, fontSize:14, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center' }}>−</button>
           <div style={{ flex:1, position:'relative', height:24, display:'flex', alignItems:'center' }}>
-            {/* Трек */}
-            <div style={{
-              position:'absolute', left:0, right:0, height:4, borderRadius:2,
-              background: 'rgba(255,255,255,0.08)',
-            }}/>
-            {/* Заполненная часть */}
-            <div style={{
-              position:'absolute', left:0,
-              width: `${((scale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100}%`,
-              height:4, borderRadius:2,
-              background: `linear-gradient(90deg, ${accent}88, ${accent})`,
-              transition: 'width 0.05s',
-            }}/>
-            <input
-              type="range"
-              min={SCALE_MIN}
-              max={SCALE_MAX}
-              step={0.05}
-              value={scale}
-              onChange={e => setScale(clampScale(parseFloat(e.target.value)))}
-              style={{
-                position:'absolute', left:0, right:0, width:'100%',
+            <div style={{ position:'absolute', left:0, right:0, height:4, borderRadius:2, background:'rgba(255,255,255,0.08)' }}/>
+            <div style={{ position:'absolute', left:0,
+              width:`${((scale-SCALE_MIN)/(SCALE_MAX-SCALE_MIN))*100}%`,
+              height:4, borderRadius:2, background:`linear-gradient(90deg,${accent}88,${accent})`, transition:'width 0.05s' }}/>
+            <input type="range" min={SCALE_MIN} max={SCALE_MAX} step={0.05} value={scale}
+              onChange={e=>setScale(clampScale(parseFloat(e.target.value)))}
+              style={{ position:'absolute', left:0, right:0, width:'100%',
                 appearance:'none', WebkitAppearance:'none',
-                background:'transparent', cursor:'pointer', height:24, margin:0,
-              }}
-            />
+                background:'transparent', cursor:'pointer', height:24, margin:0 }}/>
           </div>
-
-          {/* Кнопка увеличить */}
-          <button
-            onClick={() => setScale(s => clampScale(s + 0.1))}
-            style={{
-              width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-              background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`,
-              color: TEXT, fontSize: 14, cursor: 'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center',
-            }}>+</button>
+          <button onClick={()=>setScale(s=>clampScale(s+0.1))}
+            style={{ width:26, height:26, borderRadius:8, flexShrink:0,
+              background:'rgba(255,255,255,0.06)', border:`1px solid ${LINE}`,
+              color:TEXT, fontSize:14, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
         </div>
-
-        {/* Подсказка при дефолтном масштабе */}
-        {scale === SCALE_DEFAULT && (
+        {scale===SCALE_DEFAULT&&(
           <div style={{ textAlign:'center', fontSize:9, color:SUB, marginTop:1 }}>
             Сдвиньте вправо или раздвиньте пальцами для увеличения
           </div>
         )}
       </div>
-
     </div>
   );
 }
