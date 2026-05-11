@@ -248,10 +248,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [openL, setOpenL]         = useState(false);
   const [openR, setOpenR]         = useState(false);
 
-  const [listening, setListening]     = useState(false);
-  const [spokenText, setSpokenText]   = useState('');
-  const [interim, setInterim]         = useState('');
-  const [translSpoken, setTranslSpoken] = useState('');
+  const [listening, setListening] = useState(false);
+  const [interim, setInterim]     = useState('');
 
   const [inputText, setInputText]   = useState('');
   const [outputText, setOutputText] = useState('');
@@ -277,16 +275,12 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const onPinchMove  = (e:React.TouchEvent) => { if(e.touches.length===2 && pinchRef.current){ const s=getTouchDist(e.touches)/pinchRef.current.dist; setZoomLevel(Math.min(2.0,Math.max(0.6,pinchRef.current.zoom*s))); } };
   const onPinchEnd   = () => { if(pinchRef.current){ try{ localStorage.setItem('acc_zoom', String(zoomLevel)); }catch{} pinchRef.current=null; } };
 
-  const recogRef      = useRef<SpeechAny>(null);
-  const silenceRef    = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const translTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const activeRef     = useRef(false);
-  const accumRef      = useRef('');
-  const inputRef      = useRef<HTMLTextAreaElement>(null);
-  const voicesRef     = useRef<SpeechSynthesisVoice[]>([]);
-  const dialogEndRef  = useRef<HTMLDivElement>(null);
-  const prevListeningRef = useRef(false);
-  const pendingSpokenRef = useRef<{original:string;fromLang:string;toLang:string}|null>(null);
+  const recogRef     = useRef<SpeechAny>(null);
+  const silenceRef   = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const activeRef    = useRef(false);
+  const inputRef     = useRef<HTMLTextAreaElement>(null);
+  const voicesRef    = useRef<SpeechSynthesisVoice[]>([]);
+  const dialogEndRef = useRef<HTMLDivElement>(null);
 
   /* Предзагрузка Web Speech голосов (fallback) */
   useEffect(()=>{
@@ -330,7 +324,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const t = (k:K) => ui(myLang, k);
 
   const reset = () => {
-    setSpokenText(''); setInterim(''); setTranslSpoken('');
+    setInterim('');
     setInputText(''); setOutputText('');
   };
   const swapLangs = () => {
@@ -341,25 +335,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   /* Автоскролл диалога при новых сообщениях */
   useEffect(()=>{ dialogEndRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages]);
 
-  /* Когда слушание заканчивается — сохраняем pending-фразу */
-  useEffect(()=>{
-    if (!listening && prevListeningRef.current && spokenText.trim()) {
-      pendingSpokenRef.current = { original:spokenText, fromLang:theirLang, toLang:myLang };
-    }
-    prevListeningRef.current = listening;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listening]);
-
-  /* Когда перевод речи готов и есть pending — добавляем в диалог */
-  useEffect(()=>{
-    if (translSpoken && pendingSpokenRef.current && !interim) {
-      const p = pendingSpokenRef.current;
-      setMessages(prev=>[...prev, { id:Date.now()+'m', side:'theirs', original:p.original, translated:translSpoken, fromLang:p.fromLang, toLang:p.toLang, ts:Date.now() }]);
-      pendingSpokenRef.current = null;
-      setSpokenText(''); setTranslSpoken('');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [translSpoken, interim]);
 
   /* Говорим — бэкенд-прокси Google TTS, fallback Web Speech + зелёная лампочка */
   const speakText = useCallback((text: string, langCode: string) => {
@@ -391,7 +366,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     activeRef.current = false;
     if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
     if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
-    if (translTimerRef.current) { clearTimeout(translTimerRef.current); translTimerRef.current = null; }
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setListening(false); setInterim(''); setSpeaking(false);
@@ -402,8 +376,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     if (!SR) { alert('Используйте Chrome для распознавания речи'); return; }
 
     stopAll();
-    setSpokenText(''); setInterim(''); setTranslSpoken('');
-    accumRef.current = '';
+    setInterim('');
     activeRef.current = true;
     setListening(true);
 
@@ -421,7 +394,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
       r.onresult = (e: any) => {
         if (!activeRef.current) return;
         let fin = '', tmp = '';
-        /* e.resultIndex — начало новых результатов, не перечитываем старые */
+        /* e.resultIndex — только новые результаты, не перечитываем старые */
         for (let i = e.resultIndex; i < e.results.length; i++) {
           if (e.results[i].isFinal) fin += e.results[i][0].transcript;
           else tmp += e.results[i][0].transcript;
@@ -429,18 +402,30 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         if (tmp) setInterim(tmp);
         if (fin) {
           const trimmed = fin.trim();
-          accumRef.current = accumRef.current
-            ? accumRef.current + ' ' + trimmed
-            : trimmed;
-          setSpokenText(accumRef.current);
+          if (!trimmed) return;
           setInterim('');
-          /* Сбрасываем таймер тишины каждый раз при новом слове */
+          /* Сбрасываем таймер тишины */
           if (silenceRef.current) clearTimeout(silenceRef.current);
           silenceRef.current = setTimeout(()=>{
             activeRef.current = false;
             if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
             setListening(false);
           }, 6000);
+          /* Каждая финальная фраза → сразу один перевод → одно сообщение */
+          const fromL = theirLang, toL = myLang;
+          translateText(trimmed, fromL, toL).then(translated => {
+            if (!translated.trim()) return;
+            setMessages(prev=>[...prev, {
+              id: Date.now()+'m',
+              side: 'theirs',
+              original: trimmed,
+              translated,
+              fromLang: fromL,
+              toLang: toL,
+              ts: Date.now()
+            }]);
+            speakText(translated, toL);
+          });
         }
       };
 
@@ -462,17 +447,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     };
 
     runSession();
-  }, [theirLang, stopAll]);
+  }, [theirLang, myLang, stopAll, speakText]);
 
-  /* ── Перевод с дебаунсом 450 мс (ждём паузу в речи, а не каждое слово) ── */
-  useEffect(()=>{
-    if (!spokenText.trim()) return;
-    if (translTimerRef.current) clearTimeout(translTimerRef.current);
-    translTimerRef.current = setTimeout(()=>{
-      translateText(spokenText, theirLang, myLang).then(setTranslSpoken);
-    }, 450);
-    return ()=>{ if (translTimerRef.current) clearTimeout(translTimerRef.current); };
-  }, [spokenText, theirLang, myLang]);
 
   /* ГЛАВНАЯ КНОПКА: перевести + озвучить → добавляем в диалог */
   const handleTranslateAndSpeak = useCallback(async()=>{
