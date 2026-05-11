@@ -277,7 +277,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
   const recogRef     = useRef<SpeechAny>(null);
   const silenceRef   = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const activeRef    = useRef(false);
+  const activeRef      = useRef(false);
+  const latestFinalRef = useRef('');      /* последний накопленный финальный текст */
   const inputRef     = useRef<HTMLTextAreaElement>(null);
   const voicesRef    = useRef<SpeechSynthesisVoice[]>([]);
   const dialogEndRef = useRef<HTMLDivElement>(null);
@@ -377,76 +378,74 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
     stopAll();
     setInterim('');
+    latestFinalRef.current = '';
     activeRef.current = true;
     setListening(true);
 
-    /* ── Запускаем ОДНУ сессию. onend → перезапустит, если activeRef.current ── */
-    const runSession = () => {
-      if (!activeRef.current) return;
-      const r = new SR() as SpeechAny;
-      recogRef.current = r;
+    /* Захватываем языки на момент старта */
+    const fromL = theirLang, toL = myLang;
 
-      r.lang            = getLang(theirLang).tts; /* язык СОБЕСЕДНИКА */
-      r.interimResults  = true;
-      r.continuous      = true;   /* держим сессию открытой — не рвём на части */
-      r.maxAlternatives = 1;
-
-      r.onresult = (e: any) => {
-        if (!activeRef.current) return;
-        let fin = '', tmp = '';
-        /* e.resultIndex — только новые результаты, не перечитываем старые */
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
-          else tmp += e.results[i][0].transcript;
-        }
-        if (tmp) setInterim(tmp);
-        if (fin) {
-          const trimmed = fin.trim();
-          if (!trimmed) return;
-          setInterim('');
-          /* Сбрасываем таймер тишины */
-          if (silenceRef.current) clearTimeout(silenceRef.current);
-          silenceRef.current = setTimeout(()=>{
-            activeRef.current = false;
-            if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
-            setListening(false);
-          }, 6000);
-          /* Каждая финальная фраза → сразу один перевод → одно сообщение */
-          const fromL = theirLang, toL = myLang;
-          translateText(trimmed, fromL, toL).then(translated => {
-            if (!translated.trim()) return;
-            setMessages(prev=>[...prev, {
-              id: Date.now()+'m',
-              side: 'theirs',
-              original: trimmed,
-              translated,
-              fromLang: fromL,
-              toLang: toL,
-              ts: Date.now()
-            }]);
-            /* Не озвучиваем во время слушания — микрофон подхватит голос */
-          });
-        }
-      };
-
-      r.onerror = (e: any) => {
-        setInterim('');
-        /* Не перезапускаем — пусть пользователь жмёт «Слушать» сам */
-        activeRef.current = false;
-        setListening(false);
-      };
-
-      r.onend = () => {
-        setInterim('');
-        recogRef.current = null;
-        /* Не перезапускаем автоматически */
-        setListening(false);
-      };
-
-      try { r.start(); } catch (_) {}
+    /* Переводим и пушим накопленный текст — вызывается один раз */
+    const flushFinal = () => {
+      const text = latestFinalRef.current.trim();
+      latestFinalRef.current = '';
+      if (!text) return;
+      setInterim('');
+      translateText(text, fromL, toL).then(translated => {
+        if (!translated.trim()) return;
+        setMessages(prev=>[...prev, {
+          id: Date.now()+'m', side:'theirs',
+          original: text, translated,
+          fromLang: fromL, toLang: toL, ts: Date.now()
+        }]);
+      });
     };
 
-    runSession();
+    const r = new SR() as SpeechAny;
+    recogRef.current = r;
+    r.lang           = getLang(theirLang).tts;
+    r.interimResults = true;
+    r.continuous     = true;
+    r.maxAlternatives = 1;
+
+    r.onresult = (e: any) => {
+      if (!activeRef.current) return;
+      /* Собираем ВСЕ финальные слоты с нуля — Chrome обновляет тот же слот */
+      let fin = '', tmp = '';
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+        else tmp += e.results[i][0].transcript;
+      }
+      if (tmp) setInterim(tmp);
+      if (fin) {
+        /* Перезаписываем — не накапливаем повторы */
+        latestFinalRef.current = fin.trim();
+        setInterim('');
+        /* Таймер тишины: 1.5 сек без слов → сбросить и отправить */
+        if (silenceRef.current) clearTimeout(silenceRef.current);
+        silenceRef.current = setTimeout(()=>{
+          silenceRef.current = null;
+          flushFinal();
+          activeRef.current = false;
+          if (recogRef.current) { try { recogRef.current.abort(); } catch {} recogRef.current = null; }
+          setListening(false);
+        }, 1500);
+      }
+    };
+
+    r.onerror = () => {
+      flushFinal();
+      activeRef.current = false;
+      setListening(false);
+    };
+
+    r.onend = () => {
+      recogRef.current = null;
+      flushFinal();
+      setListening(false);
+    };
+
+    try { r.start(); } catch (_) {}
   }, [theirLang, myLang, stopAll]);
 
 
