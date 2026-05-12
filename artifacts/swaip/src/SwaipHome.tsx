@@ -5824,38 +5824,27 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   return(
     <CallCtx.Provider value={call}>
 
-    {/* ═══ ЭКРАН: КИНОТЕАТР ═══ */}
+    {/* ═══ LAZY ЭКРАНЫ ═══ */}
+    <Suspense fallback={null}>
     {currentScreen==='cinema'&&(
       <CinemaScreen myHash={userHash} sessionToken={propToken||getSessionToken()||''} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: КЛИПЫ ═══ */}
     {currentScreen==='clips'&&(
       <ClipsScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: МЕРОПРИЯТИЯ ═══ */}
     {currentScreen==='events'&&(
       <EventsScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: МАРКЕТПЛЕЙС ═══ */}
     {currentScreen==='marketplace'&&(
       <MarketplaceScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}
         onOpenChat={(hash,name)=>{setChatTarget({hash,info:{name,avatar:'',handle:name}});setNavTab('messages');setCurrentScreen('home');}}/>
     )}
-
-    {/* ═══ ЭКРАН: МУЗЫКАЛЬНАЯ КОМНАТА ═══ */}
     {currentScreen==='music'&&(
       <MusicRoomScreen myHash={userHash} myName={profName} sessionToken={propToken||getSessionToken()||''} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: КАПСУЛА ВРЕМЕНИ ═══ */}
     {currentScreen==='capsule'&&(
       <TimeCapsuleScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: СЛУШАЕМ ВМЕСТЕ ═══ */}
     {currentScreen==='polls'&&(
       <PollsScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
     )}
@@ -5871,32 +5860,22 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     {currentScreen==='listenTogether'&&(
       <ListenTogetherScreen myHash={userHash} myName={profName} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: КОМНАТЫ ОТДЫХА ═══ */}
     {currentScreen==='lounge'&&(
       <LoungeScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: ИГРЫ ═══ */}
     {currentScreen==='games'&&(
       <GamesArcade accentColor={activeAccent} onBack={()=>setCurrentScreen('home')}/>
     )}
-
-    {/* ═══ ЭКРАН: БОТЫ ═══ */}
     {currentScreen==='bots'&&(
       <div style={{position:'fixed',inset:0,zIndex:800}}>
         <BotBuilder apiBase={apiBase} onClose={()=>setCurrentScreen('home')}/>
       </div>
     )}
-
-    {/* ═══ ЭКРАН: МИТИНГИ ═══ */}
     {currentScreen==='meetings'&&(
       <div style={{position:'fixed',inset:0,zIndex:800}}>
         <MeetingsScreen apiBase={apiBase} userHash={userHash} onBack={()=>setCurrentScreen('home')}/>
       </div>
     )}
-
-    {/* ═══ ЭКРАН: БИРЖА SWP ═══ */}
     {currentScreen==='exchange'&&(
       <SwpExchange
         apiBase={apiBase}
@@ -5906,8 +5885,6 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         onBack={()=>setCurrentScreen('home')}
       />
     )}
-
-    {/* ═══ ЭКРАН: Я СЛЫШУ ═══ */}
     {currentScreen==='assistant'&&(
       <AccessibilityAssistant
         accent={activeAccent}
@@ -5915,6 +5892,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         apiBase={apiBase}
       />
     )}
+    </Suspense>
 
     {/* ═══ ЭКРАН: СООБЩЕНИЯ ═══ */}
     {navTab==='messages'&&currentScreen==='home'&&(

@@ -56,6 +56,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('framer-motion')) return 'vendor-framer';
+            if (id.includes('tldraw'))        return 'vendor-tldraw';
+            if (id.includes('livekit'))       return 'vendor-livekit';
+            if (id.includes('pdfjs-dist'))    return 'vendor-pdf';
+            if (id.includes('@noble'))        return 'vendor-noble';
+            return 'vendor';
+          }
+        },
+      },
+    },
   },
   server: {
     port,
