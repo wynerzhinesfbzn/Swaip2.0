@@ -39,10 +39,10 @@ type Lang = typeof LANGUAGES[0];
 function getLang(code: string): Lang { return LANGUAGES.find(l=>l.code===code)||LANGUAGES[0]; }
 
 /* ═══════════ ЛОКАЛИЗАЦИЯ UI — все 30 языков ═══════════ */
-type K = 'title'|'recognize'|'write'|'translate'|'sos'|'lock'|'translating'|'listening'|'ph'|'hello'|'thanks'|'wait'|'dunno'|'help'|'stop'|'speakHere';
-const UI: Record<string, Record<K,string>> = {
-  ru:{ title:'Я СЛЫШУ',       recognize:'🎤 Слушать речь',         write:'✏️ Написать',          translate:'🔊 Перевести и озвучить',   sos:'🆘 ПОДАТЬ СИГНАЛ О ПОМОЩИ', lock:'Зафиксировать языки',   translating:'Перевод...',         listening:'Слушаю...',       ph:'Введите текст...',      hello:'Здравствуйте', thanks:'Спасибо',       wait:'Подождите',      dunno:'Не понимаю',      help:'Помогите мне',  stop:'Стоп',    speakHere:'Говорите — текст появится здесь...' },
-  en:{ title:'I HEAR',        recognize:'🎤 Listen',                write:'✏️ Write',              translate:'🔊 Translate & Speak',      sos:"🆘 CALL FOR HELP",           lock:'Lock languages',         translating:'Translating...',     listening:'Listening...',    ph:'Type here...',          hello:'Hello',        thanks:'Thank you',     wait:'Please wait',    dunno:"Don't understand", help:'Help me',       stop:'Stop',    speakHere:'Speak — text appears here...' },
+type K = 'title'|'recognize'|'write'|'translate'|'sos'|'lock'|'translating'|'listening'|'ph'|'hello'|'thanks'|'wait'|'dunno'|'help'|'stop'|'speakHere'|'dialog'|'clear'|'emptyHint'|'myPhrases'|'noPhrases'|'addPhrase'|'writePhrase';
+const UI: Record<string, Partial<Record<K,string>>> = {
+  ru:{ title:'Я СЛЫШУ',       recognize:'🎤 Слушать речь',         write:'✏️ Написать',          translate:'🔊 Перевести и озвучить',   sos:'🆘 ПОДАТЬ СИГНАЛ О ПОМОЩИ', lock:'Зафиксировать языки',   translating:'Перевод...',         listening:'Слушаю...',       ph:'Введите текст...',      hello:'Здравствуйте', thanks:'Спасибо',       wait:'Подождите',      dunno:'Не понимаю',      help:'Помогите мне',  stop:'Стоп',    speakHere:'Говорите — текст появится здесь...', dialog:'💬 Диалог', clear:'Очистить', emptyHint:'Введите текст или нажмите «Слушать» — перевод появится здесь', myPhrases:'📁 Мои фразы', noPhrases:'Нет сохранённых фраз', addPhrase:'+ Добавить фразу', writePhrase:'Напишите фразу...' },
+  en:{ title:'I HEAR',        recognize:'🎤 Listen',                write:'✏️ Write',              translate:'🔊 Translate & Speak',      sos:"🆘 CALL FOR HELP",           lock:'Lock languages',         translating:'Translating...',     listening:'Listening...',    ph:'Type here...',          hello:'Hello',        thanks:'Thank you',     wait:'Please wait',    dunno:"Don't understand", help:'Help me',       stop:'Stop',    speakHere:'Speak — text appears here...',       dialog:'💬 Dialogue', clear:'Clear', emptyHint:'Type text or tap Listen — translation appears here', myPhrases:'📁 My phrases', noPhrases:'No saved phrases', addPhrase:'+ Add phrase', writePhrase:'Write a phrase...' },
   de:{ title:'ICH HÖRE',      recognize:'🎤 Zuhören',               write:'✏️ Schreiben',          translate:'🔊 Übersetzen & Vorlesen',  sos:'🆘 HILFERUF',                lock:'Sprachpaar sperren',     translating:'Übersetze...',       listening:'Höre zu...',      ph:'Text eingeben...',      hello:'Hallo',        thanks:'Danke',         wait:'Bitte warten',   dunno:'Verstehe nicht',   help:'Hilfe',         stop:'Stop',    speakHere:'Sprechen Sie...' },
   fr:{ title:"J'ENTENDS",     recognize:'🎤 Écouter',               write:'✏️ Écrire',             translate:'🔊 Traduire et Lire',       sos:"🆘 APPEL À L'AIDE",          lock:'Verrouiller',            translating:'Traduction...',      listening:"J'écoute...",     ph:'Tapez ici...',          hello:'Bonjour',      thanks:'Merci',         wait:'Attendez',       dunno:'Pas compris',      help:'Aidez-moi',     stop:'Stop',    speakHere:'Parlez...' },
   es:{ title:'YO ESCUCHO',    recognize:'🎤 Escuchar',              write:'✏️ Escribir',           translate:'🔊 Traducir y Leer',        sos:'🆘 PEDIR AYUDA',             lock:'Fijar idiomas',          translating:'Traduciendo...',     listening:'Escuchando...',   ph:'Escribe aquí...',       hello:'Hola',         thanks:'Gracias',       wait:'Espere',         dunno:'No entiendo',      help:'Ayuda',         stop:'Parar',   speakHere:'Hable...' },
@@ -72,7 +72,7 @@ const UI: Record<string, Record<K,string>> = {
   he:{ title:'אני שומע',      recognize:'🎤 הקשב',                  write:'✏️ כתוב',               translate:'🔊 תרגם וקרא',             sos:'🆘 בקש עזרה',                lock:'נעל שפות',               translating:'מתרגם...',           listening:'מקשיב...',        ph:'הקלד כאן...',           hello:'שלום',         thanks:'תודה',          wait:'המתן',           dunno:'לא מבין',          help:'עזור לי',       stop:'עצור',    speakHere:'דבר...' },
   fa:{ title:'می‌شنوم',       recognize:'🎤 گوش کن',               write:'✏️ بنویس',              translate:'🔊 ترجمه و بخوان',          sos:'🆘 درخواست کمک',             lock:'قفل زبان‌ها',            translating:'در حال ترجمه...',   listening:'گوش می‌دهم...', ph:'اینجا بنویس...',       hello:'سلام',         thanks:'ممنون',         wait:'صبر کنید',       dunno:'نمی‌فهمم',         help:'کمکم کنید',     stop:'بایست',   speakHere:'صحبت کنید...' },
 };
-function ui(lang: string, key: K): string { return (UI[lang]||UI['en'])[key]||UI['en'][key]; }
+function ui(lang: string, key: K): string { return UI[lang]?.[key] || UI['en']?.[key] || key; }
 
 /* ═══════════ SOS ═══════════ */
 const SOS_MSG: Record<string,string> = {
@@ -290,6 +290,27 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   useEffect(()=>{ try{ localStorage.setItem('acc_theirLang', theirLang); }catch{} }, [theirLang]);
   useEffect(()=>{ try{ localStorage.setItem('acc_my_phrases', JSON.stringify(myPhrases)); }catch{} }, [myPhrases]);
 
+  /* Перевод папок фраз при смене языка глухого */
+  const folderCacheRef = useRef<Record<string, typeof PRESET_FOLDERS>>({ ru: PRESET_FOLDERS });
+  const [localizedFolders, setLocalizedFolders] = useState(PRESET_FOLDERS);
+  useEffect(()=>{
+    if (theirLang === 'ru') { setLocalizedFolders(PRESET_FOLDERS); return; }
+    if (folderCacheRef.current[theirLang]) { setLocalizedFolders(folderCacheRef.current[theirLang]); return; }
+    const texts: string[] = [];
+    PRESET_FOLDERS.forEach(f => { texts.push(f.label); f.phrases.forEach(p => texts.push(p)); });
+    translateText(texts.join('\n'), 'ru', theirLang).then(result => {
+      const lines = result.split('\n');
+      let idx = 0;
+      const translated = PRESET_FOLDERS.map(f => ({
+        ...f,
+        label: lines[idx++]?.trim() || f.label,
+        phrases: f.phrases.map(() => lines[idx++]?.trim() || ''),
+      }));
+      folderCacheRef.current[theirLang] = translated;
+      setLocalizedFolders(translated);
+    });
+  }, [theirLang]);
+
   const saveNewPhrase = () => {
     const t = newPhraseText.trim();
     if (!t) return;
@@ -316,7 +337,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const THEIRSTEXT   = isDark?TEXT:'#0d0d1a';
   const SCROLLCLR    = isDark?'rgba(255,255,255,0.08) transparent':'rgba(0,0,0,0.1) transparent';
 
-  const t = (k:K) => ui(myLang, k);
+  const t = (k:K) => ui(theirLang, k);
 
   const reset = () => {
     setInterim('');
@@ -598,7 +619,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           <div style={{ flexShrink:0, display:'flex', alignItems:'center', justifyContent:'space-between',
             padding:'6px 10px', borderBottom:`1px solid ${LINE}`, background:DLGBG }}>
             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <span style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>💬 Диалог</span>
+              <span style={{ fontSize:9, color:SUB, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>{t('dialog')}</span>
               {listening && (
                 <motion.span animate={{ opacity:[1,0.3,1] }} transition={{ repeat:Infinity, duration:0.7 }}
                   style={{ fontSize:9, color:GREEN, fontWeight:700 }}>
@@ -614,7 +635,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                 onClick={()=>setMessages([])}
                 style={{ fontSize:9, color:SUB, background:'none', border:'none', cursor:'pointer',
                   padding:'2px 6px', borderRadius:6, fontFamily:FF }}>
-                Очистить ✕
+                {t('clear')} ✕
               </motion.button>
             )}
           </div>
@@ -628,7 +649,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
                 gap:6, color:SUB, fontSize:11, fontStyle:'italic', opacity:0.5, textAlign:'center', lineHeight:1.7 }}>
                 <span style={{ fontSize:28 }}>💬</span>
-                <span>{myL.flag} Введите текст или нажмите «Слушать»<br/>— перевод появится здесь</span>
+                <span>{myL.flag} {t('emptyHint')}</span>
               </div>
             )}
 
@@ -716,9 +737,9 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               border:`1.5px solid ${activeFolder==='mine'?accent+'55':LINE}`,
               color:activeFolder==='mine'?accent:TEXT, fontSize:11, fontWeight:700,
               whiteSpace:'nowrap', transition:'all 0.15s' }}>
-            📁 Мои фразы
+            {t('myPhrases')}
           </motion.button>
-          {PRESET_FOLDERS.map(folder=>(
+          {localizedFolders.map(folder=>(
             <motion.button key={folder.id} whileTap={{ scale:0.92 }} onClick={()=>openFolder(folder.id)}
               style={{ padding:'6px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
                 background:activeFolder===folder.id?`${accent}22`:'rgba(255,255,255,0.05)',
@@ -776,9 +797,9 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                     border:`1.5px solid ${activeFolder==='mine'?accent+'66':LINE}`,
                     color:activeFolder==='mine'?accent:SUB, fontSize:10, fontWeight:700,
                     whiteSpace:'nowrap', transition:'all 0.12s' }}>
-                  📁 Мои фразы
+                  {t('myPhrases')}
                 </motion.button>
-                {PRESET_FOLDERS.map(folder=>(
+                {localizedFolders.map(folder=>(
                   <motion.button key={folder.id} whileTap={{ scale:0.92 }}
                     onClick={()=>setActiveFolder(folder.id)}
                     style={{ padding:'4px 9px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
@@ -802,7 +823,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                       initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}
                       transition={{ duration:0.14 }}
                       style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                      {(PRESET_FOLDERS.find(f=>f.id===activeFolder)?.phrases||[]).map(phrase=>(
+                      {(localizedFolders.find(f=>f.id===activeFolder)?.phrases||[]).map(phrase=>(
                         <motion.button key={phrase} whileTap={{ scale:0.97 }}
                           onClick={()=>{ quickPhrase(phrase); setActiveFolder(null); }}
                           style={{ width:'100%', padding:'9px 12px', borderRadius:10, cursor:'pointer',
@@ -822,7 +843,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                       style={{ display:'flex', flexDirection:'column', gap:3 }}>
                       {myPhrases.length===0 && !addingPhrase && (
                         <div style={{ textAlign:'center', color:SUB, fontSize:11, fontStyle:'italic', padding:'14px 0' }}>
-                          Нет сохранённых фраз
+                          {t('noPhrases')}
                         </div>
                       )}
                       {myPhrases.map((phrase,idx)=>(
@@ -845,7 +866,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                           <input ref={newPhraseRef} value={newPhraseText}
                             onChange={e=>setNewPhraseText(e.target.value)}
                             onKeyDown={e=>{ if(e.key==='Enter') saveNewPhrase(); if(e.key==='Escape'){ setAddingPhrase(false); setNewPhraseText(''); } }}
-                            placeholder="Напишите фразу..."
+                            placeholder={t('writePhrase')}
                             style={{ flex:1, padding:'9px 11px', borderRadius:10, background:'rgba(255,255,255,0.07)',
                               border:`1px solid ${accent}55`, color:TEXT, fontSize:13, fontFamily:FF, outline:'none' }}
                             autoFocus/>
@@ -860,7 +881,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                           style={{ marginTop:3, width:'100%', padding:'9px', borderRadius:10, cursor:'pointer',
                             border:`1.5px dashed ${accent}40`, background:'transparent',
                             color:accent, fontSize:12, fontWeight:700, fontFamily:FF }}>
-                          + Добавить фразу
+                          {t('addPhrase')}
                         </motion.button>
                       )}
                     </motion.div>
