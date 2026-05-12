@@ -294,11 +294,11 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const folderCacheRef = useRef<Record<string, typeof PRESET_FOLDERS>>({ ru: PRESET_FOLDERS });
   const [localizedFolders, setLocalizedFolders] = useState(PRESET_FOLDERS);
   useEffect(()=>{
-    if (theirLang === 'ru') { setLocalizedFolders(PRESET_FOLDERS); return; }
-    if (folderCacheRef.current[theirLang]) { setLocalizedFolders(folderCacheRef.current[theirLang]); return; }
+    if (myLang === 'ru') { setLocalizedFolders(PRESET_FOLDERS); return; }
+    if (folderCacheRef.current[myLang]) { setLocalizedFolders(folderCacheRef.current[myLang]); return; }
     const texts: string[] = [];
     PRESET_FOLDERS.forEach(f => { texts.push(f.label); f.phrases.forEach(p => texts.push(p)); });
-    translateText(texts.join('\n'), 'ru', theirLang).then(result => {
+    translateText(texts.join('\n'), 'ru', myLang).then(result => {
       const lines = result.split('\n');
       let idx = 0;
       const translated = PRESET_FOLDERS.map(f => ({
@@ -306,10 +306,10 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         label: lines[idx++]?.trim() || f.label,
         phrases: f.phrases.map(() => lines[idx++]?.trim() || ''),
       }));
-      folderCacheRef.current[theirLang] = translated;
+      folderCacheRef.current[myLang] = translated;
       setLocalizedFolders(translated);
     });
-  }, [theirLang]);
+  }, [myLang]);
 
   const saveNewPhrase = () => {
     const t = newPhraseText.trim();
@@ -337,7 +337,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const THEIRSTEXT   = isDark?TEXT:'#0d0d1a';
   const SCROLLCLR    = isDark?'rgba(255,255,255,0.08) transparent':'rgba(0,0,0,0.1) transparent';
 
-  const t = (k:K) => ui(theirLang, k);
+  const t = (k:K) => ui(myLang, k);
 
   const reset = () => {
     setInterim('');
