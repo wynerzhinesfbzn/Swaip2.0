@@ -514,8 +514,9 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           if (fin) { latestFinalRef.current = fin.trim(); setInterim(''); }
         };
 
-        r.onerror = (ev: any) => {
-          if (ev.error !== 'no-speech') activeRef.current = false;
+        r.onerror = () => {
+          /* В режиме книги игнорируем все ошибки браузера.
+             onend всё равно сработает и перезапустит сессию. */
         };
 
         r.onend = () => {
@@ -525,7 +526,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           setInterim('');
 
           if (text) {
-            /* Фраза поймана — добавляем в рассказ и сразу перезапускаем */
             translateText(text, fromL, toL, apiBase).then(tr => {
               if (!tr.trim()) return;
               storyOrigRef.current += (storyOrigRef.current ? ' ' : '') + text;
@@ -537,7 +537,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             });
           }
 
-          /* Всегда перезапускаем — только Стоп прекращает */
+          /* Перезапускаем всегда — только кнопка Стоп меняет activeRef */
           if (activeRef.current) setTimeout(startStory, 80);
           else setListening(false);
         };
