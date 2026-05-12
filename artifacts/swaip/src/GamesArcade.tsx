@@ -76,6 +76,16 @@ const GAMES: GameMeta[] = [
     instructions:'Буквы слова перемешаны — угадай исходное русское слово и введи его. 3 подсказки — но они уменьшают очки!' },
   { id:'lightout',    name:'Лампочки',         emoji:'💡', color:'#ca8a04', tag:'Одиночная',    desc:'Выключи все лампочки',
     instructions:'Нажми на лампочку — она и все соседние переключаются. Цель — выключить все лампочки на поле 5×5. Думай стратегически!' },
+  { id:'flappy',      name:'Флаппи',           emoji:'🐦', color:'#84cc16', tag:'Одиночная',    desc:'Лети сквозь трубы не задев их',
+    instructions:'Тапай по экрану или нажимай ПРОБЕЛ, чтобы птичка летела вверх. Пролети сквозь трубы не задев их. Чем дальше — тем быстрее!' },
+  { id:'whakmole',    name:'Крот',             emoji:'🦔', color:'#a855f7', tag:'Одиночная',    desc:'Лупи кротов молотком!',
+    instructions:'Кроты появляются в норках — нажимай на них как можно быстрее! 30 секунд, за каждого крота +1 очко. Не зевай!' },
+  { id:'reaction',    name:'Реакция',          emoji:'⚡', color:'#eab308', tag:'Одиночная',    desc:'Проверь скорость своей реакции',
+    instructions:'Жди пока экран станет ЗЕЛЁНЫМ — и немедленно тапай! 5 раундов, результат в миллисекундах. Не нажимай раньше времени!' },
+  { id:'rps',         name:'КНБ',              emoji:'✂️', color:'#f43f5e', tag:'Vs AI',        desc:'Камень, ножницы, бумага против AI',
+    instructions:'Выбери 🪨 камень, ✂️ ножницы или 📄 бумагу. Первый до 5 побед выигрывает! Камень бьёт ножницы, ножницы режут бумагу, бумага накрывает камень.' },
+  { id:'stroop',      name:'Цветотест',        emoji:'🎨', color:'#06b6d4', tag:'Одиночная',    desc:'Выбери цвет текста, не слово',
+    instructions:'На экране написано название цвета — но ДРУГИМ цветом! Нажимай кнопку с цветом ТЕКСТА, игнорируй написанное слово. 60 секунд, не обмануться!' },
   { id:'battleship',  name:'Морской бой',      emoji:'🚢', color:'#1d4ed8', tag:'Мультиплеер', desc:'Потопи флот противника',
     instructions:'Доступно только в чате! Открой любой чат и нажми 🎮, чтобы вызвать друга на Морской бой. Стреляй по очереди, топи корабли!',  multiplayer:true },
   { id:'chess',       name:'Шахматы',          emoji:'♟️', color:'#374151', tag:'Мультиплеер', desc:'Классические шахматы с другом',
@@ -1197,6 +1207,420 @@ function MultiplayerNotice({ game }: { game: GameMeta }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   FLAPPY BIRD
+════════════════════════════════════════════════════════════════ */
+type FlappyPipe = { x: number; gap: number; scored?: boolean };
+function FlappyGame() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const W = 320, H = 400, BIRD_X = 70, BIRD_R = 14, GAP = 110, PIPE_W = 40;
+  const stateRef = useRef<{
+    bird: { y: number; vy: number };
+    pipes: FlappyPipe[];
+    score: number;
+    status: 'idle' | 'running' | 'over';
+    frame: number;
+  }>({ bird: { y: 200, vy: 0 }, pipes: [], score: 0, status: 'idle', frame: 0 });
+  const [display, setDisplay] = useState({ score: 0, status: 'idle' as 'idle' | 'running' | 'over' });
+  const rafRef = useRef(0);
+
+  const flap = useCallback(() => {
+    const s = stateRef.current;
+    if (s.status === 'idle') { s.status = 'running'; setDisplay(d => ({ ...d, status: 'running' })); }
+    else if (s.status === 'running') { s.bird.vy = -7; sfx.pop(); }
+    else if (s.status === 'over') {
+      s.bird = { y: 200, vy: 0 }; s.pipes = []; s.score = 0; s.frame = 0;
+      s.status = 'running'; setDisplay({ score: 0, status: 'running' }); sfx.click();
+    }
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const s = stateRef.current;
+
+    const loop = () => {
+      if (s.status === 'running') {
+        s.bird.vy += 0.45; s.bird.y += s.bird.vy; s.frame++;
+        if (s.frame % 88 === 0) s.pipes.push({ x: W, gap: 80 + Math.random() * 150 });
+        const speed = 2.5 + s.score * 0.08;
+        s.pipes.forEach(p => { p.x -= speed; });
+        s.pipes = s.pipes.filter(p => {
+          if (!p.scored && p.x + PIPE_W < BIRD_X) {
+            p.scored = true; s.score++; sfx.good();
+            setDisplay(d => ({ ...d, score: s.score }));
+          }
+          return p.x > -PIPE_W - 10;
+        });
+        const bT = s.bird.y - BIRD_R, bB = s.bird.y + BIRD_R;
+        if (bB > H || bT < 0) { s.status = 'over'; sfx.bad(); setDisplay(d => ({ ...d, status: 'over' })); }
+        for (const p of s.pipes) {
+          if (BIRD_X + BIRD_R > p.x && BIRD_X - BIRD_R < p.x + PIPE_W) {
+            if (bT < p.gap || bB > p.gap + GAP) { s.status = 'over'; sfx.bad(); setDisplay(d => ({ ...d, status: 'over' })); break; }
+          }
+        }
+      }
+      ctx.fillStyle = '#0c1445'; ctx.fillRect(0, 0, W, H);
+      // Stars
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      [30,90,150,220,280,310,60,180,250].forEach((x,i) => ctx.fillRect(x,(i*37+13)%H,1.5,1.5));
+      // Pipes
+      s.pipes.forEach(p => {
+        const grad = ctx.createLinearGradient(p.x, 0, p.x + PIPE_W, 0);
+        grad.addColorStop(0, '#16a34a'); grad.addColorStop(1, '#22c55e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(p.x, 0, PIPE_W, p.gap);
+        ctx.fillRect(p.x, p.gap + GAP, PIPE_W, H - p.gap - GAP);
+        ctx.fillStyle = '#15803d';
+        ctx.fillRect(p.x - 4, p.gap - 16, PIPE_W + 8, 16);
+        ctx.fillRect(p.x - 4, p.gap + GAP, PIPE_W + 8, 16);
+      });
+      // Bird
+      ctx.save();
+      ctx.translate(BIRD_X, s.bird.y);
+      ctx.rotate(Math.min(Math.max(s.bird.vy * 0.07, -0.5), 0.9));
+      ctx.font = `${BIRD_R * 2.2}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🐦', 0, 0);
+      ctx.restore();
+      // Score HUD
+      if (s.status === 'running') {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(W/2 - 28, 10, 56, 28); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.strokeRect(W/2 - 28, 10, 56, 28);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Montserrat,sans-serif'; ctx.textAlign = 'center'; ctx.fillText(String(s.score), W/2, 29);
+      }
+      if (s.status === 'idle') {
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Montserrat,sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('🐦 ФЛАППИ', W/2, H/2 - 28);
+        ctx.font = '14px Montserrat,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillText('Тапни чтобы начать!', W/2, H/2 + 10);
+      }
+      if (s.status === 'over') {
+        ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444'; ctx.font = 'bold 28px Montserrat,sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('КОНЕЦ!', W/2, H/2 - 36);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Montserrat,sans-serif';
+        ctx.fillText(`Счёт: ${s.score}`, W/2, H/2 + 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '13px Montserrat,sans-serif';
+        ctx.fillText('Тапни чтобы ещё раз', W/2, H/2 + 30);
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.code === 'Space') { e.preventDefault(); flap(); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [flap]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      {display.status === 'running' && <ScoreBox label="Трубы" value={display.score} color="#84cc16" />}
+      <canvas ref={canvasRef} width={W} height={H} onClick={flap}
+        onTouchStart={e => { e.preventDefault(); flap(); }}
+        style={{ borderRadius: 16, cursor: 'pointer', maxWidth: '100%', touchAction: 'none', display: 'block' }} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   WHACK-A-MOLE
+════════════════════════════════════════════════════════════════ */
+function WhakMoleGame() {
+  const [active, setActive] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [time, setTime] = useState(30);
+  const [status, setStatus] = useState<'idle' | 'running' | 'over'>('idle');
+
+  useEffect(() => {
+    if (status !== 'running') return;
+    const iv = setInterval(() => setTime(t => {
+      if (t <= 1) { setStatus('over'); setActive(null); sfx.bad(); return 0; }
+      return t - 1;
+    }), 1000);
+    return () => clearInterval(iv);
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== 'running') return;
+    let cancelled = false;
+    const spawn = () => {
+      if (cancelled) return;
+      setActive(Math.floor(Math.random() * 9));
+      setTimeout(() => {
+        if (cancelled) return;
+        setActive(null);
+        setTimeout(() => spawn(), 350 + Math.random() * 350);
+      }, 700 + Math.random() * 500);
+    };
+    const t = setTimeout(() => spawn(), 600);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [status]);
+
+  const whack = (i: number) => {
+    if (i !== active || status !== 'running') return;
+    sfx.pop(); setScore(s => s + 1); setActive(null);
+  };
+
+  const start = () => { setScore(0); setTime(30); setActive(null); setStatus('running'); sfx.click(); };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 20 }}>
+        <ScoreBox label="🦔 Кроты" value={score} color="#a855f7" />
+        <ScoreBox label="⏱ Время" value={`${time}с`} color={time <= 10 ? '#ef4444' : '#6b7280'} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 84px)', gap: 10 }}>
+        {Array.from({ length: 9 }, (_, i) => (
+          <motion.div key={i} whileTap={active === i ? { scale: 0.8 } : {}} onClick={() => whack(i)}
+            style={{ width: 84, height: 84, borderRadius: '50%', cursor: 'pointer', overflow: 'hidden',
+              background: 'radial-gradient(circle at 50% 70%, #3b1f0a 60%, #5c3317 100%)',
+              border: `3px solid ${active === i ? '#a855f7' : '#7c4a1e'}`,
+              boxShadow: active === i ? '0 0 18px #a855f788' : 'inset 0 6px 12px rgba(0,0,0,0.5)',
+              display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+              transition: 'border-color 0.1s, box-shadow 0.1s' }}>
+            <AnimatePresence>
+              {active === i && (
+                <motion.div key="mole" initial={{ y: 52 }} animate={{ y: 0 }} exit={{ y: 52 }}
+                  transition={{ type: 'spring', damping: 14, stiffness: 320 }}
+                  style={{ fontSize: 38, lineHeight: 1, paddingBottom: 4, userSelect: 'none' }}>🦔</motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        ))}
+      </div>
+      {status !== 'running' && (
+        <div style={{ textAlign: 'center' }}>
+          {status === 'over' && <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 10 }}>Поймано: {score} 🦔</div>}
+          <GameBtn onClick={start} color="#a855f7">{status === 'over' ? '↺ Ещё раз' : '▶ Старт'}</GameBtn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   REACTION TIME
+════════════════════════════════════════════════════════════════ */
+function ReactionGame() {
+  const [phase, setPhase] = useState<'wait' | 'ready' | 'go' | 'result' | 'done'>('wait');
+  const [times, setTimes] = useState<number[]>([]);
+  const [lastTime, setLastTime] = useState(0);
+  const startRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const ROUNDS = 5;
+
+  const startRound = () => {
+    setPhase('ready');
+    timerRef.current = setTimeout(() => {
+      setPhase('go'); startRef.current = Date.now();
+    }, 1500 + Math.random() * 2500);
+  };
+
+  const handleClick = () => {
+    if (phase === 'wait') { startRound(); return; }
+    if (phase === 'ready') { clearTimeout(timerRef.current); sfx.bad(); setPhase('wait'); return; }
+    if (phase === 'go') {
+      const t = Date.now() - startRef.current;
+      setLastTime(t); sfx.good();
+      const nt = [...times, t];
+      setTimes(nt);
+      setPhase(nt.length >= ROUNDS ? 'done' : 'result');
+      if (nt.length >= ROUNDS) sfx.win();
+    }
+    if (phase === 'result') { startRound(); }
+    if (phase === 'done') { setTimes([]); setPhase('wait'); }
+  };
+
+  const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+  const best = times.length ? Math.min(...times) : 0;
+
+  const bg = phase === 'go' ? '#16a34a' : phase === 'ready' ? '#991b1b' : '#1e1b4b';
+  const label = phase === 'wait' ? 'Нажми чтобы начать' : phase === 'ready' ? '⚠️ Жди… не торопись' : phase === 'go' ? '⚡ НАЖИМАЙ!' : phase === 'result' ? `${lastTime} мс — ещё раунд` : `Готово! Среднее ${avg} мс`;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+      {times.length > 0 && (
+        <div style={{ display: 'flex', gap: 10 }}>
+          <ScoreBox label="⚡ Лучшее" value={`${best}мс`} color="#22c55e" />
+          <ScoreBox label="Среднее" value={`${avg}мс`} color="#eab308" />
+          <ScoreBox label="Раунд" value={`${Math.min(times.length, ROUNDS)}/${ROUNDS}`} color="#6366f1" />
+        </div>
+      )}
+      <motion.div onClick={handleClick} whileTap={{ scale: 0.96 }}
+        animate={{ backgroundColor: bg }} transition={{ duration: 0.12 }}
+        style={{ width: 270, height: 270, borderRadius: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', userSelect: 'none', touchAction: 'none', border: `3px solid ${phase === 'go' ? '#4ade80' : 'rgba(255,255,255,0.08)'}` }}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', textAlign: 'center', padding: '0 24px', lineHeight: 1.5 }}>{label}</div>
+      </motion.div>
+      {phase === 'done' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Нажми для нового теста</div>}
+      {phase === 'ready' && <div style={{ fontSize: 11, color: 'rgba(239,68,68,0.7)' }}>Нажал слишком рано = штраф!</div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ROCK PAPER SCISSORS
+════════════════════════════════════════════════════════════════ */
+function RPSGame() {
+  const CHOICES = ['🪨', '✂️', '📄'] as const;
+  type RChoice = typeof CHOICES[number];
+  const beats = (a: RChoice, b: RChoice) =>
+    (a === '🪨' && b === '✂️') || (a === '✂️' && b === '📄') || (a === '📄' && b === '🪨');
+  const WIN = 5;
+  const [scores, setScores] = useState({ p: 0, ai: 0 });
+  const [round, setRound] = useState<{ p: RChoice; ai: RChoice; result: 'win' | 'lose' | 'draw' } | null>(null);
+  const [status, setStatus] = useState<'playing' | 'won' | 'lost'>('playing');
+
+  const pick = (choice: RChoice) => {
+    if (status !== 'playing') return;
+    const ai = CHOICES[Math.floor(Math.random() * 3)];
+    const result = choice === ai ? 'draw' : beats(choice, ai) ? 'win' : 'lose';
+    setRound({ p: choice, ai, result });
+    const ns = { p: scores.p + (result === 'win' ? 1 : 0), ai: scores.ai + (result === 'lose' ? 1 : 0) };
+    setScores(ns);
+    if (result === 'win') sfx.good(); else if (result === 'lose') sfx.bad(); else sfx.click();
+    if (ns.p >= WIN) { setStatus('won'); sfx.win(); } else if (ns.ai >= WIN) setStatus('lost');
+  };
+
+  const reset = () => { setScores({ p: 0, ai: 0 }); setRound(null); setStatus('playing'); sfx.click(); };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+        <ScoreBox label="Ты" value={scores.p} color="#22c55e" />
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>до {WIN}</div>
+        <ScoreBox label="AI" value={scores.ai} color="#ef4444" />
+      </div>
+      {round && (
+        <motion.div key={`${round.p}${round.ai}`} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+          style={{ textAlign: 'center', padding: '14px 28px', borderRadius: 18,
+            background: round.result === 'win' ? 'rgba(34,197,94,0.15)' : round.result === 'lose' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)',
+            border: `1px solid ${round.result === 'win' ? 'rgba(34,197,94,0.4)' : round.result === 'lose' ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.12)'}` }}>
+          <div style={{ fontSize: 40, letterSpacing: 8 }}>{round.p} {round.ai}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, marginTop: 8,
+            color: round.result === 'win' ? '#4ade80' : round.result === 'lose' ? '#f87171' : '#94a3b8' }}>
+            {round.result === 'win' ? '🎉 Ты победил!' : round.result === 'lose' ? '😔 AI победил' : '🤝 Ничья'}
+          </div>
+        </motion.div>
+      )}
+      {status === 'playing' ? (
+        <div style={{ display: 'flex', gap: 14 }}>
+          {CHOICES.map(c => (
+            <motion.button key={c} whileTap={{ scale: 0.82 }} onClick={() => pick(c)}
+              style={{ width: 76, height: 76, borderRadius: 22, fontSize: 34, background: 'rgba(255,255,255,0.07)',
+                border: '2px solid rgba(255,255,255,0.14)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{c}</motion.button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: status === 'won' ? '#4ade80' : '#f87171' }}>
+            {status === 'won' ? '🏆 Победа!' : '😔 Поражение'}
+          </div>
+          <GameBtn onClick={reset} color="#f43f5e">↺ Заново</GameBtn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STROOP COLOR TEST
+════════════════════════════════════════════════════════════════ */
+const STROOP_COLORS = [
+  { name: 'Красный', hex: '#ef4444' },
+  { name: 'Синий',   hex: '#3b82f6' },
+  { name: 'Зелёный', hex: '#22c55e' },
+  { name: 'Жёлтый',  hex: '#eab308' },
+  { name: 'Розовый', hex: '#ec4899' },
+  { name: 'Оранжевый', hex: '#f97316' },
+];
+function StroopGame() {
+  const mk = () => {
+    const word  = STROOP_COLORS[Math.floor(Math.random() * STROOP_COLORS.length)];
+    let   color = STROOP_COLORS[Math.floor(Math.random() * STROOP_COLORS.length)];
+    while (color === word && Math.random() > 0.25) color = STROOP_COLORS[Math.floor(Math.random() * STROOP_COLORS.length)];
+    return { word, color };
+  };
+  const [q, setQ] = useState(mk);
+  const [score, setScore] = useState(0);
+  const [wrong, setWrong] = useState(0);
+  const [time, setTime] = useState(60);
+  const [status, setStatus] = useState<'idle' | 'running' | 'over'>('idle');
+  const [flash, setFlash] = useState<'good' | 'bad' | null>(null);
+
+  useEffect(() => {
+    if (status !== 'running') return;
+    const iv = setInterval(() => setTime(t => {
+      if (t <= 1) { setStatus('over'); sfx.bad(); return 0; }
+      return t - 1;
+    }), 1000);
+    return () => clearInterval(iv);
+  }, [status]);
+
+  const answer = (name: string) => {
+    if (status !== 'running') return;
+    const ok = name === q.color.name;
+    if (ok) { setScore(s => s + 1); sfx.good(); setFlash('good'); }
+    else { setWrong(w => w + 1); sfx.bad(); setFlash('bad'); }
+    setTimeout(() => setFlash(null), 200);
+    setQ(mk());
+  };
+
+  const start = () => { setScore(0); setWrong(0); setTime(60); setStatus('running'); setQ(mk()); sfx.click(); };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <ScoreBox label="✅" value={score} color="#22c55e" />
+        <ScoreBox label="❌" value={wrong} color="#ef4444" />
+        <ScoreBox label="⏱" value={`${time}с`} color={time <= 10 ? '#ef4444' : '#6b7280'} />
+      </div>
+      {status === 'running' ? (
+        <>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>Нажми кнопку с ЦВЕТОМ текста (не слово!)</div>
+            <motion.div animate={{ scale: flash ? [1, 1.1, 1] : 1, opacity: flash === 'bad' ? [1, 0.4, 1] : 1 }} transition={{ duration: 0.18 }}
+              style={{ fontSize: 44, fontWeight: 900, color: q.color.hex, textShadow: '0 2px 14px rgba(0,0,0,0.5)', letterSpacing: 1 }}>
+              {q.word.name}
+            </motion.div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {STROOP_COLORS.map(c => (
+              <motion.button key={c.name} whileTap={{ scale: 0.86 }} onClick={() => answer(c.name)}
+                style={{ padding: '10px 8px', borderRadius: 14, border: `2px solid ${c.hex}55`, cursor: 'pointer',
+                  background: `${c.hex}22`, color: c.hex, fontSize: 11, fontWeight: 800,
+                  fontFamily: '"Montserrat",sans-serif', whiteSpace: 'nowrap' }}>
+                {c.name}
+              </motion.button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          {status === 'over' && (
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>Правильных: {score} / {score + wrong}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
+                Точность: {score + wrong > 0 ? Math.round(score / (score + wrong) * 100) : 0}%
+              </div>
+            </div>
+          )}
+          {status === 'idle' && (
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', maxWidth: 240, lineHeight: 1.6 }}>
+              Слово написано чужим цветом — выбирай цвет шрифта, игнорируй смысл!
+            </div>
+          )}
+          <GameBtn onClick={start} color="#06b6d4">{status === 'over' ? '↺ Ещё раз' : '▶ Старт'}</GameBtn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    GAME RENDERER
 ════════════════════════════════════════════════════════════════ */
 function GameRenderer({ game }: { game: GameMeta }) {
@@ -1218,6 +1642,11 @@ function GameRenderer({ game }: { game: GameMeta }) {
     simon: () => <SimonGame />,
     wordscramble: () => <WordScrambleGame />,
     lightout: () => <LightOutGame />,
+    flappy: () => <FlappyGame />,
+    whakmole: () => <WhakMoleGame />,
+    reaction: () => <ReactionGame />,
+    rps: () => <RPSGame />,
+    stroop: () => <StroopGame />,
   };
   return map[game.id]?.() ?? <div style={{ color: 'rgba(255,255,255,0.5)' }}>Игра в разработке</div>;
 }
