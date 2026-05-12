@@ -397,69 +397,57 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
     const fromL = theirLang, toL = myLang;
 
-    /* Таймер тишины: 6 секунд без новых финальных слов → остановить */
+    /* Одна непрерывная сессия. Таймер 6 сек тишины → стоп */
+    const r = new SR() as SpeechAny;
+    recogRef.current = r;
+    r.lang            = getLang(fromL).tts;
+    r.interimResults  = true;
+    r.continuous      = true; /* одна сессия на всё время */
+    r.maxAlternatives = 1;
+
     const resetSilence = () => {
       if (silenceRef.current) clearTimeout(silenceRef.current);
       silenceRef.current = setTimeout(() => {
         activeRef.current = false;
-        setListening(false);
-        setInterim('');
+        try { r.stop(); } catch (_) {}
       }, 6000);
     };
-    resetSilence(); /* Запускаем сразу при нажатии "Слушать" */
+    resetSilence(); /* Запускаем таймер сразу при нажатии */
 
-    /* Запускаем сессии в цикле: onend → перезапуск пока activeRef.current = true */
-    const runSession = () => {
-      if (!activeRef.current) return;
-      const r = new SR() as SpeechAny;
-      recogRef.current = r;
-      r.lang            = getLang(fromL).tts;
-      r.interimResults  = true;
-      r.continuous      = false; /* одна фраза = одна сессия */
-      r.maxAlternatives = 1;
-
-      r.onresult = (e: any) => {
-        let fin = '', tmp = '';
-        for (let i = 0; i < e.results.length; i++) {
-          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
-          else tmp += e.results[i][0].transcript;
-        }
-        if (tmp) setInterim(tmp);
-        if (fin) {
-          const text = fin.trim();
-          latestFinalRef.current = text;
-          setInterim('');
-          resetSilence(); /* Сбрасываем таймер тишины */
-          /* Переводим сразу — не ждём onend */
-          translateText(text, fromL, toL).then(translated => {
-            if (!translated.trim()) return;
-            setMessages(prev=>[...prev, {
-              id: Date.now()+'m', side:'theirs',
-              original: text, translated,
-              fromLang: fromL, toLang: toL, ts: Date.now()
-            }]);
-          });
-        }
-      };
-
-      r.onerror = (ev: any) => {
-        /* no-speech — нормально, просто onend запустит следующую сессию */
-        if (ev.error !== 'no-speech') activeRef.current = false;
-        recogRef.current = null;
-      };
-
-      r.onend = () => {
-        recogRef.current = null;
-        latestFinalRef.current = '';
-        /* Перезапускаем следующую сессию если ещё активны */
-        if (activeRef.current) runSession();
-        else setListening(false);
-      };
-
-      try { r.start(); } catch (_) {}
+    r.onresult = (e: any) => {
+      let fin = '', tmp = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+        else tmp += e.results[i][0].transcript;
+      }
+      if (tmp) setInterim(tmp);
+      if (fin) {
+        const text = fin.trim();
+        setInterim('');
+        resetSilence(); /* Сбрасываем таймер при каждой новой финальной фразе */
+        translateText(text, fromL, toL).then(translated => {
+          if (!translated.trim()) return;
+          setMessages(prev=>[...prev, {
+            id: Date.now()+'m', side:'theirs',
+            original: text, translated,
+            fromLang: fromL, toLang: toL, ts: Date.now()
+          }]);
+        });
+      }
     };
 
-    runSession();
+    r.onerror = (ev: any) => {
+      if (ev.error !== 'no-speech') { activeRef.current = false; }
+    };
+
+    r.onend = () => {
+      recogRef.current = null;
+      if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+      setListening(false);
+      setInterim('');
+    };
+
+    try { r.start(); } catch (_) {}
   }, [theirLang, myLang, stopAll]);
 
 
