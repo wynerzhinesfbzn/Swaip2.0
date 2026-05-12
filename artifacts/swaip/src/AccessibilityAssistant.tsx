@@ -266,27 +266,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [newPhraseText, setNewPhraseText] = useState('');
   const newPhraseRef = useRef<HTMLInputElement>(null);
 
-  const [zoomLevel,   setZoomLevel]   = useState<number>(()=>{ try{ return parseFloat(localStorage.getItem('acc_zoom')||'1')||1; }catch{ return 1; } });
-  const [fontWeight,  setFontWeight]  = useState<number>(()=>{ try{ return parseInt(localStorage.getItem('acc_fw')||'400')||400; }catch{ return 400; } });
   const [theme, setTheme] = useState<'dark'|'light'>(()=>{ try{ return (localStorage.getItem('acc_theme')||'dark') as 'dark'|'light'; }catch{ return 'dark'; } });
   const toggleTheme = () => setTheme(p=>{ const n=p==='dark'?'light':'dark'; try{ localStorage.setItem('acc_theme',n); }catch{} return n; });
-  const [showSettings, setShowSettings] = useState(false);
-  const [draftZoom, setDraftZoom] = useState(zoomLevel);
-  const [draftFW,   setDraftFW]   = useState(fontWeight);
-  const openSettings = () => { setDraftZoom(zoomLevel); setDraftFW(fontWeight); setShowSettings(true); };
-  const saveSettings = () => {
-    setZoomLevel(draftZoom); setFontWeight(draftFW);
-    try {
-      localStorage.setItem('acc_zoom', String(draftZoom));
-      localStorage.setItem('acc_fw',   String(draftFW));
-    } catch {}
-    setShowSettings(false);
-  };
-  const pinchRef = useRef<{ dist:number; zoom:number }|null>(null);
-  const getTouchDist = (t:React.TouchList) => { const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); };
-  const onPinchStart = (e:React.TouchEvent) => { if(e.touches.length===2) pinchRef.current={ dist:getTouchDist(e.touches), zoom:zoomLevel }; };
-  const onPinchMove  = (e:React.TouchEvent) => { if(e.touches.length===2 && pinchRef.current){ const s=getTouchDist(e.touches)/pinchRef.current.dist; setZoomLevel(Math.min(2.0,Math.max(0.6,pinchRef.current.zoom*s))); } };
-  const onPinchEnd   = () => { pinchRef.current = null; };
 
   const recogRef     = useRef<SpeechAny>(null);
   const silenceRef   = useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -503,12 +484,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
   return (
     <div style={{ position:'fixed', inset:0, background:BG, color:TEXT, fontFamily:FF,
-      display:'flex', flexDirection:'column', zIndex:300, overflow:'hidden',
-      zoom: zoomLevel, fontWeight } as React.CSSProperties}
-      onClick={()=>{ setOpenL(false); setOpenR(false); }}
-      onTouchStart={onPinchStart}
-      onTouchMove={onPinchMove}
-      onTouchEnd={onPinchEnd}>
+      display:'flex', flexDirection:'column', zIndex:300, overflow:'hidden' }}
+      onClick={()=>{ setOpenL(false); setOpenR(false); }}>
 
       {/* ХЕДЕР */}
       <div style={{ padding:'46px 14px 10px', display:'flex', alignItems:'center', gap:10,
@@ -527,14 +504,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           style={{ width:36, height:36, borderRadius:10, background:CARD, border:`1px solid ${LINE}`,
             color:TEXT, fontSize:16, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           {isDark ? '☀️' : '🌙'}
-        </motion.button>
-
-        {/* Настройки */}
-        <motion.button whileTap={{ scale:0.88 }} onClick={e=>{ e.stopPropagation(); openSettings(); }}
-          title="Настройки"
-          style={{ width:36, height:36, borderRadius:10, background:CARD, border:`1px solid ${LINE}`,
-            color:TEXT, fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          ⚙️
         </motion.button>
 
         {/* Зелёная лампочка: идёт распознавание речи */}
@@ -891,78 +860,6 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
             </motion.div>
           </>
-        )}
-      </AnimatePresence>
-
-      {/* ═══ ПАНЕЛЬ НАСТРОЕК ═══ */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-            onClick={()=>setShowSettings(false)}
-            style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)',
-              display:'flex', alignItems:'center', justifyContent:'center', zIndex:400 }}>
-            <motion.div initial={{ scale:0.92, opacity:0 }} animate={{ scale:1, opacity:1 }} exit={{ scale:0.92, opacity:0 }}
-              onClick={e=>e.stopPropagation()}
-              style={{ background:SHEETBG, borderRadius:20, padding:'28px 24px 24px',
-                width:'min(340px,90vw)', maxHeight:'85vh', overflowY:'auto',
-                display:'flex', flexDirection:'column', gap:24,
-                border:`1px solid ${LINE}`, boxShadow:'0 8px 40px rgba(0,0,0,0.45)' }}>
-
-              <div style={{ fontSize:17, fontWeight:800, color:TEXT, textAlign:'center' }}>⚙️ Настройки</div>
-
-              {/* Зум */}
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:14, fontWeight:700, color:TEXT }}>🔍 Масштаб</span>
-                  <span style={{ fontSize:13, color:SUB, fontWeight:600 }}>{Math.round(draftZoom*100)}%</span>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <span style={{ fontSize:12, color:SUB }}>100%</span>
-                  <input type="range" min={1} max={2} step={0.05} value={draftZoom}
-                    onChange={e=>setDraftZoom(parseFloat(e.target.value))}
-                    style={{ flex:1, accentColor:accent, height:4, cursor:'pointer' }}/>
-                  <span style={{ fontSize:12, color:SUB }}>200%</span>
-                </div>
-                <div style={{ fontSize:11, color:SUB, textAlign:'center' }}>
-                  Влево — стандартный размер · Вправо — крупнее
-                </div>
-              </div>
-
-              {/* Жирность шрифта */}
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:14, fontWeight:700, color:TEXT }}>𝗔 Толщина шрифта</span>
-                  <span style={{ fontSize:13, color:SUB, fontWeight:600 }}>{draftFW}</span>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <span style={{ fontSize:12, color:SUB, fontWeight:300 }}>Тонкий</span>
-                  <input type="range" min={300} max={900} step={100} value={draftFW}
-                    onChange={e=>setDraftFW(parseInt(e.target.value))}
-                    style={{ flex:1, accentColor:accent, height:4, cursor:'pointer' }}/>
-                  <span style={{ fontSize:12, color:SUB, fontWeight:900 }}>Жирный</span>
-                </div>
-                <div style={{ fontSize:13, color:TEXT, textAlign:'center',
-                  fontWeight:draftFW, background:CARD, borderRadius:10, padding:'8px 12px' }}>
-                  Пример текста — Привет, как дела?
-                </div>
-              </div>
-
-              {/* Кнопки */}
-              <div style={{ display:'flex', gap:10 }}>
-                <motion.button whileTap={{ scale:0.94 }} onClick={()=>setShowSettings(false)}
-                  style={{ flex:1, padding:'12px', borderRadius:12, background:CARD,
-                    border:`1px solid ${LINE}`, color:SUB, fontSize:14, fontWeight:700, cursor:'pointer' }}>
-                  Отмена
-                </motion.button>
-                <motion.button whileTap={{ scale:0.94 }} onClick={saveSettings}
-                  style={{ flex:2, padding:'12px', borderRadius:12,
-                    background:accent, border:'none', color:'#fff',
-                    fontSize:14, fontWeight:800, cursor:'pointer' }}>
-                  ✓ Сохранить
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
         )}
       </AnimatePresence>
 
