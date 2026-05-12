@@ -409,62 +409,73 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
     const fromL = theirLang, toL = myLang;
 
-    /* РЕЖИМ ЛЕКТОРА: continuous: true — одна долгая сессия.
-       Каждый финальный фрагмент (фраза, предложение) переводится и
-       добавляется в диалог без остановки. Только кнопка «Стоп» прекращает. */
-    const startSession = () => {
+    /* continuous: false — каждая сессия даёт ровно один финальный результат,
+       дубли физически невозможны. После onend автоматически стартует новая сессия
+       пока activeRef.current = true. Таймер 6 сек без речи → стоп. */
+    const resetSilence = () => {
+      if (silenceRef.current) clearTimeout(silenceRef.current);
+      silenceRef.current = setTimeout(() => {
+        activeRef.current = false;
+        try { recogRef.current?.stop(); } catch (_) {}
+      }, 6000);
+    };
+
+    const runSession = () => {
       if (!activeRef.current) return;
       const r = new SR() as SpeechAny;
       recogRef.current = r;
       r.lang            = getLang(fromL).tts;
       r.interimResults  = true;
-      r.continuous      = true;
+      r.continuous      = false;
       r.maxAlternatives = 1;
 
       r.onresult = (e: any) => {
-        let interim = '';
-        for (let i = (e.resultIndex ?? 0); i < e.results.length; i++) {
-          if (e.results[i].isFinal) {
-            const text = (e.results[i][0].transcript as string).trim();
-            if (text) {
-              translateText(text, fromL, toL, apiBase).then(translated => {
-                if (!translated.trim()) return;
-                setMessages(prev => [...prev, {
-                  id: `${Date.now()}${Math.random()}`,
-                  side: 'theirs' as const,
-                  original: text, translated,
-                  fromLang: fromL, toLang: toL, ts: Date.now(),
-                }]);
-              });
-            }
-          } else {
-            interim += (e.results[i][0].transcript as string);
-          }
+        let fin = '', tmp = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+          else tmp += e.results[i][0].transcript;
         }
-        setInterim(interim);
+        if (tmp) setInterim(tmp);
+        if (fin) { latestFinalRef.current = fin.trim(); setInterim(''); }
       };
 
       r.onerror = (ev: any) => {
-        /* no-speech — браузер просто ждёт, продолжаем. Остальные ошибки — перезапуск. */
-        if (ev.error !== 'no-speech' && activeRef.current) {
-          try { recogRef.current?.abort(); } catch (_) {}
-          recogRef.current = null;
-          setTimeout(startSession, 300);
-        }
+        if (ev.error !== 'no-speech') activeRef.current = false;
       };
 
       r.onend = () => {
         recogRef.current = null;
-        setInterim('');
-        /* Автоперезапуск сессии пока не нажат Стоп */
-        if (activeRef.current) setTimeout(startSession, 100);
-        else setListening(false);
+        const text = latestFinalRef.current;
+        latestFinalRef.current = '';
+
+        if (text) {
+          /* Речь поймана — переводим и останавливаем */
+          activeRef.current = false;
+          if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+          setListening(false);
+          setInterim('');
+          translateText(text, fromL, toL, apiBase).then(translated => {
+            if (!translated.trim()) return;
+            setMessages(prev => [...prev, {
+              id: Date.now() + 'm', side: 'theirs',
+              original: text, translated,
+              fromLang: fromL, toLang: toL, ts: Date.now(),
+            }]);
+          });
+        } else if (activeRef.current) {
+          setTimeout(runSession, 80);
+        } else {
+          if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+          setListening(false);
+          setInterim('');
+        }
       };
 
       try { r.start(); } catch (_) {}
     };
 
-    startSession();
+    resetSilence();
+    runSession();
   }, [theirLang, myLang, stopAll, apiBase]);
 
 
