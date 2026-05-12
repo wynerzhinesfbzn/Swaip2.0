@@ -3840,13 +3840,19 @@ function PostCard({p,name,avatarSrc,onLike,onComment,onBook,onUpdate,onNewPost,i
           setBookedTime(slot||'✓');
           setShowPostChat(false);
           onBook?.(p.id,slot||'✓');
-          /* Реальный API-запрос — сохраняет запись у владельца поста */
+          /* Реальный API-запрос — сохраняет запись у владельца поста.
+           * sw-new-booking диспатчится ПОСЛЕ успешного ответа сервера,
+           * чтобы fetchCrmRequests видел уже сохранённую запись. */
           if(p.authorHash){
+            const _cName=postChatName,_phone=phone,_slot=slot,_ah=p.authorHash;
             fetch(`${window.location.origin}/api/booking-request`,{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({targetHash:p.authorHash,clientName:postChatName,clientPhone:phone,service:p.bookingLabel||'Запись',slot,text:`Запись на: ${p.bookingLabel||'Запись'}. Слот: ${fmtSlotShort(slot)}`})
-            }).then(r=>r.ok?r.json():null).then(d=>{if(d?.id){setMyBookingId(d.id);setMyBookingTargetHash(p.authorHash||null);}}).catch(()=>{});
+              body:JSON.stringify({targetHash:_ah,clientName:_cName,clientPhone:_phone,service:p.bookingLabel||'Запись',slot:_slot,text:`Запись на: ${p.bookingLabel||'Запись'}. Слот: ${fmtSlotShort(_slot)}`})
+            }).then(r=>r.ok?r.json():null).then(d=>{
+              if(d?.id){setMyBookingId(d.id);setMyBookingTargetHash(_ah||null);}
+              /* Диспатч только при успехе — иначе нечего показывать в CRM */
+              if(d) window.dispatchEvent(new CustomEvent('sw-new-booking',{detail:{name:_cName,phone:_phone,slot:_slot}}));
+            }).catch(()=>{});
           }
-          window.dispatchEvent(new CustomEvent('sw-new-booking',{detail:{name:postChatName,phone,slot}}));
           postSpeak(speech);return;
         }
       }
@@ -4533,7 +4539,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     const tok=getSessionToken();if(!tok)return;
     setCrmLoading(true);
     fetch(`${window.location.origin}/api/account/booking-requests`,{headers:{'x-session-token':tok},cache:'no-store'})
-      .then(r=>(r.ok||r.status===304)?r.json():null).then(d=>{
+      .then(r=>r.ok?r.json():null).then(d=>{
         if(d?.requests){
           setCrmRequests(d.requests);
           /* Синхронизируем локальный список bookings с сервером.
@@ -9630,7 +9636,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         {id:'msg',    emo:'💬', label:'Чаты',     active:navTab==='messages', fn:()=>setNavTab('messages'), badge:unreadCount},
         {id:'chan',   emo:'📡', label:'Каналы',   active:navTab==='channels', fn:()=>setNavTab('channels')},
         {id:'search', emo:'🔍', label:'Поиск',    active:showSearch,           fn:()=>setShowSearch(v=>!v)},
-        {id:'booking',emo:'📅', label:'Запись',   active:navTab==='booking',  fn:()=>setNavTab(v=>v==='booking'?'home':'booking'), badge:newBookingCount},
+        {id:'booking',emo:'📅', label:'Запись',   active:navTab==='booking',  fn:()=>setNavTab(v=>{if(v!=='booking')fetchCrmRequests();return v==='booking'?'home':'booking';}), badge:newBookingCount},
       ] as const;
       return(
         <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:430,zIndex:400,

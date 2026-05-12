@@ -565,11 +565,10 @@ router.post("/booking-request", async (req, res) => {
         if (updatedSlots.includes(slot)) {
           /* Слот найден в pro_freeSlots — удаляем (свободный слот занят) */
           updatedSlots = updatedSlots.filter(s => s !== slot);
-        } else if (!itemId) {
-          /* Слот не в freeSlots и нет itemId — отклоняем */
-          throw Object.assign(new Error('slot_unavailable'), { status: 409 });
         }
-        /* Если itemId передан — это priceItem-слот, просто фиксируем бронирование */
+        /* Слот из поста (нет itemId, нет в freeSlots) — разрешаем, просто записываем.
+         * Слоты постов задаются вручную автором и не хранятся в pro_freeSlots.
+         * Если itemId передан — это priceItem-слот, просто фиксируем бронирование. */
       }
 
       const newRequest = {
