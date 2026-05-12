@@ -501,21 +501,28 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         r.continuous = true;
         r.maxAlternatives = 1;
 
+        /* Отслеживаем последний обработанный финальный индекс в этой сессии,
+           чтобы браузерный баг (e.resultIndex всегда 0) не вызывал повторов */
+        let lastFinal = -1;
+
         r.onresult = (e: any) => {
           let interim = '';
-          for (let i = (e.resultIndex ?? 0); i < e.results.length; i++) {
+          for (let i = 0; i < e.results.length; i++) {
             if (e.results[i].isFinal) {
-              const chunk = (e.results[i][0].transcript as string).trim();
-              if (!chunk) continue;
-              translateText(chunk, fromL, toL, apiBase).then(tr => {
-                if (!tr.trim()) return;
-                storyOrigRef.current  += (storyOrigRef.current  ? ' ' : '') + chunk;
-                storyTextRef.current  += (storyTextRef.current  ? ' ' : '') + tr;
-                const orig = storyOrigRef.current, full = storyTextRef.current, id = storyIdRef.current;
-                setMessages(prev => prev.map(m =>
-                  m.id === id ? { ...m, original: orig, translated: full } : m
-                ));
-              });
+              if (i > lastFinal) {
+                lastFinal = i;
+                const chunk = (e.results[i][0].transcript as string).trim();
+                if (!chunk) continue;
+                translateText(chunk, fromL, toL, apiBase).then(tr => {
+                  if (!tr.trim()) return;
+                  storyOrigRef.current += (storyOrigRef.current ? ' ' : '') + chunk;
+                  storyTextRef.current += (storyTextRef.current ? ' ' : '') + tr;
+                  const orig = storyOrigRef.current, full = storyTextRef.current, id = storyIdRef.current;
+                  setMessages(prev => prev.map(m =>
+                    m.id === id ? { ...m, original: orig, translated: full } : m
+                  ));
+                });
+              }
             } else {
               interim += (e.results[i][0].transcript as string);
             }
