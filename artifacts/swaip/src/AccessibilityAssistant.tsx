@@ -488,13 +488,15 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const theirL = getLang(theirLang);
 
   return (
-    <div style={{ position:'fixed', inset:0, background:BG, color:TEXT, fontFamily:FF,
-      display:'flex', flexDirection:'column', zIndex:300, overflow:'hidden',
-      zoom: zoomLevel } as React.CSSProperties}
-      onClick={()=>{ setOpenL(false); setOpenR(false); }}
+    <div style={{ position:'fixed', inset:0, zIndex:300, overflow:'auto' }}
       onTouchStart={onPinchStart}
       onTouchMove={onPinchMove}
       onTouchEnd={onPinchEnd}>
+    <div style={{ width:'100vw', height:'100vh',
+      background:BG, color:TEXT, fontFamily:FF,
+      display:'flex', flexDirection:'column',
+      zoom: zoomLevel } as React.CSSProperties}
+      onClick={()=>{ setOpenL(false); setOpenR(false); }}>
 
       {/* ХЕДЕР */}
       <div style={{ padding:'46px 14px 10px', display:'flex', alignItems:'center', gap:10,
@@ -872,6 +874,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         )}
       </AnimatePresence>
 
+    </div>
     </div>
   );
 }
