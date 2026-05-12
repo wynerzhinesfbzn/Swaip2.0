@@ -1,4 +1,4 @@
-const CACHE = 'swaip-v9';
+const CACHE = 'swaip-v10';
 const OFFLINE_URLS = ['/'];
 
 self.addEventListener('install', e => {
