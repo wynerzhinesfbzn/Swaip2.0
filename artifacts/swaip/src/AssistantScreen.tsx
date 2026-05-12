@@ -95,8 +95,10 @@ const IGOR_DOC_TITLES: Record<string, string> = {
   work_contract:    'ДОГОВОР ПОДРЯДА',
   deposit_agreement:'СОГЛАШЕНИЕ О ЗАДАТКЕ',
   resignation:      'ЗАЯВЛЕНИЕ ОБ УВОЛЬНЕНИИ',
-  freelance:        'ДОГОВОР С САМОЗАНЯТЫМ',
-  legal_doc:        'ЮРИДИЧЕСКИЙ ДОКУМЕНТ',
+  freelance:               'ДОГОВОР С САМОЗАНЯТЫМ',
+  legal_doc:               'ЮРИДИЧЕСКИЙ ДОКУМЕНТ',
+  rospatent_author_consent:'СОГЛАСИЕ АВТОРА НА УКАЗАНИЕ СВЕДЕНИЙ ОБ АВТОРЕ',
+  rospatent_pd_consent:    'СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ',
 };
 
 /* ── Form field/config types ── */
@@ -744,6 +746,86 @@ const IGOR_FORM_CONFIGS: IgorDocFormConfig[] = [
 ЗАКАЗЧИК: ${v.c_name}, ИНН ${v.c_inn}, адрес: ${v.c_address}, директор/ИП: ${v.c_director}${v.c_phone?', тел. '+v.c_phone:''}.
 ИСПОЛНИТЕЛЬ (самозанятый): ${v.f_fio}, ИНН ${v.f_inn}, адрес: ${v.f_address}${v.f_phone?', тел. '+v.f_phone:''}${v.f_bank?', реквизиты: '+v.f_bank:''}.
 УСЛУГА: ${v.service_desc}; срок: ${v.deadline}; стоимость ${v.price} ₽; оплата: ${v.payment_order}. Город: ${v.city||'Набережные Челны'}.`,
+  },
+
+  /* 20. Роспатент — Согласие автора на указание сведений */
+  {
+    key: 'rospatent_author_consent', emoji: '📋', title: 'Роспатент: Согласие автора', docType: 'rospatent_author_consent',
+    sections: [
+      { heading: 'Сведения о заявке', fields: [
+        { key: 'app_num', label: 'Номер заявки (если есть)', type: 'text', placeholder: '2026613456' },
+        { key: 'rid_type', label: 'Вид результата интеллектуальной деятельности', type: 'select',
+          options: ['Программа для ЭВМ', 'База данных (п. 4 ст. 1259 ГК РФ)', 'База данных (п. 3 ст. 1334 ГК РФ)'], required: true },
+        { key: 'rid_name', label: 'Название программы для ЭВМ / базы данных', type: 'text', placeholder: 'Система управления задачами «SWAIP Task»', required: true },
+      ]},
+      { heading: 'Правообладатель (Заявитель)', fields: [
+        { key: 'owner_name', label: 'ФИО физ. лица или наименование юр. лица', type: 'text', placeholder: 'ООО «СВАЙП» / Иванов Иван Иванович', required: true },
+        { key: 'owner_address', label: 'Место жительства / место нахождения', type: 'text', placeholder: 'г. Набережные Челны, пр. Мира, д. 1', required: true },
+        { key: 'owner_ogrn', label: 'ОГРН (для юр. лица)', type: 'text', placeholder: '1021600000000' },
+        { key: 'owner_inn', label: 'ИНН', type: 'text', placeholder: '1650000000' },
+      ]},
+      { heading: 'Сведения об авторе (раздел 7А)', fields: [
+        { key: 'author_fio', label: 'Фамилия Имя Отчество автора', type: 'text', placeholder: 'Петров Пётр Петрович', required: true },
+        { key: 'birth_day', label: 'Дата рождения: число', type: 'text', placeholder: '15', required: true },
+        { key: 'birth_month', label: 'Месяц рождения', type: 'text', placeholder: 'июня', required: true },
+        { key: 'birth_year', label: 'Год рождения', type: 'text', placeholder: '1990', required: true },
+        { key: 'citizenship', label: 'Гражданство', type: 'text', placeholder: 'Российская Федерация', required: true },
+        { key: 'author_address', label: 'Место постоянного жительства (включая страну)', type: 'textarea', placeholder: 'г. Набережные Челны, ул. Ленина, д. 5, кв. 10, Российская Федерация', required: true },
+        { key: 'contribution', label: 'Краткое описание творческого вклада автора', type: 'textarea', placeholder: 'Разработка алгоритмов обработки данных, проектирование архитектуры программы, написание программного кода', required: true },
+        { key: 'mention', label: 'При публикации автор просит', type: 'select',
+          options: ['упоминать его под своим именем', 'не упоминать его (анонимно)', 'упоминать его под псевдонимом'], required: true },
+        { key: 'pseudonym', label: 'Псевдоним (если выбрано «под псевдонимом»)', type: 'text', placeholder: 'P. Petrov' },
+        { key: 'sign_date', label: 'Дата подписания', type: 'date', required: true },
+      ]},
+    ],
+    buildPrompt: v => `СОСТАВЬ ОФИЦИАЛЬНОЕ «СОГЛАСИЕ АВТОРА НА УКАЗАНИЕ СВЕДЕНИЙ ОБ АВТОРЕ» по официальной форме Федеральной службы по интеллектуальной собственности (Роспатент) в точном соответствии с требованиями. Оформи как официальный документ со всеми реквизитами шапки, всеми полями формы, строками для подписей. Не добавляй ничего лишнего — только официальный текст формы с заполненными данными.
+
+ДАННЫЕ ДЛЯ ЗАПОЛНЕНИЯ:
+Заявка №: ${v.app_num || 'не присвоен'}
+Вид РИД: ${v.rid_type}
+Название: ${v.rid_name}
+Правообладатель (Заявитель): ${v.owner_name}, адрес: ${v.owner_address}${v.owner_ogrn ? ', ОГРН: ' + v.owner_ogrn : ''}${v.owner_inn ? ', ИНН: ' + v.owner_inn : ''}
+Автор (раздел 7А): ${v.author_fio}
+Дата рождения: ${v.birth_day} ${v.birth_month} ${v.birth_year} г.
+Гражданство: ${v.citizenship}
+Место постоянного жительства: ${v.author_address}
+Творческий вклад: ${v.contribution}
+При публикации: ${v.mention}${v.pseudonym ? ', псевдоним: ' + v.pseudonym : ''}
+Дата: ${v.sign_date}
+
+Документ адресован: В Федеральную службу по интеллектуальной собственности, Бережковская наб., д. 30, корп. 1, г. Москва, Г-59, ГСП-3, 125993.`,
+  },
+
+  /* 21. Роспатент — Согласие на обработку персональных данных */
+  {
+    key: 'rospatent_pd_consent', emoji: '🔏', title: 'Роспатент: Согласие на обработку ПД', docType: 'rospatent_pd_consent',
+    sections: [
+      { heading: 'Сведения о программе / базе данных', fields: [
+        { key: 'rid_name', label: 'Название программы для ЭВМ или базы данных', type: 'text', placeholder: 'Система управления задачами «SWAIP Task»', required: true },
+        { key: 'app_num', label: 'Номер заявки (если есть)', type: 'text', placeholder: '2026613456' },
+      ]},
+      { heading: 'Субъект персональных данных', fields: [
+        { key: 'subject_fio', label: 'Фамилия, имя, отчество', type: 'text', placeholder: 'Петров Пётр Петрович', required: true },
+        { key: 'subject_address', label: 'Адрес места жительства', type: 'textarea', placeholder: 'г. Набережные Челны, ул. Ленина, д. 5, кв. 10', required: true },
+        { key: 'doc_type', label: 'Вид документа, удостоверяющего личность', type: 'select',
+          options: ['Паспорт гражданина РФ', 'Заграничный паспорт', 'СНИЛС', 'Водительское удостоверение'], required: true },
+        { key: 'doc_series', label: 'Серия и номер документа', type: 'text', placeholder: '1234 567890', required: true },
+        { key: 'doc_date', label: 'Дата выдачи документа', type: 'date', required: true },
+        { key: 'doc_issued_by', label: 'Кем выдан', type: 'text', placeholder: 'ОМВД России по г. Набережные Челны', required: true },
+        { key: 'sign_date', label: 'Дата подписания', type: 'date', required: true },
+      ]},
+    ],
+    buildPrompt: v => `СОСТАВЬ ОФИЦИАЛЬНОЕ «СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ» по официальной форме Федеральной службы по интеллектуальной собственности (Роспатент), в соответствии с Федеральным законом от 27 июля 2006 г. № 152-ФЗ «О персональных данных» и Федеральным законом от 27 июля 2010 г. № 210-ФЗ. Воспроизведи официальный текст формы полностью — включая ссылки на законы, строки для подписи и расшифровки. Не добавляй ничего лишнего.
+
+ДАННЫЕ ДЛЯ ЗАПОЛНЕНИЯ:
+Название программы для ЭВМ или базы данных: ${v.rid_name}
+№ заявки: ${v.app_num || 'не присвоен'}
+Ф. И. О. субъекта персональных данных: ${v.subject_fio}
+Адрес места жительства: ${v.subject_address}
+Документ, удостоверяющий личность: ${v.doc_type}, серия и номер ${v.doc_series}, дата выдачи ${v.doc_date}, выдан: ${v.doc_issued_by}
+Дата подписания: ${v.sign_date}
+
+Документ адресован: В Федеральную службу по интеллектуальной собственности, Бережковская наб., д. 30, корп. 1, г. Москва, Г-59, ГСП-3, 125993.`,
   },
 ];
 
