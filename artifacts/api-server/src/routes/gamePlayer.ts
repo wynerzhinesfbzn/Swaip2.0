@@ -63,9 +63,6 @@ router.get("/game-player", async (req, res): Promise<void> => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("X-Frame-Options", "ALLOWALL");
-    // COOP/COEP required for SharedArrayBuffer (EmulatorJS threading)
-    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-    res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
     res.setHeader(
       "Content-Security-Policy",
       [
@@ -99,6 +96,8 @@ router.get("/game-player", async (req, res): Promise<void> => {
   window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
   window.EJS_startOnLoaded = true;
   window.EJS_volume = 0.5;
+  window.EJS_threads = false;
+  window.EJS_multithreading = false;
   window.EJS_Buttons = {
     loadState: false,
     saveState: false,
