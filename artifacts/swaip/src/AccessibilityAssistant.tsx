@@ -410,65 +410,58 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     setListening(true);
 
     const fromL = theirLang, toL = myLang;
-    const gen = ++listenGenRef.current; /* поколение этого сеанса слушания */
+    const gen = ++listenGenRef.current; /* поколение сеанса — защита от зомби-onend */
 
-    /* Одна фраза = одна сессия (continuous:false — надёжнее на мобильных).
-       После каждого onend немедленно перезапускается.
-       Только нажатие «Стоп» (activeRef=false + инкремент gen) останавливает цикл. */
+    /* continuous:true — браузер слушает бесконечно в одной сессии.
+       onend приходит только при сетевой/системной ошибке — тогда сразу перезапускаем.
+       Только «Стоп» останавливает (activeRef=false + инкремент gen). */
     const runSession = () => {
-      /* Умерли? — выходим */
       if (!activeRef.current || listenGenRef.current !== gen) return;
 
       const r = new SR() as SpeechAny;
       recogRef.current = r;
       r.lang            = getLang(fromL).tts;
       r.interimResults  = true;
-      r.continuous      = false;
+      r.continuous      = true;   /* одна бесконечная сессия */
       r.maxAlternatives = 1;
 
       r.onresult = (e: any) => {
         if (listenGenRef.current !== gen) return;
-        let fin = '', tmp = '';
-        for (let i = 0; i < e.results.length; i++) {
-          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
-          else tmp += e.results[i][0].transcript;
-        }
-        if (tmp) setInterim(tmp);
-        if (fin) { latestFinalRef.current = fin.trim(); setInterim(''); }
-      };
-
-      r.onerror = () => { /* игнорируем — onend всё равно придёт и перезапустит */ };
-
-      r.onend = () => {
-        /* Это «зомби»-сессия из предыдущего поколения — игнорируем */
-        if (listenGenRef.current !== gen) return;
-
-        recogRef.current = null;
-        const text = latestFinalRef.current;
-        latestFinalRef.current = '';
-        setInterim('');
-
-        if (text) {
+        /* Берём только ПОСЛЕДНИЙ результат — без дублей из накопленного буфера */
+        const last = e.results[e.resultIndex];
+        if (!last) return;
+        if (last.isFinal) {
+          const text = last[0].transcript.trim();
+          setInterim('');
+          if (!text) return;
           translateText(text, fromL, toL, apiBase).then(translated => {
-            if (!translated.trim()) return;
+            if (!translated.trim() || listenGenRef.current !== gen) return;
             setMessages(prev => [...prev, {
               id: `${Date.now()}${Math.random()}`, side: 'theirs',
               original: text, translated,
               fromLang: fromL, toLang: toL, ts: Date.now(),
             }]);
           });
+        } else {
+          setInterim(last[0].transcript);
         }
+      };
 
-        /* Перезапускаем всегда — только «Стоп» меняет activeRef/gen */
-        if (activeRef.current && listenGenRef.current === gen) setTimeout(runSession, 80);
+      r.onerror = () => { /* браузер пришлёт onend, там перезапустимся */ };
+
+      r.onend = () => {
+        if (listenGenRef.current !== gen) return; /* зомби — игнорируем */
+        recogRef.current = null;
+        setInterim('');
+        /* Сессия прервалась — немедленно перезапускаем */
+        if (activeRef.current && listenGenRef.current === gen) setTimeout(runSession, 100);
         else setListening(false);
       };
 
       try {
         r.start();
       } catch (_) {
-        /* start() бросил — браузер ещё не отпустил микрофон.
-           onend для этого r НЕ придёт, поэтому перезапускаем вручную. */
+        /* start() бросил — onend не придёт, перезапускаем вручную */
         recogRef.current = null;
         if (activeRef.current && listenGenRef.current === gen) setTimeout(runSession, 300);
       }
