@@ -429,9 +429,12 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         const text = latestFinalRef.current;
         latestFinalRef.current = '';
 
+        /* Всегда останавливаемся после одной фразы — пользователь сам нажмёт снова */
+        if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+        activeRef.current = false;
+        setListening(false);
+
         if (text) {
-          /* Сбрасываем таймер тишины и переводим */
-          if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
           translateText(text, fromL, toL).then(translated => {
             if (!translated.trim()) return;
             setMessages(prev=>[...prev, {
@@ -440,16 +443,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               fromLang: fromL, toLang: toL, ts: Date.now()
             }]);
           });
-          /* Таймер тишины: 5 сек без новых слов → остановить распознавание */
-          silenceRef.current = setTimeout(()=>{
-            activeRef.current = false;
-            setListening(false);
-          }, 5000);
         }
-
-        /* Перезапускаем следующую сессию (если пользователь не остановил) */
-        if (activeRef.current) runSession();
-        else setListening(false);
       };
 
       try { r.start(); } catch (_) {}
