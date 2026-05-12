@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router = Router();
 
 /* POST /api/translate
  * body: { text: string, from: string, to: string }
- * from/to = ISO 639-1 codes (ru, zh, ja, en, ...)
+ * from/to = ISO 639-1 / Google Translate codes (ru, zh-CN, ja, en, ...)
+ * Прокси к бесплатному Google Translate API — обходит CORS браузера
  * Возвращает { translated: string }
  */
 router.post("/translate", async (req, res) => {
@@ -15,24 +15,32 @@ router.post("/translate", async (req, res) => {
   if (!from || !to)   return res.status(400).json({ error: "from/to required" });
   if (from === to)    return res.json({ translated: text });
 
+  const url =
+    `https://translate.googleapis.com/translate_a/single` +
+    `?client=gtx&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&dt=t` +
+    `&q=${encodeURIComponent(text)}`;
+
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            `You are a professional translator. Translate the text from language code "${from}" to language code "${to}". ` +
-            `Return ONLY the translation, no explanations, no quotes, no extra text.`,
-        },
-        { role: "user", content: text },
-      ],
-      max_tokens: 1000,
-      temperature: 0.2,
+    const r = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 12; Pixel 6) " +
+          "AppleWebKit/537.36 (KHTML, like Gecko) " +
+          "Chrome/122.0.0.0 Mobile Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: AbortSignal.timeout(9000),
     });
 
-    const translated = completion.choices[0]?.message?.content?.trim() || text;
-    return res.json({ translated });
+    if (!r.ok) {
+      return res.status(502).json({ error: `google translate status ${r.status}` });
+    }
+
+    const d = await r.json() as any[][];
+    /* Ответ: [[[фрагмент_перевода, оригинал, ...], ...], ...] */
+    const translated = (d[0] as any[])?.map((x: any) => x?.[0] ?? "").join("").trim();
+    return res.json({ translated: translated || text });
   } catch (e: any) {
     req.log.error({ err: e }, "translate error");
     return res.status(502).json({ error: e?.message || "translate failed" });
