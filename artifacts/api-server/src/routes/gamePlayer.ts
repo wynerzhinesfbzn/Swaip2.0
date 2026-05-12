@@ -63,6 +63,9 @@ router.get("/game-player", async (req, res): Promise<void> => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("X-Frame-Options", "ALLOWALL");
+    // COOP/COEP required for SharedArrayBuffer (EmulatorJS threading)
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
     res.setHeader(
       "Content-Security-Policy",
       [
@@ -116,6 +119,59 @@ router.get("/game-player", async (req, res): Promise<void> => {
   }
 });
 
+/* ── Generic game page proxy (for S3 / external HTML game pages) ── */
+router.get("/game-proxy", async (req, res): Promise<void> => {
+  const url = req.query.url as string;
+  if (!url) { res.status(400).send("Missing url"); return; }
+
+  let decodedUrl: string;
+  try {
+    decodedUrl = decodeURIComponent(url);
+    new URL(decodedUrl);
+  } catch {
+    res.status(400).send("Invalid URL");
+    return;
+  }
+
+  try {
+    const pageRes = await fetch(decodedUrl, {
+      headers: {
+        "User-Agent": BROWSER_UA,
+        Accept: "text/html,*/*;q=0.8",
+        "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
+        Referer: decodedUrl,
+      },
+      redirect: "follow",
+    });
+
+    if (!pageRes.ok) {
+      res.status(pageRes.status).send("Page unavailable");
+      return;
+    }
+
+    const ct = pageRes.headers.get("content-type") ?? "text/html; charset=utf-8";
+    const body = await pageRes.text();
+
+    // Rewrite relative URLs to absolute so assets load correctly
+    const baseUrl = new URL(decodedUrl);
+    const baseOrigin = baseUrl.origin;
+    const rewritten = body
+      .replace(/(src|href|action)="\/(?!\/)/g, `$1="${baseOrigin}/`)
+      .replace(/(src|href|action)='\/(?!\/)/g, `$1='${baseOrigin}/`);
+
+    res.setHeader("Content-Type", ct);
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("X-Frame-Options", "ALLOWALL");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.removeHeader("Content-Security-Policy");
+    res.send(rewritten);
+  } catch (err) {
+    req.log.error({ err }, "game-proxy: fetch error");
+    res.status(500).send("Error loading page");
+  }
+});
+
 router.get("/game-rom-proxy", async (req, res): Promise<void> => {
   const url = req.query.url as string;
   if (!url) {
@@ -153,6 +209,7 @@ router.get("/game-rom-proxy", async (req, res): Promise<void> => {
     res.setHeader("Content-Type", ct);
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     if (cl) res.setHeader("Content-Length", cl);
 
     if (romRes.body) {
