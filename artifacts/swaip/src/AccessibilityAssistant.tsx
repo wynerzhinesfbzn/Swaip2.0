@@ -271,12 +271,15 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [theme, setTheme] = useState<'dark'|'light'>(()=>{ try{ return (localStorage.getItem('acc_theme')||'dark') as 'dark'|'light'; }catch{ return 'dark'; } });
   const toggleTheme = () => setTheme(p=>{ const n=p==='dark'?'light':'dark'; try{ localStorage.setItem('acc_theme',n); }catch{} return n; });
   const [showSettings, setShowSettings] = useState(false);
-  const [draftZoom, setDraftZoom]       = useState(zoomLevel);
-  const [draftFW,   setDraftFW]         = useState(fontWeight);
+  const [draftZoom, setDraftZoom] = useState(zoomLevel);
+  const [draftFW,   setDraftFW]   = useState(fontWeight);
   const openSettings = () => { setDraftZoom(zoomLevel); setDraftFW(fontWeight); setShowSettings(true); };
   const saveSettings = () => {
     setZoomLevel(draftZoom); setFontWeight(draftFW);
-    try { localStorage.setItem('acc_zoom', String(draftZoom)); localStorage.setItem('acc_fw', String(draftFW)); } catch {}
+    try {
+      localStorage.setItem('acc_zoom', String(draftZoom));
+      localStorage.setItem('acc_fw',   String(draftFW));
+    } catch {}
     setShowSettings(false);
   };
   const pinchRef = useRef<{ dist:number; zoom:number }|null>(null);
@@ -900,7 +903,8 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             <motion.div initial={{ scale:0.92, opacity:0 }} animate={{ scale:1, opacity:1 }} exit={{ scale:0.92, opacity:0 }}
               onClick={e=>e.stopPropagation()}
               style={{ background:SHEETBG, borderRadius:20, padding:'28px 24px 24px',
-                width:'min(340px,90vw)', display:'flex', flexDirection:'column', gap:24,
+                width:'min(340px,90vw)', maxHeight:'85vh', overflowY:'auto',
+                display:'flex', flexDirection:'column', gap:24,
                 border:`1px solid ${LINE}`, boxShadow:'0 8px 40px rgba(0,0,0,0.45)' }}>
 
               <div style={{ fontSize:17, fontWeight:800, color:TEXT, textAlign:'center' }}>⚙️ Настройки</div>
