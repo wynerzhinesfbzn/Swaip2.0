@@ -1241,337 +1241,6 @@ function GameCard({ game, onClick }: { game: GameMeta; onClick: () => void }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MINGAME.RU — КАТАЛОГ ИГР
-════════════════════════════════════════════════════════════════ */
-interface MingameEntry {
-  slug: string;
-  name: string;
-  cover: string;
-  embedUrl: string;
-  cat: string;
-}
-
-const MINGAMES: MingameEntry[] = [
-  /* ── СЕГА ─────────────────────────────────────────── */
-  { slug:'sonic-1',            name:'Sonic the Hedgehog',          cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                          embedUrl:'/api/game-player?id=44570',         cat:'Сега' },
-  { slug:'sonic-2',            name:'Sonic the Hedgehog 2',         cover:'https://igroutka.ru/uploads/posts/2021-01/1611830809_sonic-the-hedgehog-2.jpg',                                        embedUrl:'/api/game-player?id=44266',        cat:'Сега' },
-  { slug:'sonic-3',            name:'Sonic the Hedgehog 3',         cover:'https://igroutka.ru/uploads/posts/2021-01/1611830416_sonic-the-hedgehog-3.jpg',                                        embedUrl:'/api/game-player?id=44210',        cat:'Сега' },
-  { slug:'sonic-zx',           name:'Sonic ZX',                     cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                          embedUrl:'/api/game-player?id=44941',       cat:'Сега' },
-  { slug:'sonic-night',        name:'Sonic Night Trouble',          cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                          embedUrl:'/api/game-player?id=44944',    cat:'Сега' },
-  { slug:'sonic-metal',        name:'Metal Sonic',                  cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                          embedUrl:'/api/game-player?id=44664',    cat:'Сега' },
-  { slug:'sonic-shadow',       name:'Shadow in Sonic',              cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                          embedUrl:'/api/game-player?id=44601',        cat:'Сега' },
-  { slug:'sonic-rouge',        name:'Rouge in Sonic',               cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                          embedUrl:'/api/game-player?id=44587',         cat:'Сега' },
-  { slug:'sonic-3c',           name:'Sonic 3 Prototype',            cover:'https://igroutka.ru/uploads/posts/2021-01/1611830416_sonic-the-hedgehog-3.jpg',                                        embedUrl:'/api/game-player?id=44742',       cat:'Сега' },
-  { slug:'streets-of-rage',    name:'Streets of Rage 2',            cover:'https://igroutka.ru/uploads/posts/2021-05/1621859913_streets-of-rage.jpg',                                            embedUrl:'/api/game-player?id=44898',          cat:'Сега' },
-  { slug:'mk-1-sega',          name:'Mortal Kombat',                cover:'https://igroutka.ru/uploads/posts/2021-02/1612516773_mortal-kombat-sega-mega-drayv.jpg',                               embedUrl:'/api/game-player?id=44396',           cat:'Сега' },
-  { slug:'mk-arcade',          name:'Mortal Kombat Arcade',         cover:'https://igroutka.ru/uploads/posts/2021-02/1612517149_mortal-kombat-ii-sega-mega-drayv.jpg',                            embedUrl:'/api/game-player?id=44380',      cat:'Сега' },
-  { slug:'umk3-sega',          name:'Ultimate Mortal Kombat 3',     cover:'https://igroutka.ru/uploads/posts/2021-04/1619106840_ultimate-mortal-kombat-3.jpg',                                    embedUrl:'/api/game-player?id=44260',          cat:'Сега' },
-  { slug:'sf2-sega',           name:'Street Fighter II',            cover:'https://igroutka.ru/uploads/posts/2021-05/1621092717_comix-zone.jpg',                                                  embedUrl:'/api/game-player?id=44080',           cat:'Сега' },
-  { slug:'tmnt-tf-sega',       name:'TMNT Tournament Fighters',     cover:'https://igroutka.ru/uploads/posts/2021-05/1621086739_teenage-mutant-ninja-turtles-the-hyperstone-heist.jpg',           embedUrl:'/api/game-player?id=44690',          cat:'Сега' },
-  { slug:'altered-beast',      name:'Altered Beast',                cover:'https://igroutka.ru/uploads/posts/2021-05/1621858676_battletoads.jpg',                                                 embedUrl:'/api/game-player?id=44290',  cat:'Сега' },
-  { slug:'castlevania-bl',     name:'Castlevania: Bloodlines',      cover:'https://igroutka.ru/uploads/posts/2021-07/Castlevania-SymphonyOfTheNight_162618047560ed8b7b5692e2.58672717.jpg',       embedUrl:'/api/game-player?id=44688',  cat:'Сега' },
-  { slug:'pac-mania',          name:'Pac-Mania',                    cover:'https://igroutka.ru/uploads/posts/2021-01/1611762822_bomberman.jpg',                                                   embedUrl:'/api/game-player?id=44428',      cat:'Сега' },
-  { slug:'shining-force-2',    name:'Shining Force II',             cover:'https://igroutka.ru/uploads/posts/2021-05/1621866582_rock-n-roll-racing.jpg',                                         embedUrl:'/api/game-player?id=44334', cat:'Сега' },
-  { slug:'sonic-2-delta',      name:'Sonic 2 Delta',                cover:'https://igroutka.ru/uploads/posts/2021-01/1611830809_sonic-the-hedgehog-2.jpg',                                       embedUrl:'/api/game-player?id=44324',   cat:'Сега' },
-  { slug:'sonic-wces',         name:'Sonic 1 Remastered',           cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                         embedUrl:'/api/game-player?id=44684',     cat:'Сега' },
-  { slug:'sonic-2-nick',       name:'Sonic 2 Arcade Prototype',     cover:'https://igroutka.ru/uploads/posts/2021-01/1611830809_sonic-the-hedgehog-2.jpg',                                       embedUrl:'/api/game-player?id=44072',    cat:'Сега' },
-  { slug:'sonic-xe',           name:'Sonic XE',                     cover:'https://igroutka.ru/uploads/posts/2021-01/1611831417_sonic-the-hedgehog.jpg',                                         embedUrl:'/api/game-player?id=44945',       cat:'Сега' },
-  /* ── ДЕНДИ ─────────────────────────────────────────── */
-  { slug:'mario-nes',          name:'Super Mario Bros',             cover:'https://igroutka.ru/uploads/posts/2017-05/1495882904_igra-dendi-super-mario-bros.jpg',                                embedUrl:'/api/game-player?id=44591',         cat:'Денди' },
-  { slug:'mario-chaos',        name:'Super Mario Bros (Edition)',   cover:'https://igroutka.ru/uploads/posts/2019-02/1549299026_super-mario-bros-3.jpg',                                          embedUrl:'/api/game-player?id=44632',    cat:'Денди' },
-  { slug:'contra-nes',         name:'Contra',                       cover:'https://igroutka.ru/uploads/posts/2017-05/1495891456_igra-dendi-contra.jpg',                                          embedUrl:'/api/game-player?id=44605',        cat:'Денди' },
-  { slug:'super-contra-2',     name:'Super Contra II',              cover:'https://igroutka.ru/uploads/posts/2017-05/1495891456_igra-dendi-contra.jpg',                                          embedUrl:'/api/game-player?id=44680',  cat:'Денди' },
-  { slug:'battletoads-nes',    name:'Battletoads',                  cover:'https://igroutka.ru/uploads/posts/2017-05/1495891118_igra-dendi-battletoads.jpg',                                     embedUrl:'/api/game-player?id=44640',   cat:'Денди' },
-  { slug:'chip-dale-2',        name:"Chip 'n Dale 2",              cover:'https://igroutka.ru/uploads/posts/2021-01/1611760767_chip-n-dale-rescue-rangers.jpg',                                  embedUrl:'/api/game-player?id=44144',     cat:'Денди' },
-  { slug:'tmnt-tf-nes',        name:'TMNT Tournament Fighters',     cover:'https://igroutka.ru/uploads/posts/2019-02/1550434301_mutant-ninja-turtles-tournament-fighters.jpg',                   embedUrl:'/api/game-player?id=44694',        cat:'Денди' },
-  { slug:'pac-man-ce-nes',     name:'Pac-Man Championship',         cover:'https://igroutka.ru/uploads/posts/2021-01/1611762822_bomberman.jpg',                                                  embedUrl:'/api/game-player?id=44198',      cat:'Денди' },
-  { slug:'sf4-nes',            name:'Street Fighter IV NES',        cover:'https://igroutka.ru/uploads/posts/2021-05/1621092717_comix-zone.jpg',                                                 embedUrl:'/api/game-player?id=44300',         cat:'Денди' },
-  { slug:'mk3-nes',            name:'Mortal Kombat 3 NES',          cover:'https://igroutka.ru/uploads/posts/2021-02/1612516773_mortal-kombat-sega-mega-drayv.jpg',                              embedUrl:'/api/game-player?id=44238',         cat:'Денди' },
-  { slug:'smash-nes',          name:'Super Smash Bros NES',         cover:'https://igroutka.ru/uploads/posts/2017-05/1495882904_igra-dendi-super-mario-bros.jpg',                                embedUrl:'/api/game-player?id=44374',       cat:'Денди' },
-  { slug:'angry-birds-nes',    name:'Angry Birds NES',              cover:'https://igroutka.ru/uploads/posts/2021-01/1611776013_felix-the-cat.jpg',                                              embedUrl:'/api/game-player?id=44288',     cat:'Денди' },
-  { slug:'dk-4-nes',           name:'Donkey Kong 4',                cover:'https://igroutka.ru/uploads/posts/2021-01/1611760321_battletoads-double-dragon.jpg',                                  embedUrl:'/api/game-player?id=44068',            cat:'Денди' },
-  { slug:'mega-man-3-nes',     name:'Mega Man 3',                   cover:'https://igroutka.ru/uploads/posts/2021-01/1611778568_megaman.jpg',                                                    embedUrl:'/api/game-player?id=44776',       cat:'Денди' },
-  { slug:'zelda-2-nes',        name:'Zelda II',                     cover:'https://igroutka.ru/uploads/posts/2021-01/1611776348_lode-runner.jpg',                                                embedUrl:'/api/game-player?id=44608',         cat:'Денди' },
-  { slug:'talespin-nes',       name:'TaleSpin',                     cover:'https://igroutka.ru/uploads/posts/2021-01/1611761992_duck-tales.jpg',                                                 embedUrl:'/api/game-player?id=44142',       cat:'Денди' },
-  /* ── PlayStation ─────────────────────────────────── */
-  { slug:'mvc-psx',            name:'Marvel vs Capcom',             cover:'https://igroutka.ru/uploads/posts/2021-02/1612184092_mortal-kombat-trilogy-playstation.jpg',                         embedUrl:'/api/game-player?id=44814',            cat:'PlayStation' },
-  { slug:'wwf-war-zone-psx',   name:'WWF War Zone',                 cover:'https://igroutka.ru/uploads/posts/2021-05/1621099253_wwf-wrestlemania-arcade.jpg',                                   embedUrl:'/api/game-player?id=44936',            cat:'PlayStation' },
-  { slug:'ace-combat-2-psx',   name:'Ace Combat 2',                 cover:'https://igroutka.ru/uploads/posts/2021-07/Driver_162619235160edb9df62a053.28639052.jpg',                             embedUrl:'/api/game-player?id=44602',     cat:'PlayStation' },
-  { slug:'brave-fencer-psx',   name:'Brave Fencer Musashi',         cover:'https://igroutka.ru/uploads/posts/2021-07/SpyroTheDragon_162567787360e5e031d32319.11831401.jpg',                     embedUrl:'/api/game-player?id=44714',    cat:'PlayStation' },
-  { slug:'mega-man-x5-psx',   name:'Mega Man X5',                  cover:'https://igroutka.ru/uploads/posts/2021-07/MetalSlugX_162626488560eed5355fea79.75591347.jpg',                         embedUrl:'/api/game-player?id=44392',      cat:'PlayStation' },
-  { slug:'sonic-wings-psx',    name:'Sonic Wings Special',          cover:'https://igroutka.ru/uploads/posts/2021-07/MetalSlugX_162626488560eed5355fea79.75591347.jpg',                         embedUrl:'/api/game-player?id=44242',     cat:'PlayStation' },
-  { slug:'nightmare-psx',      name:'Nightmare Creatures II',       cover:'https://igroutka.ru/uploads/posts/2021-07/ResidentEvil_162619114560edb52935b425.07870774.jpg',                        embedUrl:'/api/game-player?id=44010',      cat:'PlayStation' },
-  { slug:'herc-psx',           name:"Herc's Adventures",           cover:'https://igroutka.ru/uploads/posts/2021-07/Rayman_162559441960e49a337268d4.86545724.jpg',                              embedUrl:'/api/game-player?id=44078',           cat:'PlayStation' },
-  { slug:'rascal-psx',         name:'Rascal',                       cover:'https://igroutka.ru/uploads/posts/2021-07/DinoCrisis_162619508860edc490806883.53737129.jpg',                         embedUrl:'/api/game-player?id=44084',         cat:'PlayStation' },
-  { slug:'ncaa-ff-psx',        name:'NCAA Final Four 2000',         cover:'https://igroutka.ru/uploads/posts/2021-07/TwistedMetal2_162618634360eda267640193.73559209.jpg',                      embedUrl:'/api/game-player?id=44180',         cat:'PlayStation' },
-  { slug:'ncaa-fb-psx',        name:'NCAA Football 2000',           cover:'https://igroutka.ru/uploads/posts/2021-07/Driver_162619235160edb9df62a053.28639052.jpg',                             embedUrl:'/api/game-player?id=44184',         cat:'PlayStation' },
-  { slug:'ncaa-march-psx',     name:'NCAA March Madness 2000',      cover:'https://igroutka.ru/uploads/posts/2021-07/Diablo_162617271360ed6d2913a189.20306372.jpg',                             embedUrl:'/api/game-player?id=44190',      cat:'PlayStation' },
-  { slug:'mk3-bootleg-psx',    name:'Mortal Kombat 3 Bootleg',      cover:'https://igroutka.ru/uploads/posts/2021-04/1619106840_ultimate-mortal-kombat-3.jpg',                                  embedUrl:'/api/game-player?id=44000',     cat:'PlayStation' },
-  /* ── GTA ───────────────────────────────────────────── */
-  { slug:'gta-vice-city-ru',         name:'GTA: Vice City (Рус)',         cover:'https://igroutka.ru/uploads/posts/2020-12/1608796409_gta-vays-siti.jpg',                embedUrl:'https://s3.ru1.storage.beget.cloud/fa44ebbed79a-mingame-cloud/gtavc/index.html?lang=ru&cheats=1', cat:'GTA' },
-  { slug:'gta-vice-city-igroutka',   name:'GTA: Vice City',               cover:'https://igroutka.ru/uploads/posts/2020-12/1608796409_gta-vays-siti.jpg',                embedUrl:'https://igroutka.ru/igry-gta/34712-gta-vays-siti.html', cat:'GTA' },
-  { slug:'gta-2-ps1',                name:'GTA 2 (PlayStation)',           cover:'https://igroutka.ru/uploads/posts/2021-07/GrandTheftAuto2_162608421060ec1372d75683.05668404.jpg', embedUrl:'https://igroutka.ru/playstation/38774-gta-2-playstation-1.html', cat:'GTA' },
-  { slug:'gta-san-andreas-multi',    name:'GTA: San Andreas Multiplayer',  cover:'https://igroutka.ru/uploads/posts/2019-03/1551858785_igra-gta-san-andreas-multipleer.jpg', embedUrl:'https://igroutka.ru/igry-gta/27525-gta-san-andreas-multipleer.html', cat:'GTA' },
-];
-
-const MINGAME_CATS = ['Все','Сега','Денди','PlayStation','GTA'] as const;
-type MingameCat = typeof MINGAME_CATS[number];
-
-/* ─── SWAIP GAME Viewer ─────────────────────────────────────── */
-function MingameViewer({ game, onClose }: { game: MingameEntry; onClose: () => void }) {
-  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [retryKey, setRetryKey] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [tabVisible, setTabVisible] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  useBackHandler(isFullscreen ? exitFullscreen : onClose);
-
-  useEffect(() => {
-    setStatus('loading');
-    const timer = setTimeout(() => setStatus('error'), 60000);
-    return () => clearTimeout(timer);
-  }, [game.slug, retryKey]);
-
-  useEffect(() => {
-    const onChange = () => {
-      const fs = !!(document.fullscreenElement);
-      setIsFullscreen(fs);
-      if (!fs) {
-        try { (screen.orientation as any).unlock?.(); } catch {}
-      }
-    };
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-
-  function enterFullscreen() {
-    const el = containerRef.current;
-    if (!el) return;
-    el.requestFullscreen?.().then(() => {
-      try {
-        (screen.orientation as any).lock?.('landscape').catch(() => {});
-      } catch {}
-    }).catch(() => {});
-  }
-
-  function exitFullscreen() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen?.().catch(() => {});
-    }
-  }
-
-  function toggleFullscreen() {
-    isFullscreen ? exitFullscreen() : enterFullscreen();
-    setTabVisible(false);
-  }
-
-  const handleLoad = () => {
-    if (status === 'loading') setStatus('ok');
-  };
-
-  const handleRetry = () => {
-    setRetryKey(k => k + 1);
-  };
-
-  return (
-    <motion.div ref={containerRef}
-      initial={{ opacity: 0, y: '100%' }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: '100%' }}
-      transition={{ type: 'spring', damping: 30, stiffness: 280 }}
-      style={{ position: 'fixed', inset: 0, zIndex: 600, background: '#000', display: 'flex', flexDirection: 'column' }}>
-
-      {/* SWAIP GAME top bar — hidden in fullscreen */}
-      <AnimatePresence>
-        {!isFullscreen && (
-          <motion.div key="topbar" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '46px 12px 8px',
-              background: 'linear-gradient(135deg, #1a0533 0%, #0d1f3c 100%)',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
-              flexShrink: 0, minHeight: 86, overflow: 'hidden',
-            }}>
-            <motion.button whileTap={{ scale: 0.85 }} onClick={onClose}
-              style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</motion.button>
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase',
-                background: 'linear-gradient(90deg, #a78bfa, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>🎮 SWAIP GAME</span>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.name}</div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {status === 'error' && (
-                <motion.button whileTap={{ scale: 0.88 }} onClick={handleRetry}
-                  style={{ padding: '4px 10px', borderRadius: 12, background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.4)', color: '#a78bfa', fontSize: 10, fontWeight: 800, cursor: 'pointer', fontFamily: '"Montserrat",sans-serif' }}>
-                  ↺ Повтор
-                </motion.button>
-              )}
-              {/* Fullscreen button in top bar */}
-              <motion.button whileTap={{ scale: 0.85 }} onClick={enterFullscreen} title="Полный экран"
-                style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>⛶</motion.button>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1 }}>{game.cat}</div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Game iframe area */}
-      <div style={{ flex: 1, position: 'relative', background: '#0a0a0a' }}>
-
-        {/* Always render iframe so it starts loading immediately */}
-        <iframe
-          key={`${game.slug}-${retryKey}`}
-          src={
-            game.embedUrl.startsWith('/api/') || game.embedUrl.startsWith('https://igroutka.ru/')
-              ? game.embedUrl
-              : `/api/game-proxy?url=${encodeURIComponent(game.embedUrl)}`
-          }
-          title={game.name}
-          onLoad={handleLoad}
-          style={{ width: '100%', height: '100%', border: 0, display: 'block', opacity: status === 'ok' ? 1 : 0, transition: 'opacity 0.3s' }}
-          allow="fullscreen; autoplay; gamepad"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock"
-        />
-
-        {/* Loading overlay */}
-        <AnimatePresence>
-          {status === 'loading' && (
-            <motion.div key="loading" initial={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: '#0a0a0a' }}>
-              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(167,139,250,0.2)', borderTopColor: '#a78bfa' }} />
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>Загрузка игры…</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>{game.name}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Error overlay */}
-        <AnimatePresence>
-          {status === 'error' && (
-            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 32, textAlign: 'center', background: '#0a0a0a' }}>
-              <div style={{ fontSize: 52 }}>📡</div>
-              <div style={{ fontSize: 17, fontWeight: 900, color: '#fff' }}>Сервер недоступен</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, maxWidth: 260 }}>
-                Игровой сервер сейчас не отвечает.<br />Попробуй ещё раз или выбери другую игру.
-              </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                <motion.button whileTap={{ scale: 0.92 }} onClick={handleRetry}
-                  style={{ padding: '10px 20px', borderRadius: 20, background: 'linear-gradient(135deg, #a78bfa, #60a5fa)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: '"Montserrat",sans-serif' }}>
-                  ↺ Попробовать снова
-                </motion.button>
-                <motion.button whileTap={{ scale: 0.92 }} onClick={onClose}
-                  style={{ padding: '10px 20px', borderRadius: 20, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: '"Montserrat",sans-serif' }}>
-                  ← Назад
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Floating fullscreen side-tab */}
-        <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', zIndex: 10, display: 'flex', alignItems: 'center' }}>
-          <AnimatePresence>
-            {tabVisible && (
-              <motion.div key="panel"
-                initial={{ x: 120, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 120, opacity: 0 }}
-                transition={{ type: 'spring', damping: 22, stiffness: 300 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 6px 10px 10px', background: 'rgba(15,5,30,0.92)', backdropFilter: 'blur(12px)', borderRadius: '16px 0 0 16px', border: '1px solid rgba(167,139,250,0.25)', borderRight: 'none' }}>
-
-                <motion.button whileTap={{ scale: 0.88 }} onClick={toggleFullscreen}
-                  style={{ width: 40, height: 40, borderRadius: 12, background: isFullscreen ? 'rgba(239,68,68,0.2)' : 'rgba(167,139,250,0.2)', border: `1px solid ${isFullscreen ? 'rgba(239,68,68,0.5)' : 'rgba(167,139,250,0.5)'}`, color: isFullscreen ? '#f87171' : '#a78bfa', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {isFullscreen ? '✕' : '⛶'}
-                </motion.button>
-
-                {isFullscreen && (
-                  <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} whileTap={{ scale: 0.88 }} onClick={onClose}
-                    style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    ←
-                  </motion.button>
-                )}
-
-                <div style={{ width: 40, height: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 1 }} />
-
-                <motion.button whileTap={{ scale: 0.88 }} onClick={() => setTabVisible(false)}
-                  style={{ width: 40, height: 32, borderRadius: 10, background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Pull tab handle */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setTabVisible(v => !v)}
-            animate={{ x: tabVisible ? -2 : 0 }}
-            style={{ width: 22, height: 60, borderRadius: '12px 0 0 12px', background: 'rgba(167,139,250,0.25)', border: '1px solid rgba(167,139,250,0.4)', borderRight: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 13, color: '#a78bfa', lineHeight: 1 }}>{isFullscreen ? '✕' : '⛶'}</span>
-            <span style={{ fontSize: 8, color: 'rgba(167,139,250,0.7)', writingMode: 'vertical-rl', letterSpacing: 1, fontWeight: 800, textTransform: 'uppercase', fontFamily: '"Montserrat",sans-serif', transform: 'rotate(180deg)' }}>экран</span>
-          </motion.button>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ─── Mingame Card ───────────────────────────────────────────── */
-function MingameCard({ game, onClick }: { game: MingameEntry; onClick: () => void }) {
-  return (
-    <motion.div whileTap={{ scale: 0.93 }} onClick={onClick}
-      style={{ borderRadius: 12, overflow: 'hidden', cursor: 'pointer', position: 'relative', aspectRatio: '5/3', background: '#111' }}>
-      <img src={game.cover} alt={game.name} loading="lazy"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.88) 100%)',
-        display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '6px 8px' }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: '#fff', lineHeight: 1.25, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{game.name}</div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ─── Mingame Section ────────────────────────────────────────── */
-function MingameSection({ accentColor }: { accentColor: string }) {
-  const [cat, setCat] = useState<MingameCat>('Все');
-  const [viewer, setViewer] = useState<MingameEntry | null>(null);
-  const catRef = useRef<HTMLDivElement>(null);
-
-  const filtered = cat === 'Все' ? MINGAMES : MINGAMES.filter(g => g.cat === cat);
-
-  return (
-    <>
-      {/* Category pills */}
-      <div ref={catRef} style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 10px', flexShrink: 0, scrollbarWidth: 'none' }}>
-        {MINGAME_CATS.map(c => (
-          <button key={c} onClick={() => setCat(c)}
-            style={{ padding: '5px 13px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
-              fontFamily: '"Montserrat",sans-serif', whiteSpace: 'nowrap', flexShrink: 0,
-              background: cat === c ? accentColor : 'rgba(255,255,255,0.08)',
-              color: cat === c ? '#fff' : 'rgba(255,255,255,0.65)' }}>{c}</button>
-        ))}
-      </div>
-
-      {/* Count badge */}
-      <div style={{ padding: '0 16px 8px', flexShrink: 0 }}>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>{filtered.length} игр</span>
-      </div>
-
-      {/* Game grid */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-          {filtered.map(g => (
-            <MingameCard key={g.slug} game={g} onClick={() => { sfx.click(); setViewer(g); }} />
-          ))}
-        </div>
-      </div>
-
-      {/* Viewer overlay */}
-      <AnimatePresence>
-        {viewer && <MingameViewer game={viewer} onClose={() => setViewer(null)} />}
-      </AnimatePresence>
-    </>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════
    MAIN GAMES ARCADE SCREEN
@@ -1580,7 +1249,6 @@ export default function GamesArcade({ onBack, accentColor = '#6366f1' }: { onBac
   const [selected, setSelected] = useState<GameMeta | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [filter, setFilter] = useState<'all'|'solo'|'multi'>('all');
-  const [tab, setTab] = useState<'swaip'|'builtin'>('swaip');
 
   useBackHandler(
     showInstructions ? () => setShowInstructions(false)
@@ -1598,93 +1266,71 @@ export default function GamesArcade({ onBack, accentColor = '#6366f1' }: { onBac
           style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</motion.button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>🎮 Игры</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{MINGAMES.length} игр с mingame.ru + 20 встроенных</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>20 встроенных игр</div>
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', padding: '8px 16px 0', gap: 4, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        {([['swaip','🌐 SWAIP Games'],['builtin','🕹️ Встроенные']] as ['swaip'|'builtin', string][]).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)}
-            style={{ flex: 1, padding: '8px 4px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 800,
-              fontFamily: '"Montserrat",sans-serif', background: 'transparent',
-              color: tab === k ? '#fff' : 'rgba(255,255,255,0.4)',
-              borderBottom: `2px solid ${tab === k ? accentColor : 'transparent'}`,
-              transition: 'color 0.2s' }}>{l}</button>
+      {/* Filter tabs */}
+      <div style={{ display: 'flex', gap: 6, padding: '10px 16px', flexShrink: 0 }}>
+        {([['all','Все'], ['solo','Одиночные'], ['multi','Мультиплеер']] as [typeof filter, string][]).map(([k, l]) => (
+          <button key={k} onClick={() => setFilter(k)}
+            style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: '"Montserrat",sans-serif',
+              background: filter === k ? accentColor : 'rgba(255,255,255,0.07)', color: '#fff' }}>{l}</button>
         ))}
       </div>
 
-      {/* Content */}
-      {tab === 'swaip' ? (
-        <>
-          <div style={{ padding: '10px 0 0', flexShrink: 0 }} />
-          <MingameSection accentColor={accentColor} />
-        </>
-      ) : (
-        <>
-          {/* Filter tabs */}
-          <div style={{ display: 'flex', gap: 6, padding: '10px 16px', flexShrink: 0 }}>
-            {([['all','Все'], ['solo','Одиночные'], ['multi','Мультиплеер']] as [typeof filter, string][]).map(([k, l]) => (
-              <button key={k} onClick={() => setFilter(k)}
-                style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: '"Montserrat",sans-serif',
-                  background: filter === k ? accentColor : 'rgba(255,255,255,0.07)', color: '#fff' }}>{l}</button>
-            ))}
-          </div>
+      {/* Game grid */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          {filtered.map(game => (
+            <GameCard key={game.id} game={game} onClick={() => { sfx.click(); setSelected(game); }} />
+          ))}
+        </div>
+      </div>
 
-          {/* Game grid */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 24px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {filtered.map(game => (
-                <GameCard key={game.id} game={game} onClick={() => { sfx.click(); setSelected(game); }} />
-              ))}
+      {/* Game modal */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div initial={{ opacity: 0, y: '100%' }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 500, background: '#07070f', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '48px 16px 12px',
+              background: `linear-gradient(180deg, ${selected.color}22, transparent)`,
+              borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+              <motion.button whileTap={{ scale: 0.88 }} onClick={() => setSelected(null)}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</motion.button>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>{selected.emoji} {selected.name}</div>
+                <div style={{ fontSize: 10, color: selected.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{selected.tag}</div>
+              </div>
+              <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowInstructions(true)}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: `${selected.color}22`, border: `1px solid ${selected.color}55`, color: selected.color, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>?</motion.button>
             </div>
-          </div>
-
-          {/* Game modal */}
-          <AnimatePresence>
-            {selected && (
-              <motion.div initial={{ opacity: 0, y: '100%' }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: '100%' }}
-                transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-                style={{ position: 'fixed', inset: 0, zIndex: 500, background: '#07070f', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '48px 16px 12px',
-                  background: `linear-gradient(180deg, ${selected.color}22, transparent)`,
-                  borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
-                  <motion.button whileTap={{ scale: 0.88 }} onClick={() => setSelected(null)}
-                    style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</motion.button>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>{selected.emoji} {selected.name}</div>
-                    <div style={{ fontSize: 10, color: selected.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{selected.tag}</div>
-                  </div>
-                  <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowInstructions(true)}
-                    style={{ width: 36, height: 36, borderRadius: '50%', background: `${selected.color}22`, border: `1px solid ${selected.color}55`, color: selected.color, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>?</motion.button>
-                </div>
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 8px 32px' }}>
-                  <GameRenderer game={selected} />
-                </div>
-                <AnimatePresence>
-                  {showInstructions && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', zIndex: 10 }}
-                      onClick={() => setShowInstructions(false)}>
-                      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 30 }} onClick={e => e.stopPropagation()}
-                        style={{ width: '100%', background: '#0f0f1e', borderRadius: '24px 24px 0 0', padding: '24px 20px 40px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)', margin: '0 auto 20px' }} />
-                        <div style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>{selected.emoji}</div>
-                        <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', textAlign: 'center', marginBottom: 16 }}>{selected.name} — Правила</div>
-                        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.8, textAlign: 'center' }}>{selected.instructions}</div>
-                        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'center' }}>
-                          <GameBtn onClick={() => setShowInstructions(false)} color={selected.color}>Понятно!</GameBtn>
-                        </div>
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
-      )}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 8px 32px' }}>
+              <GameRenderer game={selected} />
+            </div>
+            <AnimatePresence>
+              {showInstructions && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', zIndex: 10 }}
+                  onClick={() => setShowInstructions(false)}>
+                  <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 30 }} onClick={e => e.stopPropagation()}
+                    style={{ width: '100%', background: '#0f0f1e', borderRadius: '24px 24px 0 0', padding: '24px 20px 40px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)', margin: '0 auto 20px' }} />
+                    <div style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>{selected.emoji}</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', textAlign: 'center', marginBottom: 16 }}>{selected.name} — Правила</div>
+                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.8, textAlign: 'center' }}>{selected.instructions}</div>
+                    <div style={{ marginTop: 24, display: 'flex', justifyContent: 'center' }}>
+                      <GameBtn onClick={() => setShowInstructions(false)} color={selected.color}>Понятно!</GameBtn>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -43,8 +43,6 @@ import gitPushRouter from "./gitPush.js";
 import menuConfigRouter from "./menuConfig.js";
 import petyaRouter from "./petya.js";
 import assistantsRouter from "./assistants.js";
-import gamePlayerRouter from "./gamePlayer.js";
-
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -91,6 +89,4 @@ router.use(gitPushRouter);
 router.use(menuConfigRouter);
 router.use(petyaRouter);
 router.use(assistantsRouter);
-router.use(gamePlayerRouter);
-
 export default router;
