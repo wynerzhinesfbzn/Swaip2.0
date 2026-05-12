@@ -276,10 +276,15 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [theme, setTheme] = useState<'dark'|'light'>(()=>{ try{ return (localStorage.getItem('acc_theme')||'dark') as 'dark'|'light'; }catch{ return 'dark'; } });
   const toggleTheme = () => setTheme(p=>{ const n=p==='dark'?'light':'dark'; try{ localStorage.setItem('acc_theme',n); }catch{} return n; });
 
-  const recogRef     = useRef<SpeechAny>(null);
-  const silenceRef   = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const [storyLock, setStoryLock] = useState(false); /* режим рассказа — непрерывный поток */
+
+  const recogRef       = useRef<SpeechAny>(null);
+  const silenceRef     = useRef<ReturnType<typeof setTimeout>|null>(null);
   const activeRef      = useRef(false);
-  const latestFinalRef = useRef('');      /* последний накопленный финальный текст */
+  const latestFinalRef = useRef('');
+  const storyIdRef     = useRef('');   /* id накапливаемого сообщения-рассказа */
+  const storyTextRef   = useRef('');   /* накопленный переведённый текст */
+  const storyOrigRef   = useRef('');   /* накопленный оригинальный текст */
   const inputRef     = useRef<HTMLTextAreaElement>(null);
   const voicesRef    = useRef<SpeechSynthesisVoice[]>([]);
   const dialogEndRef = useRef<HTMLDivElement>(null);
@@ -474,9 +479,75 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
       try { r.start(); } catch (_) {}
     };
 
-    resetSilence();
-    runSession();
-  }, [theirLang, myLang, stopAll, apiBase]);
+    if (storyLock) {
+      /* ══ РЕЖИМ РАССКАЗА: continuous, весь текст в одном блоке ══ */
+      const sid = `story_${Date.now()}`;
+      storyIdRef.current   = sid;
+      storyTextRef.current = '';
+      storyOrigRef.current = '';
+
+      /* Создаём пустое сообщение-рассказ, будем обновлять его in-place */
+      setMessages(prev => [...prev, {
+        id: sid, side: 'theirs', original: '', translated: '…',
+        fromLang: fromL, toLang: toL, ts: Date.now(),
+      }]);
+
+      const startStory = () => {
+        if (!activeRef.current) return;
+        const r = new SR() as SpeechAny;
+        recogRef.current = r;
+        r.lang = getLang(fromL).tts;
+        r.interimResults = true;
+        r.continuous = true;
+        r.maxAlternatives = 1;
+
+        r.onresult = (e: any) => {
+          let interim = '';
+          for (let i = (e.resultIndex ?? 0); i < e.results.length; i++) {
+            if (e.results[i].isFinal) {
+              const chunk = (e.results[i][0].transcript as string).trim();
+              if (!chunk) continue;
+              translateText(chunk, fromL, toL, apiBase).then(tr => {
+                if (!tr.trim()) return;
+                storyOrigRef.current  += (storyOrigRef.current  ? ' ' : '') + chunk;
+                storyTextRef.current  += (storyTextRef.current  ? ' ' : '') + tr;
+                const orig = storyOrigRef.current, full = storyTextRef.current, id = storyIdRef.current;
+                setMessages(prev => prev.map(m =>
+                  m.id === id ? { ...m, original: orig, translated: full } : m
+                ));
+              });
+            } else {
+              interim += (e.results[i][0].transcript as string);
+            }
+          }
+          setInterim(interim);
+        };
+
+        r.onerror = (ev: any) => {
+          if (ev.error !== 'no-speech' && activeRef.current) {
+            try { recogRef.current?.abort(); } catch (_) {}
+            recogRef.current = null;
+            setTimeout(startStory, 300);
+          }
+        };
+
+        r.onend = () => {
+          recogRef.current = null;
+          setInterim('');
+          if (activeRef.current) setTimeout(startStory, 100);
+          else setListening(false);
+        };
+
+        try { r.start(); } catch (_) {}
+      };
+
+      startStory();
+    } else {
+      /* ══ ОБЫЧНЫЙ РЕЖИМ: одна фраза → перевод → стоп ══ */
+      resetSilence();
+      runSession();
+    }
+  }, [theirLang, myLang, stopAll, apiBase, storyLock]);
 
 
   /* ГЛАВНАЯ КНОПКА: перевести + озвучить → добавляем в диалог */
@@ -600,20 +671,33 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         </div>
 
         {/* КНОПКИ РЕЖИМА */}
-        <div style={{ flexShrink:0, display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-          <motion.button whileTap={{ scale:0.96 }}
-            onClick={()=>{ if(listening){ stopAll(); } else { startListening(); } }}
-            style={{ padding:'10px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
-              background:listening?`${RED}20`:`${GREEN}15`,
-              border:`1.5px solid ${listening?RED+'55':GREEN+'44'}`,
-              color:listening?RED:GREEN, fontSize:12, fontWeight:800 }}>
+        <div style={{ flexShrink:0, display:'flex', gap:6 }}>
+          <motion.button whileTap={{ scale:0.96 }} style={{ flex:1,
+            padding:'10px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
+            background:listening?`${RED}20`:`${GREEN}15`,
+            border:`1.5px solid ${listening?RED+'55':GREEN+'44'}`,
+            color:listening?RED:GREEN, fontSize:12, fontWeight:800 }}
+            onClick={()=>{ if(listening){ stopAll(); } else { startListening(); } }}>
             {listening ? `⏹ ${t('stop')}` : t('recognize')}
           </motion.button>
-          <motion.button whileTap={{ scale:0.96 }}
-            onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}
-            style={{ padding:'10px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
-              background:`${accent}12`, border:`1.5px solid ${accent}33`,
-              color:accent, fontSize:12, fontWeight:800 }}>
+
+          {/* Замок режима рассказа */}
+          <motion.button whileTap={{ scale:0.85 }}
+            onClick={()=>setStoryLock(v=>!v)}
+            title={storyLock ? 'Режим рассказа включён' : 'Режим рассказа'}
+            style={{ width:38, height:38, flexShrink:0, borderRadius:10, cursor:'pointer',
+              background:storyLock?`${accent}22`:GHOST,
+              border:`1.5px solid ${storyLock?accent+'66':LINE}`,
+              color:storyLock?accent:SUB, fontSize:16,
+              display:'flex', alignItems:'center', justifyContent:'center' }}>
+            {storyLock ? '📖' : '📖'}
+          </motion.button>
+
+          <motion.button whileTap={{ scale:0.96 }} style={{ flex:1,
+            padding:'10px 8px', borderRadius:10, cursor:'pointer', fontFamily:FF,
+            background:`${accent}12`, border:`1.5px solid ${accent}33`,
+            color:accent, fontSize:12, fontWeight:800 }}
+            onClick={()=>{ stopAll(); setTimeout(()=>inputRef.current?.focus(),80); }}>
             {t('write')}
           </motion.button>
         </div>
