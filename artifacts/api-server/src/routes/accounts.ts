@@ -360,6 +360,8 @@ router.get("/invite-code/:code", async (req, res) => {
  */
 router.get("/account/booking-requests", requireSession, async (req, res) => {
   const hash = (req as any).userHash as string;
+  /* Отключаем кэш — список заявок меняется с других устройств */
+  res.set('Cache-Control', 'no-store');
   try {
     const rows = await db.select().from(accountsTable).where(eq(accountsTable.hash, hash)).limit(1);
     if (rows.length === 0) return res.json({ requests: [] });

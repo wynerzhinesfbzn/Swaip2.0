@@ -4532,8 +4532,8 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const fetchCrmRequests=()=>{
     const tok=getSessionToken();if(!tok)return;
     setCrmLoading(true);
-    fetch(`${window.location.origin}/api/account/booking-requests`,{headers:{'x-session-token':tok}})
-      .then(r=>r.ok?r.json():null).then(d=>{
+    fetch(`${window.location.origin}/api/account/booking-requests`,{headers:{'x-session-token':tok},cache:'no-store'})
+      .then(r=>(r.ok||r.status===304)?r.json():null).then(d=>{
         if(d?.requests){
           setCrmRequests(d.requests);
           /* Синхронизируем локальный список bookings с сервером.
