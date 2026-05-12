@@ -21,6 +21,7 @@ import pushRouter from "./push";
 import exchangeRouter from "./exchange.js";
 
 import ttsRouter from "./tts.js";
+import translateRouter from "./translate.js";
 import browserProxyRouter from "./browserProxy.js";
 import battleRouter from "./battle.js";
 import gamesRouter from "./games.js";
@@ -68,6 +69,7 @@ router.use(pushRouter);
 router.use(exchangeRouter);
 
 router.use(ttsRouter);
+router.use(translateRouter);
 router.use(browserProxyRouter);
 router.use(battleRouter);
 router.use(gamesRouter);

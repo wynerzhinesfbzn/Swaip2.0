@@ -109,18 +109,19 @@ const SOS_MSG: Record<string,string> = {
 };
 function getSosMsg(lang: string): string { return SOS_MSG[lang]||SOS_MSG['en']; }
 
-/* ═══════════ GOOGLE TRANSLATE — все языковые пары ═══════════ */
-async function translateText(text: string, fromCode: string, toCode: string): Promise<string> {
+/* ═══════════ ПЕРЕВОД через /api/translate (OpenAI GPT-4o-mini) ═══════════ */
+async function translateText(text: string, fromCode: string, toCode: string, apiBase = ''): Promise<string> {
   if (fromCode===toCode || !text.trim()) return text;
-  const sl = getLang(fromCode).gtrans;
-  const tl = getLang(toCode).gtrans;
   try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
-    const d = await r.json();
-    /* Ответ: [[[фрагмент, оригинал, ...], ...], ...] */
-    const translated = (d[0] as any[])?.map((x:any)=>x[0]).join('') || '';
-    return translated || text;
+    const r = await fetch(`${apiBase}/api/translate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, from: fromCode, to: toCode }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) throw new Error(`status ${r.status}`);
+    const d = await r.json() as { translated?: string };
+    return d.translated?.trim() || text;
   } catch { return text; }
 }
 
@@ -304,7 +305,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     if (folderCacheRef.current[myLang]) { setLocalizedFolders(folderCacheRef.current[myLang]); return; }
     const texts: string[] = [];
     PRESET_FOLDERS.forEach(f => { texts.push(f.label); f.phrases.forEach(p => texts.push(p)); });
-    translateText(texts.join('\n'), 'ru', myLang).then(result => {
+    translateText(texts.join('\n'), 'ru', myLang, apiBase).then(result => {
       const lines = result.split('\n');
       let idx = 0;
       const translated = PRESET_FOLDERS.map(f => ({
@@ -457,7 +458,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
           setListening(false);
           setInterim('');
-          translateText(text, fromL, toL).then(translated => {
+          translateText(text, fromL, toL, apiBase).then(translated => {
             if (!translated.trim()) return;
             setMessages(prev => [...prev, {
               id: Date.now() + 'm', side: 'theirs',
@@ -489,7 +490,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     if (!inputText.trim()) return;
     const orig = inputText.trim();
     setTranslating(true);
-    const tr = await translateText(orig, myLang, theirLang);
+    const tr = await translateText(orig, myLang, theirLang, apiBase);
     setTranslating(false);
     speakText(tr, theirLang);
     setMessages(prev=>[...prev, { id:Date.now()+'', side:'mine', original:orig, translated:tr, fromLang:myLang, toLang:theirLang, ts:Date.now() }]);
@@ -499,7 +500,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   /* БЫСТРЫЕ ФРАЗЫ → тоже в диалог */
   const quickPhrase = useCallback(async(phrase:string)=>{
     setTranslating(true);
-    const tr = await translateText(phrase, myLang, theirLang);
+    const tr = await translateText(phrase, myLang, theirLang, apiBase);
     setTranslating(false);
     speakText(tr, theirLang);
     setMessages(prev=>[...prev, { id:Date.now()+'', side:'mine', original:phrase, translated:tr, fromLang:myLang, toLang:theirLang, ts:Date.now() }]);
