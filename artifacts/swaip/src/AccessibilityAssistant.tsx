@@ -266,14 +266,14 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const [newPhraseText, setNewPhraseText] = useState('');
   const newPhraseRef = useRef<HTMLInputElement>(null);
 
-  const [zoomLevel, setZoomLevel] = useState<number>(()=>{ try{ return parseFloat(localStorage.getItem('acc_zoom')||'1')||1; }catch{ return 1; } });
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [theme, setTheme] = useState<'dark'|'light'>(()=>{ try{ return (localStorage.getItem('acc_theme')||'dark') as 'dark'|'light'; }catch{ return 'dark'; } });
   const toggleTheme = () => setTheme(p=>{ const n=p==='dark'?'light':'dark'; try{ localStorage.setItem('acc_theme',n); }catch{} return n; });
   const pinchRef = useRef<{ dist:number; zoom:number }|null>(null);
   const getTouchDist = (t:React.TouchList) => { const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); };
   const onPinchStart = (e:React.TouchEvent) => { if(e.touches.length===2) pinchRef.current={ dist:getTouchDist(e.touches), zoom:zoomLevel }; };
   const onPinchMove  = (e:React.TouchEvent) => { if(e.touches.length===2 && pinchRef.current){ const s=getTouchDist(e.touches)/pinchRef.current.dist; setZoomLevel(Math.min(2.0,Math.max(0.6,pinchRef.current.zoom*s))); } };
-  const onPinchEnd   = () => { if(pinchRef.current){ try{ localStorage.setItem('acc_zoom', String(zoomLevel)); }catch{} pinchRef.current=null; } };
+  const onPinchEnd   = () => { pinchRef.current = null; };
 
   const recogRef     = useRef<SpeechAny>(null);
   const silenceRef   = useRef<ReturnType<typeof setTimeout>|null>(null);
