@@ -183,17 +183,23 @@ function playBeep(ctx: AudioContext, freq: number, start: number, dur: number) {
 }
 
 /* ═══════════ LANG PICKER ═══════════ */
-function LangPicker({ value, onChange, open, onOpen }: {
-  value:string; onChange:(c:string)=>void; open:boolean; onOpen:(v:boolean)=>void;
+function LangPicker({ value, onChange, open, onOpen, isDark=true }: {
+  value:string; onChange:(c:string)=>void; open:boolean; onOpen:(v:boolean)=>void; isDark?:boolean;
 }) {
   const lang = getLang(value);
-  const FF = '"Montserrat",sans-serif';
+  const FF      = '"Montserrat",sans-serif';
+  const btnBg   = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+  const btnBdr  = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.18)';
+  const btnClr  = isDark ? '#e8e8f6'                : '#0d0d1a';
+  const dropBg  = isDark ? '#0d0d1a'                : '#ffffff';
+  const dropBdr = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.15)';
+  const itemSel = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)';
   return (
     <div style={{ position:'relative', flex:1 }}>
       <motion.button whileTap={{ scale:0.97 }} onClick={()=>onOpen(!open)}
         style={{ width:'100%', padding:'9px 10px', borderRadius:10,
-          background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)',
-          color:'#e8e8f6', fontSize:12, fontWeight:700, cursor:'pointer',
+          background:btnBg, border:`1px solid ${btnBdr}`,
+          color:btnClr, fontSize:12, fontWeight:700, cursor:'pointer',
           display:'flex', alignItems:'center', gap:5, fontFamily:FF }}>
         <span style={{ fontSize:16 }}>{lang.flag}</span>
         <span style={{ flex:1, textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{lang.name}</span>
@@ -203,15 +209,15 @@ function LangPicker({ value, onChange, open, onOpen }: {
         {open&&(
           <motion.div initial={{ opacity:0,y:-4 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }}
             style={{ position:'absolute', top:'100%', left:0, right:0, zIndex:60,
-              background:'#0d0d1a', border:'1px solid rgba(255,255,255,0.12)',
+              background:dropBg, border:`1px solid ${dropBdr}`,
               borderRadius:10, maxHeight:200, overflowY:'auto', marginTop:3,
-              boxShadow:'0 8px 32px rgba(0,0,0,0.7)' }}>
+              boxShadow:'0 8px 32px rgba(0,0,0,0.25)' }}>
             {LANGUAGES.map(l=>(
               <motion.button key={l.code} whileTap={{ scale:0.98 }}
                 onClick={()=>{ onChange(l.code); onOpen(false); }}
                 style={{ width:'100%', padding:'8px 12px',
-                  background:l.code===value?'rgba(255,255,255,0.09)':'none',
-                  border:'none', color:'#e8e8f6', fontSize:12, fontWeight:600, cursor:'pointer',
+                  background:l.code===value?itemSel:'none',
+                  border:'none', color:btnClr, fontSize:12, fontWeight:600, cursor:'pointer',
                   display:'flex', alignItems:'center', gap:7, textAlign:'left', fontFamily:FF }}>
                 <span style={{ fontSize:14 }}>{l.flag}</span>
                 <span style={{ flex:1 }}>{l.name}</span>
@@ -324,10 +330,13 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const FF   = '"Montserrat",sans-serif';
   const isDark = theme === 'dark';
   const BG    = isDark ? '#09090f'              : '#f0f3fc';
-  const CARD  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
-  const LINE  = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.10)';
+  const CARD  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)';
+  const LINE  = isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.18)';
   const TEXT  = isDark ? '#e8e8f6'              : '#0d0d1a';
-  const SUB   = isDark ? 'rgba(220,220,245,0.4)' : 'rgba(20,20,60,0.42)';
+  const SUB   = isDark ? 'rgba(220,220,245,0.4)' : 'rgba(10,10,40,0.72)';
+  const GHOST  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+  const GHOST2 = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
+  const HANDLE = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
   const GREEN = isDark ? '#0ecb81'              : '#00a060';
   const RED   = isDark ? '#f6465d'              : '#d9182e';
   const HDRBG = isDark ? 'rgba(9,9,15,0.98)'   : 'rgba(240,243,252,0.98)';
@@ -569,22 +578,22 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         {/* ВЫБОР ЯЗЫКОВ */}
         <div style={{ flexShrink:0, display:'flex', gap:6, alignItems:'center' }}>
           <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenR(false); }}>
-            <LangPicker value={myLang} open={openL} onOpen={setOpenL}
+            <LangPicker value={myLang} open={openL} onOpen={setOpenL} isDark={isDark}
               onChange={v=>{ if(!locked){ setMyLang(v); reset(); } }}/>
           </div>
           <motion.button whileTap={{ scale:0.82 }} onClick={swapLangs}
             style={{ width:34, height:34, borderRadius:10,
-              background:locked?'rgba(255,255,255,0.03)':`${accent}15`,
+              background:locked?GHOST:`${accent}15`,
               border:`1px solid ${locked?LINE:accent+'33'}`,
               color:locked?SUB:accent, fontSize:16, cursor:locked?'not-allowed':'pointer',
               display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>⇄</motion.button>
           <div style={{ flex:1 }} onClick={e=>{ e.stopPropagation(); setOpenL(false); }}>
-            <LangPicker value={theirLang} open={openR} onOpen={setOpenR}
+            <LangPicker value={theirLang} open={openR} onOpen={setOpenR} isDark={isDark}
               onChange={v=>{ if(!locked){ setTheirLang(v); reset(); } }}/>
           </div>
           <motion.button whileTap={{ scale:0.88 }} onClick={()=>setLocked(v=>!v)}
             style={{ width:34, height:34, borderRadius:10,
-              background:locked?`${accent}18`:'rgba(255,255,255,0.04)',
+              background:locked?`${accent}18`:GHOST,
               border:`1px solid ${locked?accent+'44':LINE}`,
               color:locked?accent:SUB, fontSize:14, cursor:'pointer',
               display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -685,7 +694,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                     <motion.button whileTap={{ scale:0.85 }}
                       onClick={()=>speakText(msg.translated, msg.toLang)}
                       style={{ marginTop:3, width:24, height:24, borderRadius:'50%',
-                        background:'rgba(255,255,255,0.06)', border:`1px solid ${LINE}`,
+                        background:GHOST2, border:`1px solid ${LINE}`,
                         color:SUB, fontSize:11, cursor:'pointer',
                         display:'flex', alignItems:'center', justifyContent:'center' }}>🔊</motion.button>
                   </motion.div>
@@ -720,7 +729,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           disabled={!inputText.trim()||translating}
           style={{ flexShrink:0, width:'100%', padding:'11px', borderRadius:12,
             cursor:inputText.trim()?'pointer':'not-allowed',
-            background:inputText.trim()?`linear-gradient(135deg,${accent},${accent}bb)`:'rgba(255,255,255,0.04)',
+            background:inputText.trim()?`linear-gradient(135deg,${accent},${accent}bb)`:GHOST,
             border:`1.5px solid ${inputText.trim()?accent+'66':LINE}`,
             color:inputText.trim()?'#fff':SUB,
             fontSize:13, fontWeight:900, fontFamily:FF, letterSpacing:'0.02em',
@@ -733,7 +742,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         <div style={{ flexShrink:0, display:'flex', gap:5, overflowX:'auto', padding:'1px 0', scrollbarWidth:'none' as any }}>
           <motion.button whileTap={{ scale:0.92 }} onClick={()=>openFolder('mine')}
             style={{ padding:'6px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
-              background:activeFolder==='mine'?`${accent}22`:'rgba(255,255,255,0.05)',
+              background:activeFolder==='mine'?`${accent}22`:GHOST,
               border:`1.5px solid ${activeFolder==='mine'?accent+'55':LINE}`,
               color:activeFolder==='mine'?accent:TEXT, fontSize:11, fontWeight:700,
               whiteSpace:'nowrap', transition:'all 0.15s' }}>
@@ -742,7 +751,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
           {localizedFolders.map(folder=>(
             <motion.button key={folder.id} whileTap={{ scale:0.92 }} onClick={()=>openFolder(folder.id)}
               style={{ padding:'6px 10px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
-                background:activeFolder===folder.id?`${accent}22`:'rgba(255,255,255,0.05)',
+                background:activeFolder===folder.id?`${accent}22`:GHOST,
                 border:`1.5px solid ${activeFolder===folder.id?accent+'55':LINE}`,
                 color:activeFolder===folder.id?accent:TEXT, fontSize:11, fontWeight:700,
                 whiteSpace:'nowrap', transition:'all 0.15s' }}>
@@ -786,14 +795,14 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                 boxShadow:`0 -6px 30px ${isDark?'rgba(0,0,0,0.55)':'rgba(0,0,0,0.15)'}`, backdropFilter:'blur(12px)' }}>
 
               {/* Ручка */}
-              <div style={{ width:32, height:3, background:'rgba(255,255,255,0.15)', borderRadius:2, margin:'8px auto 0' }}/>
+              <div style={{ width:32, height:3, background:HANDLE, borderRadius:2, margin:'8px auto 0' }}/>
 
               {/* Табы — «Мои фразы» первая, потом папки */}
               <div style={{ flexShrink:0, display:'flex', gap:5, overflowX:'auto', padding:'8px 12px 6px', scrollbarWidth:'none' as any }}>
                 <motion.button whileTap={{ scale:0.92 }}
                   onClick={()=>setActiveFolder('mine')}
                   style={{ padding:'4px 9px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
-                    background:activeFolder==='mine'?`${accent}28`:'rgba(255,255,255,0.06)',
+                    background:activeFolder==='mine'?`${accent}28`:GHOST2,
                     border:`1.5px solid ${activeFolder==='mine'?accent+'66':LINE}`,
                     color:activeFolder==='mine'?accent:SUB, fontSize:10, fontWeight:700,
                     whiteSpace:'nowrap', transition:'all 0.12s' }}>
@@ -803,7 +812,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                   <motion.button key={folder.id} whileTap={{ scale:0.92 }}
                     onClick={()=>setActiveFolder(folder.id)}
                     style={{ padding:'4px 9px', borderRadius:20, flexShrink:0, cursor:'pointer', fontFamily:FF,
-                      background:activeFolder===folder.id?`${accent}28`:'rgba(255,255,255,0.06)',
+                      background:activeFolder===folder.id?`${accent}28`:GHOST2,
                       border:`1.5px solid ${activeFolder===folder.id?accent+'66':LINE}`,
                       color:activeFolder===folder.id?accent:SUB, fontSize:10, fontWeight:700,
                       whiteSpace:'nowrap', transition:'all 0.12s' }}>
@@ -816,7 +825,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               <div style={{ height:1, background:LINE, flexShrink:0 }}/>
 
               {/* Список фраз — компактный, вертикальный скролл */}
-              <div style={{ flex:1, overflowY:'auto', padding:'6px 12px 16px', scrollbarWidth:'thin' as any, scrollbarColor:'rgba(255,255,255,0.08) transparent' }}>
+              <div style={{ flex:1, overflowY:'auto', padding:'6px 12px 16px', scrollbarWidth:'thin' as any, scrollbarColor:SCROLLCLR }}>
                 <AnimatePresence mode="wait">
                   {activeFolder !== 'mine' && (
                     <motion.div key={activeFolder}
@@ -827,7 +836,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                         <motion.button key={phrase} whileTap={{ scale:0.97 }}
                           onClick={()=>{ quickPhrase(phrase); setActiveFolder(null); }}
                           style={{ width:'100%', padding:'9px 12px', borderRadius:10, cursor:'pointer',
-                            background:'rgba(255,255,255,0.04)', border:`1px solid ${LINE}`,
+                            background:GHOST, border:`1px solid ${LINE}`,
                             color:TEXT, fontSize:13, fontWeight:600, fontFamily:FF,
                             textAlign:'left', transition:'background 0.1s' }}>
                           {phrase}
@@ -851,7 +860,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                           <motion.button whileTap={{ scale:0.97 }}
                             onClick={()=>{ quickPhrase(phrase); setActiveFolder(null); }}
                             style={{ flex:1, padding:'9px 12px', borderRadius:10, cursor:'pointer',
-                              background:'rgba(255,255,255,0.04)', border:`1px solid ${LINE}`,
+                              background:GHOST, border:`1px solid ${LINE}`,
                               color:TEXT, fontSize:13, fontWeight:600, fontFamily:FF, textAlign:'left' }}>
                             {phrase}
                           </motion.button>
@@ -867,7 +876,7 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
                             onChange={e=>setNewPhraseText(e.target.value)}
                             onKeyDown={e=>{ if(e.key==='Enter') saveNewPhrase(); if(e.key==='Escape'){ setAddingPhrase(false); setNewPhraseText(''); } }}
                             placeholder={t('writePhrase')}
-                            style={{ flex:1, padding:'9px 11px', borderRadius:10, background:'rgba(255,255,255,0.07)',
+                            style={{ flex:1, padding:'9px 11px', borderRadius:10, background:GHOST2,
                               border:`1px solid ${accent}55`, color:TEXT, fontSize:13, fontFamily:FF, outline:'none' }}
                             autoFocus/>
                           <motion.button whileTap={{ scale:0.9 }} onClick={saveNewPhrase}
