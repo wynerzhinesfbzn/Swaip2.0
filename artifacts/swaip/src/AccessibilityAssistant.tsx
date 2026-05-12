@@ -378,66 +378,76 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
     const fromL = theirLang, toL = myLang;
 
-    /* Одна непрерывная сессия. Таймер 6 сек тишины → стоп */
-    const r = new SR() as SpeechAny;
-    recogRef.current = r;
-    r.lang            = getLang(fromL).tts;
-    r.interimResults  = true;
-    r.continuous      = true; /* одна сессия на всё время */
-    r.maxAlternatives = 1;
+    /* continuous: false — каждая сессия даёт ровно один финальный результат,
+       дубли физически невозможны. После onend автоматически стартует новая сессия
+       пока activeRef.current = true. Таймер 6 сек без речи → стоп. */
 
     const resetSilence = () => {
       if (silenceRef.current) clearTimeout(silenceRef.current);
       silenceRef.current = setTimeout(() => {
         activeRef.current = false;
-        try { r.stop(); } catch (_) {}
+        try { recogRef.current?.stop(); } catch (_) {}
       }, 6000);
     };
-    resetSilence(); /* Запускаем таймер сразу при нажатии */
 
-    /* Защита от дублей: каждый индекс финального результата обрабатываем ровно один раз */
-    const processedIdx = new Set<number>();
+    const runSession = () => {
+      if (!activeRef.current) return;
+      const r = new SR() as SpeechAny;
+      recogRef.current = r;
+      r.lang            = getLang(fromL).tts;
+      r.interimResults  = true;
+      r.continuous      = false; /* одна фраза = одна сессия, ровно один onend */
+      r.maxAlternatives = 1;
 
-    r.onresult = (e: any) => {
-      let fin = '', tmp = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          if (!processedIdx.has(i)) {
-            processedIdx.add(i);
-            fin += e.results[i][0].transcript;
-          }
-        } else {
-          tmp += e.results[i][0].transcript;
+      r.onresult = (e: any) => {
+        let fin = '', tmp = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+          else tmp += e.results[i][0].transcript;
         }
-      }
-      if (tmp) setInterim(tmp);
-      if (fin) {
-        const text = fin.trim();
-        setInterim('');
-        resetSilence();
-        translateText(text, fromL, toL).then(translated => {
-          if (!translated.trim()) return;
-          setMessages(prev=>[...prev, {
-            id: Date.now()+'m', side:'theirs',
-            original: text, translated,
-            fromLang: fromL, toLang: toL, ts: Date.now()
-          }]);
-        });
-      }
+        if (tmp) setInterim(tmp);
+        if (fin) {
+          latestFinalRef.current = fin.trim();
+          setInterim('');
+        }
+      };
+
+      r.onerror = (ev: any) => {
+        if (ev.error !== 'no-speech') activeRef.current = false;
+      };
+
+      r.onend = () => {
+        recogRef.current = null;
+        const text = latestFinalRef.current;
+        latestFinalRef.current = '';
+
+        if (text) {
+          resetSilence(); /* Была речь — сбрасываем таймер тишины */
+          translateText(text, fromL, toL).then(translated => {
+            if (!translated.trim()) return;
+            setMessages(prev => [...prev, {
+              id: Date.now() + 'm', side: 'theirs',
+              original: text, translated,
+              fromLang: fromL, toLang: toL, ts: Date.now()
+            }]);
+          });
+        }
+
+        /* Перезапуск если ещё слушаем */
+        if (activeRef.current) {
+          setTimeout(runSession, 80);
+        } else {
+          if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+          setListening(false);
+          setInterim('');
+        }
+      };
+
+      try { r.start(); } catch (_) {}
     };
 
-    r.onerror = (ev: any) => {
-      if (ev.error !== 'no-speech') { activeRef.current = false; }
-    };
-
-    r.onend = () => {
-      recogRef.current = null;
-      if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
-      setListening(false);
-      setInterim('');
-    };
-
-    try { r.start(); } catch (_) {}
+    resetSilence(); /* Запускаем таймер тишины сразу при нажатии */
+    runSession();
   }, [theirLang, myLang, stopAll]);
 
 
