@@ -414,17 +414,26 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
     };
     resetSilence(); /* Запускаем таймер сразу при нажатии */
 
+    /* Защита от дублей: каждый индекс финального результата обрабатываем ровно один раз */
+    const processedIdx = new Set<number>();
+
     r.onresult = (e: any) => {
       let fin = '', tmp = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) fin += e.results[i][0].transcript;
-        else tmp += e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          if (!processedIdx.has(i)) {
+            processedIdx.add(i);
+            fin += e.results[i][0].transcript;
+          }
+        } else {
+          tmp += e.results[i][0].transcript;
+        }
       }
       if (tmp) setInterim(tmp);
       if (fin) {
         const text = fin.trim();
         setInterim('');
-        resetSilence(); /* Сбрасываем таймер при каждой новой финальной фразе */
+        resetSilence();
         translateText(text, fromL, toL).then(translated => {
           if (!translated.trim()) return;
           setMessages(prev=>[...prev, {
