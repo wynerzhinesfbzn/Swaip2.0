@@ -5230,11 +5230,32 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const seed=userHash.slice(0,14)||'default';
   const avatarSrc=avatarUrl||av(seed,100);
 
-  const handleAvatarFile=(e:React.ChangeEvent<HTMLInputElement>)=>{
+  const handleAvatarFile=async(e:React.ChangeEvent<HTMLInputElement>)=>{
     const f=e.target.files?.[0];if(!f)return;
-    const reader=new FileReader();
-    reader.onload=ev=>setAvatarUrl(ev.target?.result as string);
-    reader.readAsDataURL(f);e.target.value='';
+    e.target.value='';
+    try{
+      const fd=new FormData();fd.append('avatar',f);
+      const tok=getSessionToken()||'';
+      const r=await fetch(`${apiBase}/api/account/avatar`,{method:'POST',headers:{'x-session-token':tok},body:fd});
+      if(!r.ok)throw new Error(await r.text());
+      const{url}=await r.json();
+      setAvatarUrl(url);
+    }catch(err){
+      console.warn('avatar upload failed',err);
+      /* запасной вариант: сжатый base64 через canvas */
+      const img=new Image();
+      const objUrl=URL.createObjectURL(f);
+      img.onload=()=>{
+        const MAX=256;
+        const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.round(img.width*ratio);canvas.height=Math.round(img.height*ratio);
+        canvas.getContext('2d')!.drawImage(img,0,0,canvas.width,canvas.height);
+        setAvatarUrl(canvas.toDataURL('image/jpeg',0.75));
+        URL.revokeObjectURL(objUrl);
+      };
+      img.src=objUrl;
+    }
   };
 
   const searchByCode=async()=>{

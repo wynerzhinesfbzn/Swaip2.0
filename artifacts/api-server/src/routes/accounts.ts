@@ -4,6 +4,16 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { requireSession, resolveSession, getSessionToken, deleteAllUserSessions } from "../lib/sessionAuth.js";
 import { contentFilter } from "../middlewares/contentFilter.js";
 import { logger } from "../lib/logger.js";
+import multer from "multer";
+import { objectStorageClient } from "../lib/objectStorage.js";
+
+const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+function getAvatarBucket() {
+  const id = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+  if (!id) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+  return objectStorageClient.bucket(id);
+}
 
 const router: IRouter = Router();
 
@@ -1046,6 +1056,47 @@ router.get("/shared-post/:shareId", async (req, res) => {
   } catch (e) {
     logger.error({ err: e }, 'accounts error');
     return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/* ──────────────────────────────────────────────────
+ * POST /api/account/avatar — загрузить аватар в Object Storage
+ * ────────────────────────────────────────────────── */
+router.post("/account/avatar", requireSession, avatarUpload.single("avatar"), async (req, res) => {
+  if (!req.file) { res.status(400).json({ error: "No file" }); return; }
+  const mime = req.file.mimetype;
+  if (!mime.startsWith("image/")) { res.status(400).json({ error: "Only images allowed" }); return; }
+  try {
+    const ext = mime.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+    const filename = `avatars/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const bucket = getAvatarBucket();
+    await bucket.file(filename).save(req.file.buffer, { contentType: mime, resumable: false });
+    const url = `/api/account/avatar-file/${encodeURIComponent(encodeURIComponent(filename))}`;
+    res.json({ url });
+  } catch (e) {
+    req.log.error({ err: e }, "avatar upload failed");
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+/* ──────────────────────────────────────────────────
+ * GET /api/account/avatar-file/* — отдать аватар из Object Storage
+ * ────────────────────────────────────────────────── */
+router.get("/account/avatar-file/:filename", async (req, res) => {
+  try {
+    const filename = decodeURIComponent(decodeURIComponent(req.params.filename ?? ""));
+    if (!filename) { res.status(404).end(); return; }
+    const bucket = getAvatarBucket();
+    const file = bucket.file(filename);
+    const [exists] = await file.exists();
+    if (!exists) { res.status(404).end(); return; }
+    const [meta] = await file.getMetadata();
+    res.setHeader("Content-Type", String(meta.contentType ?? "image/jpeg"));
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    file.createReadStream().pipe(res);
+  } catch (e) {
+    req.log.error({ err: e }, "avatar serve failed");
+    res.status(500).end();
   }
 });
 
