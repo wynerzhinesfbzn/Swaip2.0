@@ -1,10 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import SwpExchange from './SwpExchange';
-import AccessibilityAssistant from './AccessibilityAssistant';
-import GamesArcade from './GamesArcade';
-import BotBuilder from './BotBuilder';
-import ChannelsScreen from './ChannelsScreen';
-import {UnifiedSearchScreen} from './ProSearch';
+import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { checkContent, collectPostText } from './contentFilter';
 import { MessagesScreen, CallCtx, useUnreadCount } from './ProMessaging';
@@ -14,19 +8,26 @@ import { usePushNotifications } from './usePushNotifications';
 import type { ConvUser } from './ProMessaging';
 import { useBackHandler } from './backHandler';
 import { BG_MUSIC_PRESETS, BgMusicAutoplay, type BgMusicPreset } from './BgMusic';
-import LoungeScreen from './LoungeScreen';
 import StoriesBar from './StoriesBar';
-import CinemaScreen from './CinemaScreen';
-import ClipsScreen from './ClipsScreen';
-import EventsScreen from './EventsScreen';
-import MarketplaceScreen from './MarketplaceScreen';
-import MusicRoomScreen from './MusicRoomScreen';
-import TimeCapsuleScreen from './TimeCapsuleScreen';
-import ListenTogetherScreen from './ListenTogetherScreen';
-import PollsScreen from './PollsScreen';
-import MoodScreen from './MoodScreen';
-import KidsClubsScreen from './KidsClubsScreen';
-import AssistantsHub from './AssistantsHub';
+
+const SwpExchange         = lazy(() => import('./SwpExchange'));
+const AccessibilityAssistant = lazy(() => import('./AccessibilityAssistant'));
+const GamesArcade         = lazy(() => import('./GamesArcade'));
+const BotBuilder          = lazy(() => import('./BotBuilder'));
+const ChannelsScreen      = lazy(() => import('./ChannelsScreen'));
+const UnifiedSearchScreen = lazy(() => import('./ProSearch').then(m => ({ default: m.UnifiedSearchScreen })));
+const LoungeScreen        = lazy(() => import('./LoungeScreen'));
+const CinemaScreen        = lazy(() => import('./CinemaScreen'));
+const ClipsScreen         = lazy(() => import('./ClipsScreen'));
+const EventsScreen        = lazy(() => import('./EventsScreen'));
+const MarketplaceScreen   = lazy(() => import('./MarketplaceScreen'));
+const MusicRoomScreen     = lazy(() => import('./MusicRoomScreen'));
+const TimeCapsuleScreen   = lazy(() => import('./TimeCapsuleScreen'));
+const ListenTogetherScreen= lazy(() => import('./ListenTogetherScreen'));
+const PollsScreen         = lazy(() => import('./PollsScreen'));
+const MoodScreen          = lazy(() => import('./MoodScreen'));
+const KidsClubsScreen     = lazy(() => import('./KidsClubsScreen'));
+const AssistantsHub       = lazy(() => import('./AssistantsHub'));
 declare global{interface Window{_sqTimer:ReturnType<typeof setTimeout>;}}
 
 /* ══ Хук установки PWA ══ */
