@@ -452,7 +452,11 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         latestFinalRef.current = '';
 
         if (text) {
-          resetSilence(); /* Была речь — сбрасываем таймер тишины */
+          /* Речь поймана — переводим и ОСТАНАВЛИВАЕМ, кнопка снова активна */
+          activeRef.current = false;
+          if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+          setListening(false);
+          setInterim('');
           translateText(text, fromL, toL).then(translated => {
             if (!translated.trim()) return;
             setMessages(prev => [...prev, {
@@ -461,12 +465,11 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
               fromLang: fromL, toLang: toL, ts: Date.now()
             }]);
           });
-        }
-
-        /* Перезапуск если ещё слушаем */
-        if (activeRef.current) {
+        } else if (activeRef.current) {
+          /* Ничего не услышали — перезапуск (ждём следующую фразу) */
           setTimeout(runSession, 80);
         } else {
+          /* Таймер тишины сработал — полная остановка */
           if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
           setListening(false);
           setInterim('');
