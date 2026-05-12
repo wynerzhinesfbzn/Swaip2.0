@@ -3,6 +3,8 @@ import { getSessionToken, resolveSession } from "../lib/sessionAuth.js";
 import { db, messagesTable, conversationsTable, scheduledMessagesTable } from "@workspace/db";
 import { eq, and, lte } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+import { encryptMessage } from "../lib/messageCrypto.js";
+import { notifyConvClients } from "./messaging.js";
 
 const router: IRouter = Router();
 
@@ -38,12 +40,30 @@ async function dispatchDue() {
           continue;
         }
 
-        await db.insert(messagesTable).values({
+        const conv = convRows[0];
+        const isSecret = conv.type === 'secret';
+        /* Encrypt at rest — same as the regular messages endpoint */
+        const storedContent = isSecret
+          ? msg.content
+          : encryptMessage(msg.content, msg.conversationId);
+
+        const [inserted] = await db.insert(messagesTable).values({
           conversationId: msg.conversationId,
           senderHash: msg.userHash,
-          content: msg.content,
+          content: storedContent,
           messageType: msg.messageType,
           mediaUrl: msg.mediaUrl || null,
+        }).returning();
+
+        /* Update conversation's lastMessageAt so the chat list re-orders */
+        await db.update(conversationsTable)
+          .set({ lastMessageAt: new Date() })
+          .where(eq(conversationsTable.id, msg.conversationId));
+
+        /* Notify SSE clients so the message appears in real-time */
+        notifyConvClients(msg.conversationId, {
+          type: 'new_message',
+          message: { ...inserted, content: msg.content },
         });
 
         await db.update(scheduledMessagesTable)
