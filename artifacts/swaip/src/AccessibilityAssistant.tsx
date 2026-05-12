@@ -397,44 +397,40 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
 
     const fromL = theirLang, toL = myLang;
 
-    /* Запускаем одну сессию; onend перезапускает пока activeRef.current = true */
+    /* Таймер тишины: 6 секунд без новых финальных слов → остановить */
+    const resetSilence = () => {
+      if (silenceRef.current) clearTimeout(silenceRef.current);
+      silenceRef.current = setTimeout(() => {
+        activeRef.current = false;
+        setListening(false);
+        setInterim('');
+      }, 6000);
+    };
+    resetSilence(); /* Запускаем сразу при нажатии "Слушать" */
+
+    /* Запускаем сессии в цикле: onend → перезапуск пока activeRef.current = true */
     const runSession = () => {
       if (!activeRef.current) return;
       const r = new SR() as SpeechAny;
       recogRef.current = r;
       r.lang            = getLang(fromL).tts;
       r.interimResults  = true;
-      r.continuous      = false; /* одна фраза = одна сессия = ровно один onend */
+      r.continuous      = false; /* одна фраза = одна сессия */
       r.maxAlternatives = 1;
 
       r.onresult = (e: any) => {
-        /* Собираем последний результат (финальный или лучший interim) */
         let fin = '', tmp = '';
         for (let i = 0; i < e.results.length; i++) {
           if (e.results[i].isFinal) fin += e.results[i][0].transcript;
           else tmp += e.results[i][0].transcript;
         }
         if (tmp) setInterim(tmp);
-        if (fin) { latestFinalRef.current = fin.trim(); setInterim(''); }
-      };
-
-      r.onerror = (ev: any) => {
-        /* no-speech — нормально, просто перезапускаем */
-        if (ev.error !== 'no-speech') activeRef.current = false;
-        recogRef.current = null;
-      };
-
-      r.onend = () => {
-        recogRef.current = null;
-        const text = latestFinalRef.current;
-        latestFinalRef.current = '';
-
-        /* Всегда останавливаемся после одной фразы — пользователь сам нажмёт снова */
-        if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
-        activeRef.current = false;
-        setListening(false);
-
-        if (text) {
+        if (fin) {
+          const text = fin.trim();
+          latestFinalRef.current = text;
+          setInterim('');
+          resetSilence(); /* Сбрасываем таймер тишины */
+          /* Переводим сразу — не ждём onend */
           translateText(text, fromL, toL).then(translated => {
             if (!translated.trim()) return;
             setMessages(prev=>[...prev, {
@@ -444,6 +440,20 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
             }]);
           });
         }
+      };
+
+      r.onerror = (ev: any) => {
+        /* no-speech — нормально, просто onend запустит следующую сессию */
+        if (ev.error !== 'no-speech') activeRef.current = false;
+        recogRef.current = null;
+      };
+
+      r.onend = () => {
+        recogRef.current = null;
+        latestFinalRef.current = '';
+        /* Перезапускаем следующую сессию если ещё активны */
+        if (activeRef.current) runSession();
+        else setListening(false);
       };
 
       try { r.start(); } catch (_) {}
