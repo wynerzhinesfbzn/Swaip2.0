@@ -488,13 +488,11 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
   const theirL = getLang(theirLang);
 
   return (
-    /* Внешний контейнер — прокручиваемый при увеличении */
     <div style={{ position:'fixed', inset:0, zIndex:300, overflow:'auto' }}
       onTouchStart={onPinchStart}
       onTouchMove={onPinchMove}
       onTouchEnd={onPinchEnd}>
-    {/* Внутренний — зумируется, растягивается → outer становится scrollable */}
-    <div style={{ minWidth:`${100/zoomLevel}%`, minHeight:`${100/zoomLevel}%`,
+    <div style={{ width:'100vw', height:'100vh',
       background:BG, color:TEXT, fontFamily:FF,
       display:'flex', flexDirection:'column',
       zoom: zoomLevel } as React.CSSProperties}
