@@ -492,56 +492,53 @@ export default function AccessibilityAssistant({ onBack, accent, apiBase='' }: P
         fromLang: fromL, toLang: toL, ts: Date.now(),
       }]);
 
+      /* continuous: false надёжнее на мобильных браузерах.
+         После каждой фразы сессия перезапускается автоматически —
+         микрофон никогда не выключается пока не нажат Стоп. */
       const startStory = () => {
         if (!activeRef.current) return;
         const r = new SR() as SpeechAny;
         recogRef.current = r;
-        r.lang = getLang(fromL).tts;
-        r.interimResults = true;
-        r.continuous = true;
+        r.lang            = getLang(fromL).tts;
+        r.interimResults  = true;
+        r.continuous      = false;
         r.maxAlternatives = 1;
 
-        /* Отслеживаем последний обработанный финальный индекс в этой сессии,
-           чтобы браузерный баг (e.resultIndex всегда 0) не вызывал повторов */
-        let lastFinal = -1;
-
         r.onresult = (e: any) => {
-          let interim = '';
+          let fin = '', tmp = '';
           for (let i = 0; i < e.results.length; i++) {
-            if (e.results[i].isFinal) {
-              if (i > lastFinal) {
-                lastFinal = i;
-                const chunk = (e.results[i][0].transcript as string).trim();
-                if (!chunk) continue;
-                translateText(chunk, fromL, toL, apiBase).then(tr => {
-                  if (!tr.trim()) return;
-                  storyOrigRef.current += (storyOrigRef.current ? ' ' : '') + chunk;
-                  storyTextRef.current += (storyTextRef.current ? ' ' : '') + tr;
-                  const orig = storyOrigRef.current, full = storyTextRef.current, id = storyIdRef.current;
-                  setMessages(prev => prev.map(m =>
-                    m.id === id ? { ...m, original: orig, translated: full } : m
-                  ));
-                });
-              }
-            } else {
-              interim += (e.results[i][0].transcript as string);
-            }
+            if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+            else tmp += e.results[i][0].transcript;
           }
-          setInterim(interim);
+          if (tmp) setInterim(tmp);
+          if (fin) { latestFinalRef.current = fin.trim(); setInterim(''); }
         };
 
         r.onerror = (ev: any) => {
-          if (ev.error !== 'no-speech' && activeRef.current) {
-            try { recogRef.current?.abort(); } catch (_) {}
-            recogRef.current = null;
-            setTimeout(startStory, 300);
-          }
+          if (ev.error !== 'no-speech') activeRef.current = false;
         };
 
         r.onend = () => {
           recogRef.current = null;
+          const text = latestFinalRef.current;
+          latestFinalRef.current = '';
           setInterim('');
-          if (activeRef.current) setTimeout(startStory, 100);
+
+          if (text) {
+            /* Фраза поймана — добавляем в рассказ и сразу перезапускаем */
+            translateText(text, fromL, toL, apiBase).then(tr => {
+              if (!tr.trim()) return;
+              storyOrigRef.current += (storyOrigRef.current ? ' ' : '') + text;
+              storyTextRef.current += (storyTextRef.current ? ' ' : '') + tr;
+              const orig = storyOrigRef.current, full = storyTextRef.current, id = storyIdRef.current;
+              setMessages(prev => prev.map(m =>
+                m.id === id ? { ...m, original: orig, translated: full } : m
+              ));
+            });
+          }
+
+          /* Всегда перезапускаем — только Стоп прекращает */
+          if (activeRef.current) setTimeout(startStory, 80);
           else setListening(false);
         };
 
