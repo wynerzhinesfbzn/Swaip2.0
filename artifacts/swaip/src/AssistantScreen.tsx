@@ -2852,6 +2852,8 @@ export default function AssistantScreen({ specialist: sp, onBack, savedState, on
 
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const igorScanFileRef = useRef<HTMLInputElement>(null);
+  const igorScanCameraRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const greetAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -3512,6 +3514,36 @@ export default function AssistantScreen({ specialist: sp, onBack, savedState, on
                         </motion.button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Igor: scan document */}
+                {isIgor && (
+                  <div style={{ background: 'linear-gradient(135deg,#0d1b2a,#162032)', padding: '12px 14px', borderTop: `1px solid ${sp.inputBorder}` }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: '#e8c97a', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
+                      📸 Скан или фото документа
+                    </div>
+                    <div style={{ fontSize: 10, color: 'rgba(232,201,122,0.75)', marginBottom: 10, fontWeight: 600, lineHeight: 1.4 }}>
+                      Пришлите паспорт, договор, решение суда, приказ, ПТС и т.д. — я извлеку все данные сам
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <motion.button whileTap={{ scale: 0.95 }}
+                        onClick={() => igorScanCameraRef.current?.click()}
+                        style={{ flex: 1, padding: '11px 8px', borderRadius: 12, background: '#e8c97a', border: 'none', color: '#0d1b2a', fontSize: 12, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        📷 Сфотографировать
+                      </motion.button>
+                      <motion.button whileTap={{ scale: 0.95 }}
+                        onClick={() => igorScanFileRef.current?.click()}
+                        style={{ flex: 1, padding: '11px 8px', borderRadius: 12, background: 'rgba(232,201,122,0.15)', border: '1.5px solid #e8c97a', color: '#e8c97a', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        🖼 Из галереи
+                      </motion.button>
+                    </div>
+                    <input ref={igorScanCameraRef} type="file" accept="image/*" capture="environment"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { handleFile(e); setInputText('Извлеки все данные из этого документа и сообщи мне что ты видишь'); } e.target.value = ''; }}
+                      style={{ display: 'none' }} />
+                    <input ref={igorScanFileRef} type="file" accept="image/*"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { handleFile(e); setInputText('Извлеки все данные из этого документа и сообщи мне что ты видишь'); } e.target.value = ''; }}
+                      style={{ display: 'none' }} />
                   </div>
                 )}
 
