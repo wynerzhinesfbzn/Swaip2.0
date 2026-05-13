@@ -1639,6 +1639,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
   /* collect-screen */
   const [collectingTpl,setCollectingTpl]=useState<Template|null>(null);
   const [collectExtracting,setCollectExtracting]=useState<string|null>(null);
+  const [showCollectPreview,setShowCollectPreview]=useState(false);
   const collectPhotoRef=useRef<HTMLInputElement>(null);
   const collectDocIdRef=useRef<string>('');
   const collectPromptRef=useRef<string>('');
@@ -1713,7 +1714,17 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
     finally{setAnalysing(false);}
   },[]);
 
-  const buildDoc=(tpl:Template)=>{setSelectedTpl(tpl);setResult(tpl.build(fields));setCollectingTpl(null);setTab('templates');};
+  const buildDoc=(tpl:Template)=>{setSelectedTpl(tpl);setResult(tpl.build(fields));setCollectingTpl(null);setShowCollectPreview(false);setTab('templates');};
+
+  /* Build preview with placeholder labels for empty fields */
+  const buildPreview=(tpl:Template):string=>{
+    const pf={...EMPTY,...fields} as DocFields;
+    Object.keys(EMPTY).forEach(k=>{
+      const key=k as keyof DocFields;
+      if(!pf[key]){pf[key]=FL[key]?`[${FL[key]}]`:'[___________]';}
+    });
+    return tpl.build(pf);
+  };
 
   const COLLECT_JSON_SCHEMA=`{"fullName":"","passportSeries":"","passportNumber":"","passportIssuedBy":"","passportIssuedDate":"","birthDate":"","birthPlace":"","regAddress":"","inn":"","snils":"","phone":"","orgName":"","orgInn":"","orgAddress":"","bankName":"","bankBik":"","bankAccount":"","corrAccount":"","kpp":"","ogrn":"","postalAddress":"","childName":"","childBirthDate":"","childPassport":"","carBrand":"","carYear":"","carVin":"","vehiclePlate":"","counterFullName":"","counterAddress":"","counterPhone":"","selfEmployedInn":"","selfEmployedSnils":""}`;
 
@@ -2095,13 +2106,19 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
             <motion.div key="collect" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} style={{height:'100%',overflowY:'auto',padding:'16px 16px 120px'}}>
 
               {/* Template card */}
-              <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px',borderRadius:16,background:'linear-gradient(135deg,#0d1b38,#0d2230)',border:`1px solid rgba(79,142,247,0.3)`,marginBottom:20}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(79,142,247,0.15)',border:`1px solid rgba(79,142,247,0.25)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>{collectingTpl.icon}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:900,color:TEXT,lineHeight:1.3}}>{collectingTpl.name}</div>
-                  <div style={{fontSize:10,color:ACCENT,fontWeight:700,marginTop:3}}>{collectingTpl.category}</div>
-                  <div style={{fontSize:10,color:SUB,marginTop:2,lineHeight:1.4}}>{collectingTpl.desc}</div>
+              <div style={{borderRadius:16,background:'linear-gradient(135deg,#0d1b38,#0d2230)',border:`1px solid rgba(79,142,247,0.3)`,marginBottom:20,overflow:'hidden'}}>
+                <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px'}}>
+                  <div style={{width:52,height:52,borderRadius:14,background:'rgba(79,142,247,0.15)',border:`1px solid rgba(79,142,247,0.25)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>{collectingTpl.icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:900,color:TEXT,lineHeight:1.3}}>{collectingTpl.name}</div>
+                    <div style={{fontSize:10,color:ACCENT,fontWeight:700,marginTop:3}}>{collectingTpl.category}</div>
+                    <div style={{fontSize:10,color:SUB,marginTop:2,lineHeight:1.4}}>{collectingTpl.desc}</div>
+                  </div>
                 </div>
+                <motion.button whileTap={{scale:0.97}} onClick={()=>setShowCollectPreview(true)}
+                  style={{width:'100%',padding:'10px 14px',background:'rgba(79,142,247,0.1)',border:'none',borderTop:`1px solid rgba(79,142,247,0.2)`,color:ACCENT,fontSize:12,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,boxSizing:'border-box'}}>
+                  👁 Предпросмотр документа
+                </motion.button>
               </div>
 
               {/* Step 1: Image docs */}
@@ -2352,6 +2369,34 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                 <motion.button whileTap={{scale:0.95}} onClick={async()=>{setShowDlModal(false);if(navigator.share)try{await navigator.share({title:selectedTpl?.name??'',text:result??''});return;}catch{}await navigator.clipboard.writeText(result??'');showToast('📋 Скопировано в буфер');}} style={{padding:'13px',borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
                   📤 Поделиться
                 </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ Предпросмотр шаблона ═══ */}
+      <AnimatePresence>
+        {showCollectPreview&&collectingTpl&&(
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{position:'fixed',inset:0,zIndex:900,background:'rgba(0,0,0,0.7)',display:'flex',flexDirection:'column',backdropFilter:'blur(4px)'}}>
+            <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:28,stiffness:280}} style={{position:'absolute',bottom:0,left:0,right:0,top:'5%',borderRadius:'20px 20px 0 0',background:'rgba(9,9,15,0.98)',display:'flex',flexDirection:'column',overflow:'hidden',border:`1px solid ${BORDER}`}}>
+              {/* Preview header */}
+              <div style={{display:'flex',alignItems:'center',gap:12,padding:'16px 16px 12px',borderBottom:`1px solid ${BORDER}`,flexShrink:0}}>
+                <motion.button whileTap={{scale:0.88}} onClick={()=>setShowCollectPreview(false)} style={{width:36,height:36,borderRadius:'50%',background:CARD,border:`1px solid ${BORDER}`,color:TEXT,fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>←</motion.button>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:900,color:TEXT}}>{collectingTpl.icon} {collectingTpl.name}</div>
+                  <div style={{fontSize:10,color:AMBER,marginTop:2,fontWeight:700}}>👁 Образец — поля в [скобках] нужно заполнить</div>
+                </div>
+                <motion.button whileTap={{scale:0.95}} onClick={()=>{setShowCollectPreview(false);buildDoc(collectingTpl);}} style={{padding:'8px 14px',borderRadius:12,background:ACCENT,border:'none',color:'#fff',fontSize:11,fontWeight:800,cursor:'pointer',flexShrink:0}}>✨ Создать</motion.button>
+              </div>
+              {/* Preview content */}
+              <div style={{flex:1,overflowY:'auto',background:'#fff'}}>
+                <pre style={{fontFamily:'"Times New Roman",serif',fontSize:13,lineHeight:1.9,color:'#111',whiteSpace:'pre-wrap',wordBreak:'break-word',margin:0,padding:'24px 20px'}}>{buildPreview(collectingTpl)}</pre>
+              </div>
+              {/* Preview footer */}
+              <div style={{padding:'12px 16px',borderTop:`1px solid ${BORDER}`,background:'rgba(9,9,15,0.98)',display:'flex',gap:8,flexShrink:0}}>
+                <motion.button whileTap={{scale:0.97}} onClick={()=>setShowCollectPreview(false)} style={{flex:1,padding:'13px',borderRadius:12,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:800,cursor:'pointer'}}>← Вернуться к заполнению</motion.button>
+                <motion.button whileTap={{scale:0.97}} onClick={()=>{setShowCollectPreview(false);buildDoc(collectingTpl);}} style={{flex:1,padding:'13px',borderRadius:12,background:ACCENT,border:'none',color:'#fff',fontSize:13,fontWeight:800,cursor:'pointer'}}>✨ Создать документ</motion.button>
               </div>
             </motion.div>
           </motion.div>
