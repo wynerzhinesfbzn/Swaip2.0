@@ -1561,7 +1561,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
     setExtracting(true);setDataError(null);
     try{
       const token=localStorage.getItem('session_token')||'';
-      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({specialistId:'igor',question:'Извлеки данные из документа. Верни ТОЛЬКО JSON без пояснений и markdown: {"fullName":"","passportSeries":"","passportNumber":"","passportIssuedBy":"","passportIssuedDate":"дд.мм.гггг","birthDate":"дд.мм.гггг","birthPlace":"","regAddress":"","inn":"","snils":"","orgName":"","orgInn":"","ogrn":""}. Пустые — пустая строка.',imageBase64,imageMime})});
+      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({assistantId:'igor',text:'Извлеки данные из документа. Верни ТОЛЬКО JSON без пояснений и markdown: {"fullName":"","passportSeries":"","passportNumber":"","passportIssuedBy":"","passportIssuedDate":"дд.мм.гггг","birthDate":"дд.мм.гггг","birthPlace":"","regAddress":"","inn":"","snils":"","orgName":"","orgInn":"","ogrn":""}. Пустые — пустая строка.',imageBase64,imageMime})});
       if(!resp.ok)throw new Error('err');
       const data=await resp.json();const text:string=data.answer??data.text??'';
       const m=text.match(/\{[\s\S]*?\}/);
@@ -1606,7 +1606,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       if(kind==='image'){const dr=new FileReader();const du=await new Promise<string>(res=>{dr.onload=e=>res(e.target?.result as string);dr.readAsDataURL(file);});imageBase64=du.split(',')[1];imageMime=file.type||'image/jpeg';}
       else if(kind==='docx'){const mammoth=await import('mammoth');const buf=await file.arrayBuffer();const r=await(mammoth as unknown as{convertToHtml:(o:{arrayBuffer:ArrayBuffer})=>Promise<{value:string}>}).convertToHtml({arrayBuffer:buf});textContent=r.value.replace(/<[^>]+>/g,' ').slice(0,3000);}
       else{textContent=(await file.text()).slice(0,3000);}
-      const body:Record<string,string>={specialistId:'igor',question:imageBase64?'Это документ. Определи: 1) тип и название документа, 2) что уже заполнено (перечисли поля), 3) чего не хватает для полного оформления, 4) какой шаблон из списка подходит. Ответь структурированно на русском.':`Текст документа:\n\n${textContent}\n\nОпредели: 1) тип документа, 2) что заполнено, 3) чего не хватает, 4) какой шаблон подходит.`};
+      const body:Record<string,string>={assistantId:'igor',text:imageBase64?'Это документ. Определи: 1) тип и название документа, 2) что уже заполнено (перечисли поля), 3) чего не хватает для полного оформления, 4) какой шаблон из списка подходит. Ответь структурированно на русском.':`Текст документа:\n\n${textContent}\n\nОпредели: 1) тип документа, 2) что заполнено, 3) чего не хватает, 4) какой шаблон подходит.`};
       if(imageBase64){body.imageBase64=imageBase64;body.imageMime=imageMime;}
       const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify(body)});
       if(!resp.ok)throw new Error('err');
