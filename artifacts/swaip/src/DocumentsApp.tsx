@@ -1588,6 +1588,172 @@ interface RecentDoc{id:string;name:string;kind:string;size:number;date:number;mi
 
 const CATS=[...new Set(TEMPLATES.map(t=>t.category))];
 
+/* ─── Scanner Modal ──────────────────────────────────────────── */
+type ScannerInfo={imgSrc:string;file:File;docId:string;prompt:string};
+type ScanCrop={x:number;y:number;w:number;h:number};
+
+function ScannerModal({info,onExtract,onClose}:{info:ScannerInfo;onExtract:(b64:string,mime:string,docId:string,prompt:string)=>Promise<void>;onClose:()=>void}){
+  const [crop,setCrop]=useState<ScanCrop>({x:0.03,y:0.03,w:0.94,h:0.94});
+  const [activeHandle,setActiveHandle]=useState<null|'move'|'tl'|'tr'|'bl'|'br'>(null);
+  const [startPos,setStartPos]=useState({cx:0,cy:0,crop:{x:0,y:0,w:0,h:0}});
+  const [scanning,setScanning]=useState(false);
+  const [dlLoading,setDlLoading]=useState(false);
+  const imgRef=useRef<HTMLImageElement>(null);
+  const containerRef=useRef<HTMLDivElement>(null);
+  const [ir,setIr]=useState({left:0,top:0,width:0,height:0}); // image rect in container px
+
+  const updateIr=useCallback(()=>{
+    if(!imgRef.current||!containerRef.current)return;
+    const c=containerRef.current.getBoundingClientRect();
+    const i=imgRef.current.getBoundingClientRect();
+    setIr({left:i.left-c.left,top:i.top-c.top,width:i.width,height:i.height});
+  },[]);
+
+  useEffect(()=>{
+    window.addEventListener('resize',updateIr);
+    return()=>window.removeEventListener('resize',updateIr);
+  },[updateIr]);
+
+  const norm=(e:{clientX:number;clientY:number})=>{
+    if(!containerRef.current||ir.width===0)return{x:0,y:0};
+    const c=containerRef.current.getBoundingClientRect();
+    return{
+      x:Math.max(0,Math.min(1,(e.clientX-c.left-ir.left)/ir.width)),
+      y:Math.max(0,Math.min(1,(e.clientY-c.top-ir.top)/ir.height)),
+    };
+  };
+
+  const onPtrDown=(e:React.PointerEvent,h:'move'|'tl'|'tr'|'bl'|'br'|'bg')=>{
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const pos=norm(e);
+    if(h==='bg'){
+      const nc={x:pos.x,y:pos.y,w:0.001,h:0.001};
+      setCrop(nc);setActiveHandle('br');
+      setStartPos({cx:pos.x,cy:pos.y,crop:nc});
+    }else{setActiveHandle(h);setStartPos({cx:pos.x,cy:pos.y,crop:{...crop}});}
+  };
+
+  const onPtrMove=(e:React.PointerEvent)=>{
+    if(!activeHandle)return;
+    const pos=norm(e);
+    const dx=pos.x-startPos.cx,dy=pos.y-startPos.cy,sc=startPos.crop;
+    let nc={...sc};
+    const MIN=0.04;
+    if(activeHandle==='move'){nc.x=Math.max(0,Math.min(1-sc.w,sc.x+dx));nc.y=Math.max(0,Math.min(1-sc.h,sc.y+dy));}
+    else if(activeHandle==='tl'){const nx=Math.max(0,Math.min(sc.x+sc.w-MIN,sc.x+dx));const ny=Math.max(0,Math.min(sc.y+sc.h-MIN,sc.y+dy));nc.w=sc.w-(nx-sc.x);nc.h=sc.h-(ny-sc.y);nc.x=nx;nc.y=ny;}
+    else if(activeHandle==='tr'){const ny=Math.max(0,Math.min(sc.y+sc.h-MIN,sc.y+dy));nc.w=Math.max(MIN,Math.min(1-sc.x,sc.w+dx));nc.h=sc.h-(ny-sc.y);nc.y=ny;}
+    else if(activeHandle==='bl'){const nx=Math.max(0,Math.min(sc.x+sc.w-MIN,sc.x+dx));nc.w=sc.w-(nx-sc.x);nc.x=nx;nc.h=Math.max(MIN,Math.min(1-sc.y,sc.h+dy));}
+    else if(activeHandle==='br'){nc.w=Math.max(MIN,Math.min(1-sc.x,sc.w+dx));nc.h=Math.max(MIN,Math.min(1-sc.y,sc.h+dy));}
+    setCrop(nc);
+  };
+
+  const cropToBase64=async(c:ScanCrop):Promise<string>=>{
+    const img=imgRef.current!;
+    const nW=img.naturalWidth,nH=img.naturalHeight;
+    const px=Math.round(c.x*nW),py=Math.round(c.y*nH);
+    const pw=Math.round(c.w*nW),ph=Math.round(c.h*nH);
+    const cv=document.createElement('canvas');cv.width=pw;cv.height=ph;
+    cv.getContext('2d')!.drawImage(img,px,py,pw,ph,0,0,pw,ph);
+    return cv.toDataURL('image/jpeg',0.93).split(',')[1];
+  };
+
+  const fullToBase64=():string=>{
+    const img=imgRef.current!;
+    const cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+    cv.getContext('2d')!.drawImage(img,0,0);
+    return cv.toDataURL('image/jpeg',0.93).split(',')[1];
+  };
+
+  const doScan=async(full:boolean)=>{
+    setScanning(true);
+    const b64=full?fullToBase64():await cropToBase64(crop);
+    onClose();
+    await onExtract(b64,'image/jpeg',info.docId,info.prompt);
+    setScanning(false);
+  };
+
+  const doPdf=async(full:boolean)=>{
+    setDlLoading(true);
+    try{
+      const b64=full?fullToBase64():await cropToBase64(crop);
+      const pm=(await import('pdfmake/build/pdfmake')).default;
+      const pf=(await import('pdfmake/build/vfs_fonts')).default;
+      (pm as {vfs?:unknown}).vfs=pf.vfs;
+      const ts=new Date().toISOString().slice(0,10);
+      pm.createPdf({pageSize:'A4',pageMargins:[20,20,20,20],content:[{image:`data:image/jpeg;base64,${b64}`,width:555,alignment:'center'}]} as Parameters<typeof pm.createPdf>[0]).download(`скан_${ts}.pdf`);
+    }finally{setDlLoading(false);}
+  };
+
+  /* render helpers */
+  const px=(v:number,base:number,off:number)=>`${off+v*base}px`;
+  const selL=px(crop.x,ir.width,ir.left),selT=px(crop.y,ir.height,ir.top);
+  const selW=px(crop.w,ir.width,0),selH=px(crop.h,ir.height,0);
+
+  const Handle=({h,lx,ly}:{h:'tl'|'tr'|'bl'|'br';lx:number;ly:number})=>(
+    <div onPointerDown={e=>{e.stopPropagation();onPtrDown(e,h);}}
+      style={{position:'absolute',left:px(lx,ir.width,ir.left),top:px(ly,ir.height,ir.top),width:24,height:24,background:'#4f8ef7',borderRadius:5,transform:'translate(-50%,-50%)',touchAction:'none',cursor:'nwse-resize',zIndex:12,border:'2px solid #fff'}}/>
+  );
+
+  const BtnA=({disabled:d,onClick:oc,col,children:ch}:{disabled:boolean;onClick:()=>void;col:string;children:React.ReactNode})=>(
+    <button disabled={d} onClick={oc} style={{padding:'13px 0',borderRadius:12,background:col,border:'none',color:'#fff',fontSize:12,fontWeight:800,cursor:d?'default':'pointer',opacity:d?0.6:1}}>{ch}</button>
+  );
+
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:9999,background:'#080808',display:'flex',flexDirection:'column',fontFamily:'system-ui,sans-serif'}}>
+      <div style={{padding:'13px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid #1a1a1a',flexShrink:0}}>
+        <button onClick={onClose} style={{background:'none',border:'none',color:'#888',fontSize:13,cursor:'pointer',padding:'4px 8px'}}>✕ Отмена</button>
+        <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>📷 Выберите область</div>
+        <div style={{width:70}}/>
+      </div>
+
+      <div ref={containerRef} style={{flex:1,position:'relative',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',background:'#111',touchAction:'none'}}
+        onPointerDown={e=>{if(e.target===e.currentTarget||(e.target as HTMLElement).tagName==='DIV')onPtrDown(e,'bg');}}
+        onPointerMove={onPtrMove} onPointerUp={()=>setActiveHandle(null)}>
+
+        <img ref={imgRef} src={info.imgSrc}
+          style={{maxWidth:'100%',maxHeight:'100%',display:'block',userSelect:'none',pointerEvents:'none'}}
+          onLoad={updateIr}/>
+
+        {/* Dark mask */}
+        {ir.width>0&&<svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}>
+          <defs><mask id="shole"><rect width="100%" height="100%" fill="white"/>
+            <rect x={selL} y={selT} width={selW} height={selH} fill="black"/></mask></defs>
+          <rect width="100%" height="100%" fill="rgba(0,0,0,0.62)" mask="url(#shole)"/>
+          <rect x={selL} y={selT} width={selW} height={selH} fill="none" stroke="#4f8ef7" strokeWidth="2.5" strokeDasharray="8,4"/>
+          {/* Grid lines */}
+          <line x1={`${ir.left+crop.x*ir.width+crop.w*ir.width/3}px`} y1={selT} x2={`${ir.left+crop.x*ir.width+crop.w*ir.width/3}px`} y2={`${ir.top+crop.y*ir.height+crop.h*ir.height}px`} stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+          <line x1={`${ir.left+crop.x*ir.width+crop.w*ir.width*2/3}px`} y1={selT} x2={`${ir.left+crop.x*ir.width+crop.w*ir.width*2/3}px`} y2={`${ir.top+crop.y*ir.height+crop.h*ir.height}px`} stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+          <line x1={selL} y1={`${ir.top+crop.y*ir.height+crop.h*ir.height/3}px`} x2={`${ir.left+crop.x*ir.width+crop.w*ir.width}px`} y2={`${ir.top+crop.y*ir.height+crop.h*ir.height/3}px`} stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+          <line x1={selL} y1={`${ir.top+crop.y*ir.height+crop.h*ir.height*2/3}px`} x2={`${ir.left+crop.x*ir.width+crop.w*ir.width}px`} y2={`${ir.top+crop.y*ir.height+crop.h*ir.height*2/3}px`} stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+        </svg>}
+
+        {/* Move overlay */}
+        {ir.width>0&&<div onPointerDown={e=>{e.stopPropagation();onPtrDown(e,'move');}}
+          style={{position:'absolute',left:px(crop.x,ir.width,ir.left),top:px(crop.y,ir.height,ir.top),width:selW,height:selH,touchAction:'none',cursor:'move',zIndex:8}}/>}
+
+        {/* Corners */}
+        {ir.width>0&&<>
+          <Handle h="tl" lx={crop.x} ly={crop.y}/>
+          <Handle h="tr" lx={crop.x+crop.w} ly={crop.y}/>
+          <Handle h="bl" lx={crop.x} ly={crop.y+crop.h}/>
+          <Handle h="br" lx={crop.x+crop.w} ly={crop.y+crop.h}/>
+        </>}
+      </div>
+
+      <div style={{textAlign:'center',padding:'6px 12px',fontSize:10,color:'#555',flexShrink:0}}>
+        Перетащите угловые маркеры · Перетащите внутри рамки чтобы переместить · Нажмите вне рамки чтобы нарисовать новую
+      </div>
+
+      <div style={{padding:'12px 16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,borderTop:'1px solid #1a1a1a',flexShrink:0}}>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doScan(false)} col="#4f8ef7">🔍 Сканировать область</BtnA>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doScan(true)} col="#374151">📄 Весь документ</BtnA>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doPdf(false)} col="#059669">⬇️ Скачать A4 (область)</BtnA>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doPdf(true)} col="#374151">📑 Скачать A4 (весь)</BtnA>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Component ─────────────────────────────────────────────── */
 export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?:string}){
   const [tab,setTab]=useState<'data'|'templates'|'reader'>('data');
@@ -1643,6 +1809,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
   const collectPhotoRef=useRef<HTMLInputElement>(null);
   const collectDocIdRef=useRef<string>('');
   const collectPromptRef=useRef<string>('');
+  const [scanner,setScanner]=useState<ScannerInfo|null>(null);
 
   useEffect(()=>{
     try{const s=localStorage.getItem('swaip_docs_recent');if(s)setRecentDocs(JSON.parse(s));}catch{}
@@ -1763,9 +1930,13 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
     const docId=collectDocIdRef.current;const prompt=collectPromptRef.current;
     const kind=detectKind(file.name,file.type);
     if(kind==='image'){
+      /* Open scanner modal so user can crop before extraction */
       const reader=new FileReader();
-      reader.onload=async ev=>{const du=ev.target?.result as string;await collectExtract(du.split(',')[1],file.type||'image/jpeg',docId,prompt);};
+      reader.onload=ev=>{
+        setScanner({imgSrc:ev.target?.result as string,file,docId,prompt});
+      };
       reader.readAsDataURL(file);
+      return;
     }else if(kind==='docx'){
       try{const mammoth=await import('mammoth');const buf=await file.arrayBuffer();const r=await(mammoth as unknown as{extractRawText:(o:{arrayBuffer:ArrayBuffer})=>Promise<{value:string}>}).extractRawText({arrayBuffer:buf});await collectExtractText(r.value,docId,prompt);}
       catch{showToast('⚠️ Не удалось прочитать DOCX');}
@@ -2481,6 +2652,13 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
         collectProcessFile(f);
         e.target.value='';
       }} style={{display:'none'}}/>
+
+      {/* ─── Scanner modal ─── */}
+      {scanner&&<ScannerModal
+        info={scanner}
+        onExtract={async(b64,mime,docId,prompt)=>{await collectExtract(b64,mime,docId,prompt);}}
+        onClose={()=>setScanner(null)}
+      />}
     </div>
   );
 }
