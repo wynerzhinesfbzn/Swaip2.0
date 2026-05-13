@@ -28,6 +28,7 @@ const PollsScreen         = lazy(() => import('./PollsScreen'));
 const MoodScreen          = lazy(() => import('./MoodScreen'));
 const KidsClubsScreen     = lazy(() => import('./KidsClubsScreen'));
 const AssistantsHub       = lazy(() => import('./AssistantsHub'));
+const DocumentsApp        = lazy(() => import('./DocumentsApp'));
 declare global{interface Window{_sqTimer:ReturnType<typeof setTimeout>;}}
 
 /* ══ Хук установки PWA ══ */
@@ -475,7 +476,7 @@ function RingtoneModal({c,isDark,modalStyle,mHead,ringtoneId,onSelect,onClose}:{
 }
 
 /* ══ Боковое меню (слайд слева) ══ */
-function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,onExchange,onAssistant,onBrowser,onGames,onBots,onCinema,onClips,onEvents,onMarketplace,onMusic,onCapsule,onListenTogether,onPolls,onMood,onKids,onPetya,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onMeetings?:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMarketplace?:()=>void;onMusic?:()=>void;onCapsule?:()=>void;onListenTogether?:()=>void;onPolls?:()=>void;onMood?:()=>void;onKids?:()=>void;onPetya?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
+function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,onExchange,onAssistant,onBrowser,onGames,onBots,onCinema,onClips,onEvents,onMarketplace,onMusic,onCapsule,onListenTogether,onPolls,onMood,onKids,onPetya,onDocuments,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onMeetings?:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMarketplace?:()=>void;onMusic?:()=>void;onCapsule?:()=>void;onListenTogether?:()=>void;onPolls?:()=>void;onMood?:()=>void;onKids?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
   type Modal='language'|'privacy'|'about'|'docs'|'ringtone';
   const [modal,setModal]=useState<Modal|null>(null);
@@ -551,6 +552,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
     {icon:'🎮',label:'Игры',sub:'80+ игр · Сега, Денди, Флэш и онлайн',fn:()=>{onGames?.();onClose();}},
     {icon:'🌐',label:'Браузер SWAIP',sub:'Открыть встроенный браузер',fn:()=>{onBrowser?.();onClose();}},
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
+    {icon:'📂',label:'Читалка документов',sub:'PDF · DOCX · TXT · XLSX · CSV · Сканер',fn:()=>{onDocuments?.();onClose();}},
     {icon:'📊',label:'Биржа SWP',sub:'Монета SWAIP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
     {icon:'🎨',label:'Оформление',sub:'Тема, обложка, аватар',fn:()=>{onDesign?.();onClose();}},
     {icon:'🔔',label:'Рингтон звонка',sub:curRingName,fn:()=>setModal('ringtone')},
@@ -4461,7 +4463,7 @@ function CallOverlayUI({call,peerInfo,apiBase}:{call:ReturnType<typeof useCallSi
 export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLogout,onOldMode,initialProfileHash}:SwaipHomeProps){
   const [isDark,setIsDark]=useState(true);
   let c:Pal=isDark?DARK:LIGHT;
-  const [currentScreen,setCurrentScreen]=useState<'home'|'meetings'|'exchange'|'assistant'|'games'|'bots'|'lounge'|'cinema'|'clips'|'events'|'marketplace'|'music'|'capsule'|'listenTogether'|'polls'|'mood'|'kids'|'assistants'>('home');
+  const [currentScreen,setCurrentScreen]=useState<'home'|'meetings'|'exchange'|'assistant'|'games'|'bots'|'lounge'|'cinema'|'clips'|'events'|'marketplace'|'music'|'capsule'|'listenTogether'|'polls'|'mood'|'kids'|'assistants'|'documents'>('home');
   const [myMood,setMyMood]=useState<{emoji:string;text:string}|null>(null);
   const [friendMoods,setFriendMoods]=useState<{userHash:string;userName:string;emoji:string;text:string}[]>([]);
   const [showFeedMoodPicker,setShowFeedMoodPicker]=useState(false);
@@ -5919,6 +5921,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         apiBase={apiBase}
       />
     )}
+    {currentScreen==='documents'&&(
+      <DocumentsApp myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
+    )}
     </Suspense>
 
     {/* ═══ ЭКРАН: СООБЩЕНИЯ ═══ */}
@@ -6097,7 +6102,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onMeetings={()=>setCurrentScreen('meetings')} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMarketplace={()=>setCurrentScreen('marketplace')} onMusic={()=>setCurrentScreen('music')} onCapsule={()=>setCurrentScreen('capsule')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPolls={()=>setCurrentScreen('polls')} onMood={()=>setCurrentScreen('mood')} onKids={()=>setCurrentScreen('kids')} onPetya={()=>setCurrentScreen('assistants')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onMeetings={()=>setCurrentScreen('meetings')} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMarketplace={()=>setCurrentScreen('marketplace')} onMusic={()=>setCurrentScreen('music')} onCapsule={()=>setCurrentScreen('capsule')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPolls={()=>setCurrentScreen('polls')} onMood={()=>setCurrentScreen('mood')} onKids={()=>setCurrentScreen('kids')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
