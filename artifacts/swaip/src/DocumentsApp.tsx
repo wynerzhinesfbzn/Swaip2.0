@@ -1960,19 +1960,31 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
   const baseKeys:Array<keyof DocFields>=['fullName','passportSeries','passportNumber','passportIssuedBy','passportIssuedDate','birthDate','regAddress'];
   const filledCount=baseKeys.filter(k=>fields[k]).length;
 
-  /* Extract AI */
-  const extractFromImage=useCallback(async(imageBase64:string,imageMime:string)=>{
-    setExtracting(true);setDataError(null);
+  /* Extract free OCR (Tesseract.js, no AI) */
+  const [ocrDataProgress,setOcrDataProgress]=useState(0);
+  const extractFromImage=useCallback(async(imageBase64:string,_imageMime:string)=>{
+    setExtracting(true);setDataError(null);setOcrDataProgress(5);
     try{
-      const token=localStorage.getItem('session_token')||'';
-      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({assistantId:'igor',text:'Извлеки данные из документа. Верни ТОЛЬКО JSON без пояснений и markdown: {"fullName":"","passportSeries":"","passportNumber":"","passportIssuedBy":"","passportIssuedDate":"дд.мм.гггг","birthDate":"дд.мм.гггг","birthPlace":"","regAddress":"","inn":"","snils":"","orgName":"","orgInn":"","ogrn":""}. Пустые — пустая строка.',imageBase64,imageMime})});
-      if(!resp.ok)throw new Error('err');
-      const data=await resp.json();const text:string=data.answer??data.text??'';
-      const m=text.match(/\{[\s\S]*?\}/);
-      if(m){const p=JSON.parse(m[0]);setFields(f=>({...f,...Object.fromEntries(Object.entries(p).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));setExtractDone(true);showToast('✅ Данные распознаны');}
-      else setDataError('Не удалось разобрать ответ. Попробуйте фото лучшего качества.');
-    }catch{setDataError('Ошибка распознавания. Введите данные вручную или повторите.');}
-    finally{setExtracting(false);}
+      const {createWorker}=await import('tesseract.js');
+      const worker=await createWorker('rus',1,{
+        logger:(m:{status:string;progress:number})=>{
+          if(m.status==='recognizing text')setOcrDataProgress(Math.round(5+m.progress*90));
+        },
+      });
+      const {data:{text}}=await worker.recognize(`data:image/jpeg;base64,${imageBase64}`);
+      await worker.terminate();
+      setOcrDataProgress(100);
+      const parsed=parseDocText(text);
+      const count=Object.values(parsed).filter(Boolean).length;
+      if(count>0){
+        setFields(f=>({...f,...Object.fromEntries(Object.entries(parsed).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));
+        setExtractDone(true);
+        showToast(`✅ Распознано ${count} полей (OCR)`);
+      }else{
+        setDataError('Текст не распознан. Попробуйте фото лучше или введите вручную.');
+      }
+    }catch{setDataError('Ошибка OCR. Введите данные вручную.');}
+    finally{setExtracting(false);setOcrDataProgress(0);}
   },[]);
 
   const handleScan=useCallback(async(file:File,mode:'color'|'bw')=>{
@@ -2048,20 +2060,21 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
     finally{setCollectExtracting(null);}
   },[COLLECT_JSON_SCHEMA]);
 
-  /* Extract from TEXT DOCUMENT (PDF/DOCX/TXT) in collect screen */
-  const collectExtractText=useCallback(async(textContent:string,docId:string,prompt:string)=>{
+  /* Extract from TEXT DOCUMENT (DOCX/TXT/CSV etc.) — free, no AI */
+  const collectExtractText=useCallback(async(textContent:string,docId:string,_prompt:string)=>{
     setCollectExtracting(docId);
     try{
-      const token=localStorage.getItem('session_token')||'';
-      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({assistantId:'igor',text:`Извлеки данные из текста документа. Верни ТОЛЬКО JSON без пояснений, комментариев и markdown. ${prompt} JSON-поля: ${COLLECT_JSON_SCHEMA}. Незнакомые — пустая строка.\n\nТекст документа:\n${textContent.slice(0,4000)}`})});
-      if(!resp.ok)throw new Error('err');
-      const data=await resp.json();const text:string=data.answer??data.text??'';
-      const m=text.match(/\{[\s\S]*?\}/);
-      if(m){const p=JSON.parse(m[0]);setFields(f=>({...f,...Object.fromEntries(Object.entries(p).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));showToast('✅ Данные извлечены из документа');}
-      else showToast('⚠️ Не удалось извлечь — заполните вручную');
-    }catch{showToast('⚠️ Ошибка. Введите данные вручную.');}
+      const parsed=parseDocText(textContent);
+      const count=Object.values(parsed).filter(Boolean).length;
+      if(count>0){
+        setFields(f=>({...f,...Object.fromEntries(Object.entries(parsed).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));
+        showToast(`✅ Извлечено ${count} полей из документа`);
+      }else{
+        showToast('⚠️ Поля не найдены — заполните вручную');
+      }
+    }catch{showToast('⚠️ Не удалось прочитать — заполните вручную');}
     finally{setCollectExtracting(null);}
-  },[COLLECT_JSON_SCHEMA]);
+  },[]);
 
   /* Universal file handler for collect screen — routes by type */
   const collectProcessFile=useCallback(async(file:File)=>{
@@ -2324,8 +2337,16 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                       </div>
                       <div style={{color:ACCENT,fontSize:12,fontWeight:800}}>Сканирую…</div>
                     </>:<>
-                      <motion.div animate={{rotate:360}} transition={{duration:1,repeat:Infinity,ease:'linear'}} style={{width:40,height:40,borderRadius:'50%',border:`3px solid rgba(79,142,247,0.2)`,borderTopColor:ACCENT}}/>
-                      <div style={{color:ACCENT,fontSize:12,fontWeight:800}}>Распознаю данные…</div>
+                      <div style={{width:160,textAlign:'center'}}>
+                        <div style={{fontSize:22,marginBottom:8}}>🔍</div>
+                        <div style={{height:5,background:'rgba(79,142,247,0.15)',borderRadius:4,overflow:'hidden',marginBottom:6}}>
+                          <motion.div animate={{width:`${ocrDataProgress||5}%`}} transition={{duration:0.3}} style={{height:'100%',background:'#059669',borderRadius:4}}/>
+                        </div>
+                        <div style={{color:'#059669',fontSize:11,fontWeight:800}}>
+                          {ocrDataProgress>0&&ocrDataProgress<100?`OCR ${ocrDataProgress}%…`:'Распознаю текст…'}
+                        </div>
+                        <div style={{color:'rgba(255,255,255,0.3)',fontSize:9,marginTop:3}}>бесплатно · данные не покидают устройство</div>
+                      </div>
                     </>}
                   </motion.div>}
                 </AnimatePresence>
