@@ -43,6 +43,7 @@ import gitPushRouter from "./gitPush.js";
 import menuConfigRouter from "./menuConfig.js";
 import petyaRouter from "./petya.js";
 import assistantsRouter from "./assistants.js";
+import babelairRouter from "./babelair.js";
 const router: IRouter = Router();
 
 router.use(healthRouter);

@@ -29,6 +29,7 @@ const MoodScreen          = lazy(() => import('./MoodScreen'));
 const KidsClubsScreen     = lazy(() => import('./KidsClubsScreen'));
 const AssistantsHub       = lazy(() => import('./AssistantsHub'));
 const DocumentsApp        = lazy(() => import('./DocumentsApp'));
+const BabelAirApp         = lazy(() => import('./BabelAirApp'));
 declare global{interface Window{_sqTimer:ReturnType<typeof setTimeout>;}}
 
 /* ══ Хук установки PWA ══ */
