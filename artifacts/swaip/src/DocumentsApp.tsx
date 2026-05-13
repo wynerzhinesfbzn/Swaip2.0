@@ -1459,7 +1459,19 @@ const dlRtf=(text:string,name:string)=>{
 const openPrintWindow=(text:string,name:string)=>{
   const win=window.open('','_blank');if(!win)return;
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${name}</title><style>body{font-family:"Times New Roman",serif;margin:2cm;font-size:14pt;line-height:1.9;color:#000;white-space:pre-wrap;} @media print{body{margin:2cm;}}</style></head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</body></html>`);
-  win.document.close();setTimeout(()=>{win.focus();},300);
+  win.document.close();setTimeout(()=>{win.focus();win.print();},400);
+};
+
+const dlPdf=async(text:string,name:string)=>{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfMake=(await import('pdfmake/build/pdfmake')) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfFonts=(await import('pdfmake/build/vfs_fonts')) as any;
+  const pm=pdfMake.default??pdfMake;const pf=pdfFonts.default??pdfFonts;
+  pm.vfs=pf.vfs;
+  const lines=text.split('\n');
+  const content=lines.map((line:string)=>({text:line||' ',fontSize:11,lineHeight:1.6}));
+  pm.createPdf({content,defaultStyle:{fontSize:11},pageMargins:[57,57,57,57]}).download(name+'.pdf');
 };
 
 /* ─── File helpers ───────────────────────────────────────────── */
@@ -1480,7 +1492,7 @@ const fmtSize=(b:number)=>b<1024?b+' Б':b<1048576?(b/1024).toFixed(1)+' КБ':(
 const fmtDate=(ts:number)=>new Date(ts).toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'});
 
 interface ScanHistoryItem{id:string;thumb:string;full:string;date:number;mode:string;}
-interface RecentDoc{id:string;name:string;kind:string;size:number;date:number;}
+interface RecentDoc{id:string;name:string;kind:string;size:number;date:number;mimeType?:string;}
 
 const CATS=[...new Set(TEMPLATES.map(t=>t.category))];
 
@@ -1613,14 +1625,14 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       if(fmt==='txt')dlTxt(result,selectedTpl.name);
       else if(fmt==='docx')await dlDocx(result,selectedTpl.name);
       else if(fmt==='rtf')dlRtf(result,selectedTpl.name);
-      else if(fmt==='pdf')openPrintWindow(result,selectedTpl.name);
-      showToast(fmt==='pdf'?'📄 Откройте печать → Сохранить как PDF':'✅ Файл скачан');
+      else if(fmt==='pdf')await dlPdf(result,selectedTpl.name);
+      showToast('✅ Файл скачан');
     }finally{setDlLoading(null);setShowDlModal(false);}
   };
 
   /* Reader */
   const processReaderFile=useCallback(async(file:File)=>{
-    setRLoading(true);setRError(null);
+    setRLoading(true);setRError(null);setTab('reader');
     if(rPdfUrl)URL.revokeObjectURL(rPdfUrl);
     if(rImageUrl?.startsWith('blob:'))URL.revokeObjectURL(rImageUrl);
     setRPdfUrl(null);setRDocHtml(null);setRDocText(null);setRDocTable(null);setRImageUrl(null);
@@ -1634,10 +1646,39 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       else if(kind==='csv'){const t=await file.text();const rows=t.split('\n').filter(r=>r.trim()).map(r=>{const cells:string[]=[]; let cur='',inQ=false; for(const ch of r){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){cells.push(cur);cur='';}else cur+=ch;} cells.push(cur); return cells;});setRDocTable(rows);setRViewing(true);}
       else if(kind==='xlsx'){const XLSX=await import('xlsx');const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];setRDocTable(XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,defval:''}));setRViewing(true);}
       else setRError('Формат не поддерживается');
-      setRecentDocs(prev=>{const u=[{id:Date.now().toString(),name:file.name,kind,size:file.size,date:Date.now()},...prev.filter(d=>d.name!==file.name)].slice(0,20);try{localStorage.setItem('swaip_docs_recent',JSON.stringify(u));}catch{}return u;});
+      /* Save to recent list + cache content if small enough */
+      const newId=Date.now().toString();
+      setRecentDocs(prev=>{
+        const removed=prev.filter(d=>d.name===file.name);
+        removed.forEach(d=>{try{localStorage.removeItem('swaip_doc_c_'+d.id);}catch{}});
+        const u=[{id:newId,name:file.name,kind,size:file.size,date:Date.now(),mimeType:file.type},...prev.filter(d=>d.name!==file.name)].slice(0,15);
+        try{localStorage.setItem('swaip_docs_recent',JSON.stringify(u));}catch{}
+        return u;
+      });
+      if(file.size<1.2*1024*1024){
+        const dr=new FileReader();
+        dr.onload=ev=>{try{localStorage.setItem('swaip_doc_c_'+newId,ev.target?.result as string);}catch{}};
+        dr.readAsDataURL(file);
+      }
     }catch(e){setRError('Ошибка: '+(e instanceof Error?e.message:String(e)));}
     finally{setRLoading(false);}
   },[rPdfUrl,rImageUrl]);
+
+  /* Open recent doc from cache */
+  const openRecentDoc=useCallback(async(d:RecentDoc)=>{
+    const stored=localStorage.getItem('swaip_doc_c_'+d.id);
+    if(stored){
+      const arr=stored.split(',');const mimeMatch=arr[0].match(/:(.*?);/);
+      const mime=mimeMatch?mimeMatch[1]:(d.mimeType||'application/octet-stream');
+      const bstr=atob(arr[1]);const n=bstr.length;const u8=new Uint8Array(n);
+      for(let i=0;i<n;i++)u8[i]=bstr.charCodeAt(i);
+      const file=new File([u8],d.name,{type:mime});
+      await processReaderFile(file);
+    }else{
+      showToast('⚠️ Кэш истёк — выберите файл снова');
+      fileRef.current?.click();
+    }
+  },[processReaderFile]);
 
   /* Converter */
   const loadConvFile=useCallback(async(file:File)=>{
@@ -1671,9 +1712,19 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
           downloadBlob(await Packer.toBlob(imgDoc),baseName+'.docx');
         }
       }else if(target==='pdf'){
-        if(convFile.kind==='image'&&convFile.dataUrl){const win=window.open('','_blank');if(win){win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${baseName}</title><style>body{margin:0;}img{max-width:100%;height:auto;display:block;}@media print{img{max-width:100%;page-break-inside:avoid;}}</style></head><body><img src="${convFile.dataUrl}"/></body></html>`);win.document.close();setTimeout(()=>{win.focus();},300);}}
-        else if(convFile.kind==='docx'&&convFile.buffer){const mammoth=await import('mammoth');const r=await(mammoth as unknown as{convertToHtml:(o:{arrayBuffer:ArrayBuffer})=>Promise<{value:string}>}).convertToHtml({arrayBuffer:convFile.buffer});const win=window.open('','_blank');if(win){win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${baseName}</title><style>body{font-family:Arial;margin:40px;font-size:14px;line-height:1.6;color:#000;}@media print{body{margin:2cm;}}</style></head><body>${r.value}</body></html>`);win.document.close();setTimeout(()=>{win.focus();},300);}}
-        else if(convFile.text){openPrintWindow(convFile.text,baseName);}
+        if(convFile.kind==='image'&&convFile.dataUrl){
+          /* Image → PDF: embed as single-page via pdfmake */
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const pm=(await import('pdfmake/build/pdfmake')) as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const pf=(await import('pdfmake/build/vfs_fonts')) as any;
+          const pmk=pm.default??pm;pmk.vfs=(pf.default??pf).vfs;
+          pmk.createPdf({content:[{image:convFile.dataUrl,fit:[500,700]}],pageMargins:[20,20,20,20]}).download(baseName+'.pdf');
+        }else if(convFile.kind==='docx'&&convFile.buffer){
+          const mammoth=await import('mammoth');
+          const r=await(mammoth as unknown as{extractRawText:(o:{arrayBuffer:ArrayBuffer})=>Promise<{value:string}>}).extractRawText({arrayBuffer:convFile.buffer});
+          await dlPdf(r.value,baseName);
+        }else if(convFile.text){await dlPdf(convFile.text,baseName);}
         setConvDone('pdf');
       }else if(target==='csv'&&convFile.kind==='xlsx'&&convFile.buffer){
         const XLSX=await import('xlsx');const wb=XLSX.read(convFile.buffer,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const csv=XLSX.utils.sheet_to_csv(ws);dlTxt(csv,baseName);
@@ -1681,7 +1732,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
         const XLSX=await import('xlsx');const ws=XLSX.utils.aoa_to_sheet(convFile.text.split('\n').map(r=>r.split(',')));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sheet1');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),baseName+'.xlsx');
       }
       if(target!=='pdf')setConvDone(target);
-      showToast(target==='pdf'?'📄 Откройте печать → Сохранить как PDF':'✅ Конвертировано');
+      showToast('✅ Конвертировано и скачано');
     }catch(e){showToast('Ошибка: '+(e instanceof Error?e.message:String(e)));}
     finally{setConverting(false);}
   },[convFile]);
@@ -1963,7 +2014,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                         <div style={{fontSize:12,fontWeight:700,color:TEXT,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.name}</div>
                         <div style={{fontSize:10,color:SUB,marginTop:1}}>{kindLabel(d.kind)} · {fmtSize(d.size)} · {fmtDate(d.date)}</div>
                       </div>
-                      <motion.button whileTap={{scale:0.9}} onClick={()=>fileRef.current?.click()} style={{padding:'6px 10px',borderRadius:8,background:'rgba(79,142,247,0.12)',border:`1px solid rgba(79,142,247,0.2)`,color:ACCENT,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0}}>Открыть</motion.button>
+                      <motion.button whileTap={{scale:0.9}} onClick={()=>openRecentDoc(d)} style={{padding:'6px 10px',borderRadius:8,background:'rgba(79,142,247,0.12)',border:`1px solid rgba(79,142,247,0.2)`,color:ACCENT,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0}}>{localStorage.getItem('swaip_doc_c_'+d.id)?'📂 Открыть':'Найти файл'}</motion.button>
                     </div>
                   ))}
                 </div>
@@ -1991,7 +2042,6 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                           style={{padding:'10px 16px',borderRadius:12,background:convDone===fmt?GREEN:'transparent',border:`2px solid ${convDone===fmt?GREEN:BORDER}`,color:convDone===fmt?'#000':TEXT,fontSize:12,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',gap:6,opacity:converting?0.6:1}}>
                           {converting?<motion.div animate={{rotate:360}} transition={{duration:1,repeat:Infinity,ease:'linear'}} style={{width:14,height:14,borderRadius:'50%',border:'2px solid rgba(79,142,247,0.2)',borderTopColor:ACCENT}}/>:<span>{icon}</span>}
                           {label}
-                          {fmt==='pdf'&&<span style={{fontSize:9,opacity:0.6}}>(печать)</span>}
                         </motion.button>
                       ))}
                     </div>
@@ -2027,23 +2077,34 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       {/* ═══ Download modal ═══ */}
       <AnimatePresence>
         {showDlModal&&(
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setShowDlModal(false)} style={{position:'fixed',inset:0,zIndex:1100,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'flex-end'}}>
-            <motion.div initial={{y:300}} animate={{y:0}} exit={{y:300}} transition={{type:'spring',damping:28}} onClick={e=>e.stopPropagation()} style={{width:'100%',background:'#12121a',borderRadius:'24px 24px 0 0',padding:'24px 20px 48px',border:`1px solid ${BORDER}`}}>
-              <div style={{fontSize:14,fontWeight:900,color:TEXT,marginBottom:16}}>Скачать документ</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setShowDlModal(false)} style={{position:'fixed',inset:0,zIndex:1100,background:'rgba(0,0,0,0.72)',display:'flex',alignItems:'flex-end'}}>
+            <motion.div initial={{y:340}} animate={{y:0}} exit={{y:340}} transition={{type:'spring',damping:28}} onClick={e=>e.stopPropagation()} style={{width:'100%',background:'#12121a',borderRadius:'24px 24px 0 0',padding:'24px 20px 48px',border:`1px solid ${BORDER}`}}>
+              {/* Handle */}
+              <div style={{width:40,height:4,borderRadius:2,background:'rgba(255,255,255,0.12)',margin:'0 auto 20px'}}/>
+              {/* Download section */}
+              <div style={{fontSize:11,fontWeight:800,color:SUB,textTransform:'uppercase',letterSpacing:1,marginBottom:10}}>⬇ Скачать как</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:20}}>
                 {([
-                  {fmt:'txt',icon:'📃',label:'TXT файл',desc:'Текст в кодировке UTF-8'},
-                  {fmt:'docx',icon:'📝',label:'Word (DOCX)',desc:'Редактируемый документ'},
-                  {fmt:'rtf',icon:'📄',label:'RTF файл',desc:'Совместим с Word/LibreOffice'},
-                  {fmt:'pdf',icon:'🖨️',label:'PDF (через печать)',desc:'Откроется диалог печати'},
-                ] as const).map(({fmt,icon,label,desc})=>(
-                  <motion.button key={fmt} whileTap={{scale:0.95}} disabled={!!dlLoading} onClick={()=>doDownload(fmt)}
-                    style={{padding:'14px 12px',borderRadius:14,background:dlLoading===fmt?ACCENT:CARD,border:`1px solid ${dlLoading===fmt?ACCENT:BORDER}`,color:TEXT,cursor:'pointer',textAlign:'left',opacity:dlLoading&&dlLoading!==fmt?0.5:1}}>
-                    <div style={{fontSize:22,marginBottom:6}}>{dlLoading===fmt?<motion.div animate={{rotate:360}} transition={{duration:0.8,repeat:Infinity,ease:'linear'}} style={{display:'inline-block',width:22,height:22,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.2)',borderTopColor:'#fff'}}/>:icon}</div>
-                    <div style={{fontSize:12,fontWeight:800}}>{label}</div>
-                    <div style={{fontSize:10,color:SUB,marginTop:2}}>{desc}</div>
+                  {fmt:'pdf',icon:'📄',label:'PDF'},
+                  {fmt:'docx',icon:'📝',label:'DOCX'},
+                  {fmt:'rtf',icon:'📑',label:'RTF'},
+                  {fmt:'txt',icon:'📃',label:'TXT'},
+                ] as const).map(({fmt,icon,label})=>(
+                  <motion.button key={fmt} whileTap={{scale:0.92}} disabled={!!dlLoading} onClick={()=>doDownload(fmt)}
+                    style={{padding:'14px 6px',borderRadius:14,background:dlLoading===fmt?ACCENT:CARD,border:`1px solid ${dlLoading===fmt?ACCENT:BORDER}`,color:TEXT,cursor:'pointer',textAlign:'center',opacity:dlLoading&&dlLoading!==fmt?0.45:1,display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+                    <div style={{fontSize:24}}>{dlLoading===fmt?<motion.div animate={{rotate:360}} transition={{duration:0.8,repeat:Infinity,ease:'linear'}} style={{display:'inline-block',width:22,height:22,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.2)',borderTopColor:'#fff'}}/>:icon}</div>
+                    <div style={{fontSize:11,fontWeight:900}}>{label}</div>
                   </motion.button>
                 ))}
+              </div>
+              {/* Print + Share row */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <motion.button whileTap={{scale:0.95}} onClick={()=>{setShowDlModal(false);openPrintWindow(result??'',selectedTpl?.name??'Документ');}} style={{padding:'13px',borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                  🖨️ Печать
+                </motion.button>
+                <motion.button whileTap={{scale:0.95}} onClick={async()=>{setShowDlModal(false);if(navigator.share)try{await navigator.share({title:selectedTpl?.name??'',text:result??''});return;}catch{}await navigator.clipboard.writeText(result??'');showToast('📋 Скопировано в буфер');}} style={{padding:'13px',borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                  📤 Поделиться
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
