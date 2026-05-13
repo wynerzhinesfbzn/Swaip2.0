@@ -1506,10 +1506,15 @@ const applyScanFilter = (file:File, mode:'color'|'bw'): Promise<{dataUrl:string;
       img.onload = () => {
         const MAX=2400; let {width,height}=img;
         if(width>MAX||height>MAX){ if(width>height){height=Math.round(height*MAX/width);width=MAX;}else{width=Math.round(width*MAX/height);height=MAX;} }
-        const c=document.createElement('canvas'); c.width=width; c.height=height;
+        // A4 canvas (portrait): scale image to fill A4 proportions
+        const A4W=1240,A4H=1754;
+        const c=document.createElement('canvas'); c.width=A4W; c.height=A4H;
         const ctx=c.getContext('2d')!;
-        if(mode==='color'){ ctx.filter='contrast(1.45) saturate(1.3) brightness(1.12)'; ctx.drawImage(img,0,0,width,height); }
-        else { ctx.filter='grayscale(1) contrast(1.9) brightness(1.18)'; ctx.drawImage(img,0,0,width,height); const id=ctx.getImageData(0,0,width,height); const d=id.data; for(let i=0;i<d.length;i+=4){const v=d[i];const o=v>172?255:v<80?0:v;d[i]=d[i+1]=d[i+2]=o;} ctx.putImageData(id,0,0); }
+        ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,A4W,A4H);
+        const scale=Math.max(A4W/width,A4H/height);
+        const dw=width*scale,dh=height*scale;
+        if(mode==='color'){ ctx.filter='contrast(1.45) saturate(1.3) brightness(1.12)'; ctx.drawImage(img,(A4W-dw)/2,(A4H-dh)/2,dw,dh); }
+        else { ctx.filter='grayscale(1) contrast(1.9) brightness(1.18)'; ctx.drawImage(img,(A4W-dw)/2,(A4H-dh)/2,dw,dh); const id=ctx.getImageData(0,0,A4W,A4H); const d=id.data; for(let i=0;i<d.length;i+=4){const v=d[i];const o=v>172?255:v<80?0:v;d[i]=d[i+1]=d[i+2]=o;} ctx.putImageData(id,0,0); }
         const dataUrl=c.toDataURL('image/jpeg',0.95);
         c.toBlob(b=>b?resolve({dataUrl,blob:b}):reject(new Error('blob')),'image/jpeg',0.95);
       };
@@ -1789,7 +1794,19 @@ function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onE
       const pf=(await import('pdfmake/build/vfs_fonts')).default;
       (pm as {vfs?:unknown}).vfs=pf.vfs;
       const ts=new Date().toISOString().slice(0,10);
-      pm.createPdf({pageSize:'A4',pageMargins:[20,20,20,20],content:[{image:`data:image/jpeg;base64,${b64}`,width:555,alignment:'center'}]} as Parameters<typeof pm.createPdf>[0]).download(`скан_${ts}.pdf`);
+      // Resize image canvas to A4 proportions (595×842 pts at 2x)
+      const A4W=1240,A4H=1754;
+      const srcImg=new Image();
+      await new Promise<void>(res=>{srcImg.onload=()=>res();srcImg.src=`data:image/jpeg;base64,${b64}`;});
+      const cv2=document.createElement('canvas');cv2.width=A4W;cv2.height=A4H;
+      const ctx2=cv2.getContext('2d')!;
+      ctx2.fillStyle='#ffffff';ctx2.fillRect(0,0,A4W,A4H);
+      // Scale to fill A4 (cover, center)
+      const scale=Math.max(A4W/srcImg.width,A4H/srcImg.height);
+      const sw=srcImg.width*scale,sh=srcImg.height*scale;
+      ctx2.drawImage(srcImg,(A4W-sw)/2,(A4H-sh)/2,sw,sh);
+      const a4b64=cv2.toDataURL('image/jpeg',0.95).split(',')[1];
+      pm.createPdf({pageSize:'A4',pageMargins:[0,0,0,0],content:[{image:`data:image/jpeg;base64,${a4b64}`,width:595.28,absolutePosition:{x:0,y:0}}]} as Parameters<typeof pm.createPdf>[0]).download(`скан_${ts}.pdf`);
     }finally{setDlLoading(false);}
   };
 
