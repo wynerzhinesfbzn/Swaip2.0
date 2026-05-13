@@ -1715,20 +1715,54 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
 
   const buildDoc=(tpl:Template)=>{setSelectedTpl(tpl);setResult(tpl.build(fields));setCollectingTpl(null);setTab('templates');};
 
-  /* Extract data from image in collect screen */
+  const COLLECT_JSON_SCHEMA=`{"fullName":"","passportSeries":"","passportNumber":"","passportIssuedBy":"","passportIssuedDate":"","birthDate":"","birthPlace":"","regAddress":"","inn":"","snils":"","phone":"","orgName":"","orgInn":"","orgAddress":"","bankName":"","bankBik":"","bankAccount":"","corrAccount":"","kpp":"","ogrn":"","postalAddress":"","childName":"","childBirthDate":"","childPassport":"","carBrand":"","carYear":"","carVin":"","vehiclePlate":"","counterFullName":"","counterAddress":"","counterPhone":"","selfEmployedInn":"","selfEmployedSnils":""}`;
+
+  /* Extract from IMAGE in collect screen */
   const collectExtract=useCallback(async(imageBase64:string,imageMime:string,docId:string,prompt:string)=>{
     setCollectExtracting(docId);
     try{
       const token=localStorage.getItem('session_token')||'';
-      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({assistantId:'igor',text:`Извлеки данные из документа. Верни ТОЛЬКО JSON без пояснений, комментариев и markdown. ${prompt} Поля: {"fullName":"","passportSeries":"","passportNumber":"","passportIssuedBy":"","passportIssuedDate":"","birthDate":"","birthPlace":"","regAddress":"","inn":"","snils":"","phone":"","childName":"","childBirthDate":"","childPassport":"","carBrand":"","carYear":"","carVin":"","vehiclePlate":"","counterFullName":"","counterAddress":"","counterPhone":"","orgName":"","orgInn":"","ogrn":""}. Незнакомые поля — пустая строка.`,imageBase64,imageMime})});
+      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({assistantId:'igor',text:`Извлеки данные из документа. Верни ТОЛЬКО JSON без пояснений, комментариев и markdown. ${prompt} JSON-поля: ${COLLECT_JSON_SCHEMA}. Незнакомые или нераспознанные — пустая строка.`,imageBase64,imageMime})});
       if(!resp.ok)throw new Error('err');
       const data=await resp.json();const text:string=data.answer??data.text??'';
       const m=text.match(/\{[\s\S]*?\}/);
-      if(m){const p=JSON.parse(m[0]);setFields(f=>({...f,...Object.fromEntries(Object.entries(p).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));showToast('✅ Данные распознаны автоматически');}
+      if(m){const p=JSON.parse(m[0]);setFields(f=>({...f,...Object.fromEntries(Object.entries(p).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));showToast('✅ Данные распознаны');}
       else showToast('⚠️ Не удалось распознать — заполните вручную');
     }catch{showToast('⚠️ Ошибка распознавания — заполните вручную');}
     finally{setCollectExtracting(null);}
-  },[]);
+  },[COLLECT_JSON_SCHEMA]);
+
+  /* Extract from TEXT DOCUMENT (PDF/DOCX/TXT) in collect screen */
+  const collectExtractText=useCallback(async(textContent:string,docId:string,prompt:string)=>{
+    setCollectExtracting(docId);
+    try{
+      const token=localStorage.getItem('session_token')||'';
+      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({assistantId:'igor',text:`Извлеки данные из текста документа. Верни ТОЛЬКО JSON без пояснений, комментариев и markdown. ${prompt} JSON-поля: ${COLLECT_JSON_SCHEMA}. Незнакомые — пустая строка.\n\nТекст документа:\n${textContent.slice(0,4000)}`})});
+      if(!resp.ok)throw new Error('err');
+      const data=await resp.json();const text:string=data.answer??data.text??'';
+      const m=text.match(/\{[\s\S]*?\}/);
+      if(m){const p=JSON.parse(m[0]);setFields(f=>({...f,...Object.fromEntries(Object.entries(p).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));showToast('✅ Данные извлечены из документа');}
+      else showToast('⚠️ Не удалось извлечь — заполните вручную');
+    }catch{showToast('⚠️ Ошибка. Введите данные вручную.');}
+    finally{setCollectExtracting(null);}
+  },[COLLECT_JSON_SCHEMA]);
+
+  /* Universal file handler for collect screen — routes by type */
+  const collectProcessFile=useCallback(async(file:File)=>{
+    const docId=collectDocIdRef.current;const prompt=collectPromptRef.current;
+    const kind=detectKind(file.name,file.type);
+    if(kind==='image'){
+      const reader=new FileReader();
+      reader.onload=async ev=>{const du=ev.target?.result as string;await collectExtract(du.split(',')[1],file.type||'image/jpeg',docId,prompt);};
+      reader.readAsDataURL(file);
+    }else if(kind==='docx'){
+      try{const mammoth=await import('mammoth');const buf=await file.arrayBuffer();const r=await(mammoth as unknown as{extractRawText:(o:{arrayBuffer:ArrayBuffer})=>Promise<{value:string}>}).extractRawText({arrayBuffer:buf});await collectExtractText(r.value,docId,prompt);}
+      catch{showToast('⚠️ Не удалось прочитать DOCX');}
+    }else{
+      try{const t=await file.text();await collectExtractText(t,docId,prompt);}
+      catch{showToast('⚠️ Не удалось прочитать файл');}
+    }
+  },[collectExtract,collectExtractText]);
 
   /* Download result */
   const doDownload=async(fmt:'txt'|'docx'|'pdf'|'rtf')=>{
@@ -1868,10 +1902,14 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
   const getCollectDocs=(tpl:Template):CollectDoc[]=>{
     const ex=new Set(tpl.extras);
     const docs:CollectDoc[]=[];
-    docs.push({id:'passport',icon:'🪪',label:'Паспорт (разворот с фото)',sublabel:'ФИО, серия/номер, дата выдачи, адрес регистрации — заполнятся автоматически',prompt:'Главное — данные паспорта: ФИО, серия и номер, кем выдан, дата выдачи, дата рождения, место рождения, адрес регистрации, ИНН, СНИЛС.',done:!!(fields.fullName&&fields.passportNumber)});
-    if(ex.has('childName')||ex.has('childBirthDate'))docs.push({id:'child',icon:'👶',label:'Свидетельство о рождении ребёнка',sublabel:'ФИО и дата рождения ребёнка заполнятся автоматически',prompt:'Это свидетельство о рождении. Извлеки: childName (ФИО ребёнка), childBirthDate (дата рождения), childPassport.',done:!!(fields.childName)});
-    if(ex.has('carBrand')||ex.has('carVin')||ex.has('vehiclePlate'))docs.push({id:'car',icon:'🚗',label:'ПТС или СТС',sublabel:'Марка, VIN, год выпуска, госномер заполнятся автоматически',prompt:'Это ПТС или СТС. Извлеки: carBrand (марка), carYear (год), carVin (VIN), vehiclePlate (госномер).',done:!!(fields.carBrand&&fields.carVin)});
-    if(ex.has('counterFullName'))docs.push({id:'counter',icon:'👤',label:'Паспорт второй стороны (контрагента)',sublabel:'ФИО, адрес и данные второй стороны заполнятся автоматически',prompt:'Это паспорт второй стороны сделки. Извлеки: counterFullName, counterAddress, counterPhone.',done:!!(fields.counterFullName)});
+    const ORG_EXTRAS:Array<keyof DocFields>=['orgName','orgInn','orgAddress','bankBik','bankAccount','bankName','corrAccount','kpp','ogrn','postalAddress','selfEmployedInn','selfEmployedSnils'];
+    const needsOrg=ORG_EXTRAS.some(f=>ex.has(f));
+    docs.push({id:'passport',icon:'🪪',label:'Паспорт',sublabel:'Фото, скан или файл — ФИО, серия/номер, дата выдачи, ИНН, СНИЛС, адрес заполнятся сами',prompt:'Данные паспорта: ФИО, серия и номер, кем выдан, дата выдачи, дата рождения, место рождения, адрес регистрации, ИНН, СНИЛС.',done:!!(fields.fullName&&fields.passportNumber)});
+    if(needsOrg)docs.push({id:'orgcard',icon:'🏢',label:'Карточка предприятия / Реквизиты',sublabel:'Загрузи любой файл с реквизитами — ИНН, КПП, ОГРН, банк, счёт, адрес заполнятся автоматически',prompt:'Это карточка предприятия или реквизиты компании. Извлеки: orgName, orgInn, orgAddress, bankName, bankBik, bankAccount, corrAccount, kpp, ogrn, postalAddress, phone.',done:!!(fields.orgName&&fields.orgInn)});
+    if(ex.has('childName')||ex.has('childBirthDate'))docs.push({id:'child',icon:'👶',label:'Свидетельство о рождении ребёнка',sublabel:'Фото, скан или файл — ФИО и дата рождения ребёнка заполнятся сами',prompt:'Свидетельство о рождении. Извлеки: childName (ФИО ребёнка), childBirthDate (дата рождения), childPassport.',done:!!(fields.childName)});
+    if(ex.has('carBrand')||ex.has('carVin')||ex.has('vehiclePlate'))docs.push({id:'car',icon:'🚗',label:'ПТС или СТС',sublabel:'Фото или файл — марка, VIN, год выпуска, госномер заполнятся сами',prompt:'ПТС или СТС. Извлеки: carBrand (марка), carYear (год), carVin (VIN), vehiclePlate (госномер).',done:!!(fields.carBrand&&fields.carVin)});
+    if(ex.has('counterFullName'))docs.push({id:'counter',icon:'👤',label:'Паспорт второй стороны',sublabel:'Данные контрагента, арендатора или заёмщика заполнятся автоматически',prompt:'Паспорт второй стороны сделки. Извлеки: counterFullName, counterAddress, counterPhone.',done:!!(fields.counterFullName)});
+    docs.push({id:'other',icon:'📄',label:'Любой другой документ',sublabel:'Загрузи любой файл — фото, PDF, DOCX, TXT — бот извлечёт все возможные данные',prompt:'Это может быть любой документ. Извлеки максимум данных: ФИО, паспортные данные, адрес, ИНН, СНИЛС, реквизиты организации, банковские данные.',done:false});
     return docs;
   };
 
@@ -2347,15 +2385,9 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       <input ref={fileRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onChange={e=>{const f=e.target.files?.[0];if(f)processReaderFile(f);e.target.value='';}} style={{display:'none'}}/>
       <input ref={analyseRef} type="file" accept="image/*,.pdf,.docx,.doc,.txt" onChange={e=>{const f=e.target.files?.[0];if(f)analyseDoc(f);e.target.value='';}} style={{display:'none'}}/>
       <input ref={convRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onChange={e=>{const f=e.target.files?.[0];if(f)loadConvFile(f);e.target.value='';}} style={{display:'none'}}/>
-      <input ref={collectPhotoRef} type="file" accept="image/*" onChange={e=>{
-        const f=e.target.files?.[0];
-        if(!f)return;
-        const reader=new FileReader();
-        reader.onload=async ev=>{
-          const dataUrl=ev.target?.result as string;
-          await collectExtract(dataUrl.split(',')[1],f.type||'image/jpeg',collectDocIdRef.current,collectPromptRef.current);
-        };
-        reader.readAsDataURL(f);
+      <input ref={collectPhotoRef} type="file" accept="image/*,.pdf,.docx,.doc,.txt,.rtf,.odt,.csv,.xlsx,.xls" onChange={e=>{
+        const f=e.target.files?.[0];if(!f)return;
+        collectProcessFile(f);
         e.target.value='';
       }} style={{display:'none'}}/>
     </div>
