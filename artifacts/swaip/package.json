@@ -12,6 +12,8 @@
   "dependencies": {
     "@livekit/components-react": "^2.9.20",
     "@noble/curves": "^2.0.1",
+    "docx": "^9.6.1",
+    "file-saver": "^2.0.5",
     "fix-webm-duration": "^1.0.6",
     "livekit-client": "^2.18.1",
     "mammoth": "^1.12.0",
@@ -55,6 +57,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@types/file-saver": "^2.0.7",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
