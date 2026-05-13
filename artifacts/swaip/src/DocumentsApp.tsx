@@ -2121,46 +2121,17 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                 </motion.button>
               </div>
 
-              {/* Step 1: Image docs */}
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-                <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>1</div>
-                <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Загрузите документы — бот заполнит автоматически</div>
-              </div>
-
-              {getCollectDocs(collectingTpl).map(doc=>(
-                <div key={doc.id} style={{borderRadius:14,background:CARD,border:`1.5px solid ${doc.done?'rgba(52,211,153,0.5)':BORDER}`,padding:'14px',marginBottom:10,position:'relative',overflow:'hidden'}}>
-                  {doc.done&&<div style={{position:'absolute',top:10,right:12,fontSize:18}}>✅</div>}
-                  <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:10}}>
-                    <span style={{fontSize:24,flexShrink:0}}>{doc.icon}</span>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:800,color:TEXT,paddingRight:28}}>{doc.label}</div>
-                      <div style={{fontSize:10,color:SUB,marginTop:3,lineHeight:1.45}}>{doc.sublabel}</div>
-                    </div>
-                  </div>
-                  <motion.button whileTap={{scale:0.97}} disabled={collectExtracting===doc.id} onClick={()=>{collectDocIdRef.current=doc.id;collectPromptRef.current=doc.prompt;collectPhotoRef.current?.click();}}
-                    style={{width:'100%',padding:'11px',borderRadius:10,background:doc.done?'rgba(52,211,153,0.08)':'rgba(79,142,247,0.1)',border:`1px solid ${doc.done?'rgba(52,211,153,0.4)':ACCENT}`,color:doc.done?GREEN:ACCENT,fontSize:12,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxSizing:'border-box',opacity:collectExtracting===doc.id?0.7:1}}>
-                    {collectExtracting===doc.id?(
-                      <><motion.div animate={{rotate:360}} transition={{duration:1,repeat:Infinity,ease:'linear'}} style={{width:16,height:16,borderRadius:'50%',border:`2px solid rgba(79,142,247,0.2)`,borderTopColor:ACCENT}}/> Распознаю данные…</>
-                    ):doc.done?(
-                      <>📷 Загрузить другое фото</>
-                    ):(
-                      <>📷 {doc.id==='passport'?'Сфотографировать или выбрать фото':'Загрузить фото / скан'}</>
-                    )}
+              {/* ─── Helper: upload button ─── */}
+              {(()=>{
+                const UploadBtn=({docId,prompt,done}:{docId:string;prompt:string;done:boolean})=>(
+                  <motion.button whileTap={{scale:0.97}} disabled={collectExtracting===docId}
+                    onClick={()=>{collectDocIdRef.current=docId;collectPromptRef.current=prompt;collectPhotoRef.current?.click();}}
+                    style={{width:'100%',padding:'10px',borderRadius:10,background:done?'rgba(52,211,153,0.08)':'rgba(79,142,247,0.08)',border:`1px solid ${done?'rgba(52,211,153,0.5)':ACCENT}`,color:done?GREEN:ACCENT,fontSize:11,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7,boxSizing:'border-box',marginBottom:12,opacity:collectExtracting===docId?0.7:1}}>
+                    {collectExtracting===docId?<><motion.div animate={{rotate:360}} transition={{duration:1,repeat:Infinity,ease:'linear'}} style={{width:14,height:14,borderRadius:'50%',border:`2px solid rgba(79,142,247,0.2)`,borderTopColor:ACCENT}}/>Распознаю…</>:done?<>✅ Данные загружены · обновить фото</>:<>📷 Загрузить фото / скан / PDF / DOCX</>}
                   </motion.button>
-                </div>
-              ))}
-
-              {/* Step 2: First party data — always shown */}
-              <div style={{display:'flex',alignItems:'center',gap:8,marginTop:16,marginBottom:12}}>
-                <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>2</div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Данные первой стороны (вы)</div>
-                  <div style={{fontSize:10,color:SUB,marginTop:1}}>Заполните вручную или загрузите паспорт выше</div>
-                </div>
-              </div>
-              <div style={{borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,padding:'14px',marginBottom:10}}>
-                {([['fullName'],['passportSeries','passportNumber'],['passportIssuedBy'],['passportIssuedDate','birthDate'],['birthPlace'],['regAddress'],['inn','snils'],['phone']] as Array<Array<keyof DocFields>>).map((row,ri)=>(
-                  <div key={ri} style={{display:'grid',gridTemplateColumns:row.length===1?'1fr':`repeat(${row.length},1fr)`,gap:8,marginBottom:8}}>
+                );
+                const InputRows=({rows}:{rows:Array<Array<keyof DocFields>>})=><>{rows.map((row,ri)=>(
+                  <div key={ri} style={{display:'grid',gridTemplateColumns:row.length===1?'1fr':`repeat(${row.length},1fr)`,gap:7,marginBottom:8}}>
                     {row.map(k=>(
                       <div key={k}>
                         <div style={{fontSize:9,fontWeight:700,color:fields[k]?ACCENT:SUB,marginBottom:3,textTransform:'uppercase',letterSpacing:0.5}}>{FL[k]??k}</div>
@@ -2169,27 +2140,92 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                       </div>
                     ))}
                   </div>
-                ))}
-              </div>
+                ))}</>;
 
-              {/* Step 3: Template-specific extras */}
-              {collectingTpl.extras.length>0&&(
-                <>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,marginBottom:12}}>
-                    <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>3</div>
-                    <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Данные для этого документа</div>
+                const ex=new Set(collectingTpl.extras);
+                const COUNTER_FIELDS:Array<keyof DocFields>=['counterFullName','counterPassport','counterAddress'];
+                const ORG_FIELDS_LIST:Array<keyof DocFields>=['orgName','orgInn','orgAddress','bankName','bankBik','bankAccount','corrAccount','kpp','ogrn','postalAddress'];
+                const CHILD_FIELDS:Array<keyof DocFields>=['childName','childBirthDate','childPassport'];
+                const CAR_FIELDS:Array<keyof DocFields>=['carBrand','carYear','carVin','vehiclePlate'];
+                const needsCounter=COUNTER_FIELDS.some(f=>ex.has(f));
+                const needsOrg=ORG_FIELDS_LIST.some(f=>ex.has(f));
+                const needsChild=CHILD_FIELDS.some(f=>ex.has(f));
+                const needsCar=CAR_FIELDS.some(f=>ex.has(f));
+                const usedSpecial=new Set([...COUNTER_FIELDS,...ORG_FIELDS_LIST,...CHILD_FIELDS,...CAR_FIELDS] as Array<keyof DocFields>);
+                const otherExtras=collectingTpl.extras.filter(k=>!usedSpecial.has(k));
+
+                const SectionHeader=({num,icon,title,sub}:{num:number;icon:string;title:string;sub?:string})=>(
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:18,marginBottom:10}}>
+                    <div style={{width:26,height:26,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:'#fff',flexShrink:0}}>{num}</div>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:900,color:TEXT}}>{icon} {title}</div>
+                      {sub&&<div style={{fontSize:10,color:SUB,marginTop:1}}>{sub}</div>}
+                    </div>
                   </div>
-                  <div style={{borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,padding:'14px',marginBottom:10}}>
-                    {collectingTpl.extras.map(k=>(
-                      <div key={k} style={{marginBottom:8}}>
-                        <div style={{fontSize:9,fontWeight:700,color:fields[k]?ACCENT:SUB,marginBottom:3,textTransform:'uppercase',letterSpacing:0.5}}>{FL[k]??k}</div>
-                        <input value={fields[k]} onChange={e=>setField(k,e.target.value)} placeholder={FL[k]??k}
-                          style={{width:'100%',padding:'9px 10px',borderRadius:8,background:CARD2,border:`1.5px solid ${fields[k]?'rgba(79,142,247,0.45)':BORDER}`,color:TEXT,fontSize:12,outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}/>
-                      </div>
-                    ))}
+                );
+
+                const boxStyle={borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,padding:'14px',marginBottom:4};
+
+                return <>
+                  {/* УЧАСТНИК 1 */}
+                  <SectionHeader num={1} icon="👤" title="Участник 1 — Вы (первая сторона)" sub="Загрузите паспорт или заполните вручную"/>
+                  <div style={boxStyle}>
+                    <UploadBtn docId="passport" prompt="Данные паспорта: ФИО, серия и номер, кем выдан, дата выдачи, дата рождения, место рождения, адрес регистрации, ИНН, СНИЛС." done={!!(fields.fullName&&fields.passportNumber)}/>
+                    <InputRows rows={[['fullName'],['passportSeries','passportNumber'],['passportIssuedBy'],['passportIssuedDate','birthDate'],['birthPlace'],['regAddress'],['inn','snils'],['phone']]}/>
                   </div>
-                </>
-              )}
+
+                  {/* ОРГАНИЗАЦИЯ */}
+                  {needsOrg&&<>
+                    <SectionHeader num={2} icon="🏢" title="Организация / Реквизиты" sub="Загрузите карточку предприятия или введите вручную"/>
+                    <div style={boxStyle}>
+                      <UploadBtn docId="orgcard" prompt="Карточка предприятия или реквизиты: orgName, orgInn, orgAddress, bankName, bankBik, bankAccount, corrAccount, kpp, ogrn, postalAddress, phone." done={!!(fields.orgName&&fields.orgInn)}/>
+                      <InputRows rows={[['orgName'],['orgInn','kpp'],['ogrn'],['orgAddress'],['bankName'],['bankBik','bankAccount'],['corrAccount'],['postalAddress']]}/>
+                    </div>
+                  </>}
+
+                  {/* УЧАСТНИК 2 */}
+                  {needsCounter&&<>
+                    <SectionHeader num={needsOrg?3:2} icon="👥" title="Участник 2 — Контрагент (вторая сторона)" sub="Загрузите паспорт контрагента или введите вручную"/>
+                    <div style={boxStyle}>
+                      <UploadBtn docId="counter" prompt="Паспорт второй стороны сделки. Извлеки: counterFullName (ФИО), counterPassport (серия/номер паспорта), counterAddress (адрес)." done={!!(fields.counterFullName)}/>
+                      <InputRows rows={[['counterFullName'],['counterPassport'],['counterAddress']]}/>
+                    </div>
+                  </>}
+
+                  {/* РЕБЁНОК */}
+                  {needsChild&&<>
+                    <SectionHeader num={[needsOrg,needsCounter].filter(Boolean).length+2} icon="👶" title="Данные ребёнка" sub="Загрузите свидетельство о рождении или введите вручную"/>
+                    <div style={boxStyle}>
+                      <UploadBtn docId="child" prompt="Свидетельство о рождении. Извлеки: childName (ФИО ребёнка), childBirthDate (дата рождения), childPassport." done={!!(fields.childName)}/>
+                      <InputRows rows={[['childName'],['childBirthDate'],['childPassport']]}/>
+                    </div>
+                  </>}
+
+                  {/* АВТОМОБИЛЬ */}
+                  {needsCar&&<>
+                    <SectionHeader num={[needsOrg,needsCounter,needsChild].filter(Boolean).length+2} icon="🚗" title="Данные автомобиля" sub="Загрузите ПТС/СТС или введите вручную"/>
+                    <div style={boxStyle}>
+                      <UploadBtn docId="car" prompt="ПТС или СТС. Извлеки: carBrand (марка), carYear (год), carVin (VIN), vehiclePlate (госномер)." done={!!(fields.carBrand&&fields.carVin)}/>
+                      <InputRows rows={[['carBrand','carYear'],['carVin'],['vehiclePlate']]}/>
+                    </div>
+                  </>}
+
+                  {/* ДАННЫЕ ДОКУМЕНТА */}
+                  {otherExtras.length>0&&<>
+                    <SectionHeader num={[needsOrg,needsCounter,needsChild,needsCar].filter(Boolean).length+2} icon="📋" title="Данные документа" sub="Специфичные для этого шаблона"/>
+                    <div style={boxStyle}>
+                      <InputRows rows={otherExtras.map(k=>[k])}/>
+                    </div>
+                  </>}
+
+                  {/* ЛЮБОЙ ДРУГОЙ ДОК */}
+                  <div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:'rgba(79,142,247,0.05)',border:`1px dashed rgba(79,142,247,0.3)`}}>
+                    <div style={{fontSize:10,fontWeight:700,color:ACCENT,marginBottom:6}}>📄 Загрузить любой другой документ</div>
+                    <div style={{fontSize:10,color:SUB,marginBottom:8}}>Выписка ЕГРН, договор, справка, ИНН, СНИЛС — бот извлечёт все данные</div>
+                    <UploadBtn docId="other" prompt="Извлеки максимум данных: ФИО, паспорт, адрес, ИНН, СНИЛС, реквизиты организации, банковские данные." done={false}/>
+                  </div>
+                </>;
+              })()}
 
               {/* Create button */}
               <motion.button whileTap={{scale:0.97}} onClick={()=>buildDoc(collectingTpl)}
