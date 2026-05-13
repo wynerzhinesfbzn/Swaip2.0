@@ -2824,6 +2824,7 @@ export default function AssistantScreen({ specialist: sp, onBack, savedState, on
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const [playing, setPlaying] = useState(false);
   const [speakLoading, setSpeakLoading] = useState(false);
@@ -2854,6 +2855,7 @@ export default function AssistantScreen({ specialist: sp, onBack, savedState, on
   const cameraRef = useRef<HTMLInputElement>(null);
   const igorScanFileRef = useRef<HTMLInputElement>(null);
   const igorScanCameraRef = useRef<HTMLInputElement>(null);
+  const igorScanBwRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   const greetAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2969,6 +2971,58 @@ export default function AssistantScreen({ specialist: sp, onBack, savedState, on
     setError('');
     e.target.value = '';
   };
+
+  /* ── Document scan processing ── */
+  const applyScanFilter = useCallback((file: File, mode: 'color' | 'bw') => {
+    setScanning(true);
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        /* Scale up for better quality — max 2400px on longest side */
+        const MAX = 2400;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+
+        if (mode === 'color') {
+          /* Color scan: high contrast + vivid colours + whiter background */
+          ctx.filter = 'contrast(1.45) saturate(1.3) brightness(1.12)';
+          ctx.drawImage(img, 0, 0, width, height);
+        } else {
+          /* B&W scan: greyscale + high contrast — classic document scanner */
+          ctx.filter = 'grayscale(1) contrast(1.9) brightness(1.18)';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          /* Second pass: pixel-level threshold to make text crisp */
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const d = imageData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const v = d[i]; /* already grey after first pass */
+            const out = v > 172 ? 255 : v < 80 ? 0 : v;
+            d[i] = d[i + 1] = d[i + 2] = out;
+          }
+          ctx.putImageData(imageData, 0, 0);
+        }
+
+        canvas.toBlob(blob => {
+          if (!blob) { setScanning(false); return; }
+          const scanned = new File([blob], 'scan.jpg', { type: 'image/jpeg' });
+          setImageFile(scanned);
+          setImagePreview(canvas.toDataURL('image/jpeg', 0.95));
+          setInputText('Извлеки все данные из этого документа и сообщи мне что ты видишь');
+          setScanning(false);
+        }, 'image/jpeg', 0.95);
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   const removeImage = () => {
     setImageFile(null);
@@ -3519,27 +3573,57 @@ export default function AssistantScreen({ specialist: sp, onBack, savedState, on
 
                 {/* Igor: scan document */}
                 {isIgor && (
-                  <div style={{ background: 'linear-gradient(135deg,#0d1b2a,#162032)', padding: '12px 14px', borderTop: `1px solid ${sp.inputBorder}` }}>
+                  <div style={{ background: 'linear-gradient(135deg,#0d1b2a,#162032)', padding: '12px 14px', borderTop: `1px solid ${sp.inputBorder}`, position: 'relative', overflow: 'hidden' }}>
+
+                    {/* Scanning animation overlay */}
+                    <AnimatePresence>
+                      {scanning && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          style={{ position: 'absolute', inset: 0, background: 'rgba(9,9,15,0.92)', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                          {/* Scan line sweeping down */}
+                          <div style={{ position: 'relative', width: 120, height: 80, border: '2px solid #e8c97a', borderRadius: 6, overflow: 'hidden', background: 'rgba(0,0,0,0.4)' }}>
+                            <motion.div
+                              animate={{ y: [0, 76, 0] }}
+                              transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}
+                              style={{ position: 'absolute', left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, transparent, #e8c97a, transparent)', boxShadow: '0 0 8px #e8c97a' }} />
+                          </div>
+                          <div style={{ color: '#e8c97a', fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>Сканирую…</div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     <div style={{ fontSize: 9, fontWeight: 800, color: '#e8c97a', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
-                      📸 Скан или фото документа
+                      📸 Скан документа
                     </div>
                     <div style={{ fontSize: 10, color: 'rgba(232,201,122,0.75)', marginBottom: 10, fontWeight: 600, lineHeight: 1.4 }}>
-                      Пришлите паспорт, договор, решение суда, приказ, ПТС и т.д. — я извлеку все данные сам
+                      Паспорт, договор, решение суда, приказ, ПТС — извлеку все данные сам
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <motion.button whileTap={{ scale: 0.95 }}
+
+                    {/* 3 buttons */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+                      <motion.button whileTap={{ scale: 0.95 }} disabled={scanning}
                         onClick={() => igorScanCameraRef.current?.click()}
-                        style={{ flex: 1, padding: '11px 8px', borderRadius: 12, background: '#e8c97a', border: 'none', color: '#0d1b2a', fontSize: 12, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        📷 Сфотографировать
+                        style={{ padding: '11px 6px', borderRadius: 12, background: '#e8c97a', border: 'none', color: '#0d1b2a', fontSize: 11, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: scanning ? 0.5 : 1 }}>
+                        🎨 Цветной скан
                       </motion.button>
-                      <motion.button whileTap={{ scale: 0.95 }}
-                        onClick={() => igorScanFileRef.current?.click()}
-                        style={{ flex: 1, padding: '11px 8px', borderRadius: 12, background: 'rgba(232,201,122,0.15)', border: '1.5px solid #e8c97a', color: '#e8c97a', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        🖼 Из галереи
+                      <motion.button whileTap={{ scale: 0.95 }} disabled={scanning}
+                        onClick={() => igorScanBwRef.current?.click()}
+                        style={{ padding: '11px 6px', borderRadius: 12, background: 'rgba(232,201,122,0.15)', border: '1.5px solid #e8c97a', color: '#e8c97a', fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: scanning ? 0.5 : 1 }}>
+                        🖤 Ч/Б скан
                       </motion.button>
                     </div>
+                    <motion.button whileTap={{ scale: 0.95 }} disabled={scanning}
+                      onClick={() => igorScanFileRef.current?.click()}
+                      style={{ width: '100%', padding: '8px 6px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(232,201,122,0.35)', color: 'rgba(232,201,122,0.6)', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: scanning ? 0.5 : 1 }}>
+                      🖼 Прикрепить готовое фото из галереи (без обработки)
+                    </motion.button>
+
+                    {/* Hidden inputs */}
                     <input ref={igorScanCameraRef} type="file" accept="image/*" capture="environment"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) { handleFile(e); setInputText('Извлеки все данные из этого документа и сообщи мне что ты видишь'); } e.target.value = ''; }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) applyScanFilter(f, 'color'); e.target.value = ''; }}
+                      style={{ display: 'none' }} />
+                    <input ref={igorScanBwRef} type="file" accept="image/*" capture="environment"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) applyScanFilter(f, 'bw'); e.target.value = ''; }}
                       style={{ display: 'none' }} />
                     <input ref={igorScanFileRef} type="file" accept="image/*"
                       onChange={e => { const f = e.target.files?.[0]; if (f) { handleFile(e); setInputText('Извлеки все данные из этого документа и сообщи мне что ты видишь'); } e.target.value = ''; }}
