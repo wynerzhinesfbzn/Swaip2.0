@@ -1678,7 +1678,9 @@ function parseDocText(text:string):Record<string,string>{
 }
 
 function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onExtract:(b64:string,mime:string,docId:string,prompt:string)=>Promise<void>;onFieldsSet:(fields:Record<string,string>)=>void;onClose:()=>void}){
+  const A4R=Math.SQRT2; // A4 portrait aspect ratio h/w = √2
   const [crop,setCrop]=useState<ScanCrop>({x:0.03,y:0.03,w:0.94,h:0.94});
+  const [a4Lock,setA4Lock]=useState(false);
   const [activeHandle,setActiveHandle]=useState<null|'move'|'tl'|'tr'|'bl'|'br'>(null);
   const [startPos,setStartPos]=useState({cx:0,cy:0,crop:{x:0,y:0,w:0,h:0}});
   const [scanning,setScanning]=useState(false);
@@ -1718,6 +1720,19 @@ function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onE
     }else{setActiveHandle(h);setStartPos({cx:pos.x,cy:pos.y,crop:{...crop}});}
   };
 
+  // When a4Lock: enforce portrait A4 aspect ratio (h = w * √2), adjusted by image pixel ratio
+  const snapA4=(nc:{x:number;y:number;w:number;h:number},force=false):{x:number;y:number;w:number;h:number}=>{
+    if((!a4Lock&&!force)||!imgRef.current)return nc;
+    // Image natural dimensions determine pixel ratio
+    const {naturalWidth:nw,naturalHeight:nh}=imgRef.current;
+    // In normalised coords: actual pixel ratio of w vs h
+    const pixRatio=nw/nh; // px per unit-x / px per unit-y
+    const targetH=nc.w*A4R/pixRatio; // h in normalised units for A4 portrait
+    const h2=Math.min(targetH,1-nc.y);
+    const w2=h2*pixRatio/A4R;
+    return{...nc,w:Math.max(0.05,Math.min(w2,1-nc.x)),h:Math.max(0.05,h2)};
+  };
+
   const onPtrMove=(e:React.PointerEvent)=>{
     if(!activeHandle)return;
     const pos=norm(e);
@@ -1729,7 +1744,7 @@ function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onE
     else if(activeHandle==='tr'){const ny=Math.max(0,Math.min(sc.y+sc.h-MIN,sc.y+dy));nc.w=Math.max(MIN,Math.min(1-sc.x,sc.w+dx));nc.h=sc.h-(ny-sc.y);nc.y=ny;}
     else if(activeHandle==='bl'){const nx=Math.max(0,Math.min(sc.x+sc.w-MIN,sc.x+dx));nc.w=sc.w-(nx-sc.x);nc.x=nx;nc.h=Math.max(MIN,Math.min(1-sc.y,sc.h+dy));}
     else if(activeHandle==='br'){nc.w=Math.max(MIN,Math.min(1-sc.x,sc.w+dx));nc.h=Math.max(MIN,Math.min(1-sc.y,sc.h+dy));}
-    setCrop(nc);
+    setCrop(snapA4(nc));
   };
 
   const cropToBase64=async(c:ScanCrop):Promise<string>=>{
@@ -1801,8 +1816,8 @@ function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onE
       const cv2=document.createElement('canvas');cv2.width=A4W;cv2.height=A4H;
       const ctx2=cv2.getContext('2d')!;
       ctx2.fillStyle='#ffffff';ctx2.fillRect(0,0,A4W,A4H);
-      // Scale to fill A4 (cover, center)
-      const scale=Math.max(A4W/srcImg.width,A4H/srcImg.height);
+      // contain: preserve proportions, white margins where document doesn't reach
+      const scale=Math.min(A4W/srcImg.width,A4H/srcImg.height);
       const sw=srcImg.width*scale,sh=srcImg.height*scale;
       ctx2.drawImage(srcImg,(A4W-sw)/2,(A4H-sh)/2,sw,sh);
       const a4b64=cv2.toDataURL('image/jpeg',0.95).split(',')[1];
@@ -1826,10 +1841,19 @@ function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onE
 
   return(
     <div style={{position:'fixed',inset:0,zIndex:9999,background:'#080808',display:'flex',flexDirection:'column',fontFamily:'system-ui,sans-serif'}}>
-      <div style={{padding:'13px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid #1a1a1a',flexShrink:0}}>
-        <button onClick={onClose} style={{background:'none',border:'none',color:'#888',fontSize:13,cursor:'pointer',padding:'4px 8px'}}>✕ Отмена</button>
-        <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>📷 Выберите область</div>
-        <div style={{width:70}}/>
+      <div style={{padding:'10px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid #1a1a1a',flexShrink:0,gap:8}}>
+        <button onClick={onClose} style={{background:'none',border:'none',color:'#888',fontSize:13,cursor:'pointer',padding:'4px 8px',flexShrink:0}}>✕</button>
+        <div style={{fontSize:12,fontWeight:700,color:'#fff',flex:1,textAlign:'center'}}>📷 Выберите область</div>
+        {/* A4 frame lock toggle */}
+        <button
+          onClick={()=>{
+            const next=!a4Lock;
+            setA4Lock(next);
+            if(next) setCrop(c=>snapA4({...c},true));
+          }}
+          style={{padding:'6px 10px',borderRadius:8,background:a4Lock?'#7c3aed':'#1f1f1f',border:`1.5px solid ${a4Lock?'#a855f7':'#333'}`,color:a4Lock?'#fff':'#777',fontSize:11,fontWeight:800,cursor:'pointer',flexShrink:0,transition:'all 0.2s'}}>
+          📄 A4
+        </button>
       </div>
 
       <div ref={containerRef} style={{flex:1,position:'relative',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',background:'#111',touchAction:'none'}}
@@ -1845,7 +1869,12 @@ function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onE
           <defs><mask id="shole"><rect width="100%" height="100%" fill="white"/>
             <rect x={selL} y={selT} width={selW} height={selH} fill="black"/></mask></defs>
           <rect width="100%" height="100%" fill="rgba(0,0,0,0.62)" mask="url(#shole)"/>
-          <rect x={selL} y={selT} width={selW} height={selH} fill="none" stroke="#4f8ef7" strokeWidth="2.5" strokeDasharray="8,4"/>
+          <rect x={selL} y={selT} width={selW} height={selH} fill="none" stroke={a4Lock?'#a855f7':'#4f8ef7'} strokeWidth={a4Lock?3:2.5} strokeDasharray={a4Lock?"none":"8,4"}/>
+          {/* A4 badge when locked */}
+          {a4Lock&&<>
+            <rect x={`${ir.left+crop.x*ir.width+4}px`} y={`${ir.top+crop.y*ir.height+4}px`} width="34" height="18" rx="4" fill="#7c3aed" opacity="0.92"/>
+            <text x={`${ir.left+crop.x*ir.width+21}px`} y={`${ir.top+crop.y*ir.height+16}px`} textAnchor="middle" fill="#fff" fontSize="10" fontWeight="800">A4</text>
+          </>}
           {/* Grid lines */}
           <line x1={`${ir.left+crop.x*ir.width+crop.w*ir.width/3}px`} y1={selT} x2={`${ir.left+crop.x*ir.width+crop.w*ir.width/3}px`} y2={`${ir.top+crop.y*ir.height+crop.h*ir.height}px`} stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
           <line x1={`${ir.left+crop.x*ir.width+crop.w*ir.width*2/3}px`} y1={selT} x2={`${ir.left+crop.x*ir.width+crop.w*ir.width*2/3}px`} y2={`${ir.top+crop.y*ir.height+crop.h*ir.height}px`} stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
