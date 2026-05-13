@@ -2150,35 +2150,45 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                 </div>
               ))}
 
-              {/* Step 2: Manual fields */}
+              {/* Step 2: First party data — always shown */}
+              <div style={{display:'flex',alignItems:'center',gap:8,marginTop:16,marginBottom:12}}>
+                <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>2</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Данные первой стороны (вы)</div>
+                  <div style={{fontSize:10,color:SUB,marginTop:1}}>Заполните вручную или загрузите паспорт выше</div>
+                </div>
+              </div>
+              <div style={{borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,padding:'14px',marginBottom:10}}>
+                {([['fullName'],['passportSeries','passportNumber'],['passportIssuedBy'],['passportIssuedDate','birthDate'],['birthPlace'],['regAddress'],['inn','snils'],['phone']] as Array<Array<keyof DocFields>>).map((row,ri)=>(
+                  <div key={ri} style={{display:'grid',gridTemplateColumns:row.length===1?'1fr':`repeat(${row.length},1fr)`,gap:8,marginBottom:8}}>
+                    {row.map(k=>(
+                      <div key={k}>
+                        <div style={{fontSize:9,fontWeight:700,color:fields[k]?ACCENT:SUB,marginBottom:3,textTransform:'uppercase',letterSpacing:0.5}}>{FL[k]??k}</div>
+                        <input value={fields[k]} onChange={e=>setField(k,e.target.value)} placeholder={FL[k]??k}
+                          style={{width:'100%',padding:'9px 10px',borderRadius:8,background:CARD2,border:`1.5px solid ${fields[k]?'rgba(79,142,247,0.45)':BORDER}`,color:TEXT,fontSize:12,outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}/>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              {/* Step 3: Template-specific extras */}
               {collectingTpl.extras.length>0&&(
                 <>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:16,marginBottom:12}}>
-                    <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>2</div>
-                    <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Заполните данные для этого документа</div>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,marginBottom:12}}>
+                    <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>3</div>
+                    <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Данные для этого документа</div>
                   </div>
-                  {collectingTpl.extras.map(k=>(
-                    <div key={k} style={{marginBottom:10}}>
-                      <div style={{fontSize:10,fontWeight:700,color:SUB,marginBottom:4,textTransform:'uppercase',letterSpacing:0.5}}>{FL[k]??k}</div>
-                      <input value={fields[k]} onChange={e=>setField(k,e.target.value)} placeholder={FL[k]??k}
-                        style={{width:'100%',padding:'11px 14px',borderRadius:10,background:CARD2,border:`1.5px solid ${fields[k]?'rgba(79,142,247,0.5)':BORDER}`,color:TEXT,fontSize:13,outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}/>
-                    </div>
-                  ))}
+                  <div style={{borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,padding:'14px',marginBottom:10}}>
+                    {collectingTpl.extras.map(k=>(
+                      <div key={k} style={{marginBottom:8}}>
+                        <div style={{fontSize:9,fontWeight:700,color:fields[k]?ACCENT:SUB,marginBottom:3,textTransform:'uppercase',letterSpacing:0.5}}>{FL[k]??k}</div>
+                        <input value={fields[k]} onChange={e=>setField(k,e.target.value)} placeholder={FL[k]??k}
+                          style={{width:'100%',padding:'9px 10px',borderRadius:8,background:CARD2,border:`1.5px solid ${fields[k]?'rgba(79,142,247,0.45)':BORDER}`,color:TEXT,fontSize:12,outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}/>
+                      </div>
+                    ))}
+                  </div>
                 </>
-              )}
-
-              {/* Auto-filled data summary */}
-              {fields.fullName&&(
-                <div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:'rgba(52,211,153,0.07)',border:`1px solid rgba(52,211,153,0.2)`}}>
-                  <div style={{fontSize:10,fontWeight:800,color:GREEN,marginBottom:6,textTransform:'uppercase',letterSpacing:0.5}}>✅ Уже заполнено из ваших данных</div>
-                  <div style={{fontSize:11,color:TEXT,lineHeight:1.8}}>
-                    {fields.fullName&&<div>👤 {fields.fullName}</div>}
-                    {fields.passportNumber&&<div>🪪 Паспорт {fields.passportSeries} {fields.passportNumber}</div>}
-                    {fields.birthDate&&<div>📅 {fields.birthDate}</div>}
-                    {fields.regAddress&&<div>🏠 {fields.regAddress}</div>}
-                    {fields.inn&&<div>🔢 ИНН {fields.inn}</div>}
-                  </div>
-                </div>
               )}
 
               {/* Create button */}
