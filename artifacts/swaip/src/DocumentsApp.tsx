@@ -1636,6 +1636,12 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
   const fileRef=useRef<HTMLInputElement>(null);
   const analyseRef=useRef<HTMLInputElement>(null);
   const convRef=useRef<HTMLInputElement>(null);
+  /* collect-screen */
+  const [collectingTpl,setCollectingTpl]=useState<Template|null>(null);
+  const [collectExtracting,setCollectExtracting]=useState<string|null>(null);
+  const collectPhotoRef=useRef<HTMLInputElement>(null);
+  const collectDocIdRef=useRef<string>('');
+  const collectPromptRef=useRef<string>('');
 
   useEffect(()=>{
     try{const s=localStorage.getItem('swaip_docs_recent');if(s)setRecentDocs(JSON.parse(s));}catch{}
@@ -1707,7 +1713,22 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
     finally{setAnalysing(false);}
   },[]);
 
-  const buildDoc=(tpl:Template)=>{setSelectedTpl(tpl);setResult(tpl.build(fields));setTab('templates');};
+  const buildDoc=(tpl:Template)=>{setSelectedTpl(tpl);setResult(tpl.build(fields));setCollectingTpl(null);setTab('templates');};
+
+  /* Extract data from image in collect screen */
+  const collectExtract=useCallback(async(imageBase64:string,imageMime:string,docId:string,prompt:string)=>{
+    setCollectExtracting(docId);
+    try{
+      const token=localStorage.getItem('session_token')||'';
+      const resp=await fetch('/api/assistants/solve',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':token},body:JSON.stringify({assistantId:'igor',text:`Извлеки данные из документа. Верни ТОЛЬКО JSON без пояснений, комментариев и markdown. ${prompt} Поля: {"fullName":"","passportSeries":"","passportNumber":"","passportIssuedBy":"","passportIssuedDate":"","birthDate":"","birthPlace":"","regAddress":"","inn":"","snils":"","phone":"","childName":"","childBirthDate":"","childPassport":"","carBrand":"","carYear":"","carVin":"","vehiclePlate":"","counterFullName":"","counterAddress":"","counterPhone":"","orgName":"","orgInn":"","ogrn":""}. Незнакомые поля — пустая строка.`,imageBase64,imageMime})});
+      if(!resp.ok)throw new Error('err');
+      const data=await resp.json();const text:string=data.answer??data.text??'';
+      const m=text.match(/\{[\s\S]*?\}/);
+      if(m){const p=JSON.parse(m[0]);setFields(f=>({...f,...Object.fromEntries(Object.entries(p).filter(([,v])=>v).map(([k,v])=>([k,f[k as keyof DocFields]||v as string])))}));showToast('✅ Данные распознаны автоматически');}
+      else showToast('⚠️ Не удалось распознать — заполните вручную');
+    }catch{showToast('⚠️ Ошибка распознавания — заполните вручную');}
+    finally{setCollectExtracting(null);}
+  },[]);
 
   /* Download result */
   const doDownload=async(fmt:'txt'|'docx'|'pdf'|'rtf')=>{
@@ -1842,6 +1863,18 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
 
   const visibleTemplates=TEMPLATES.filter(t=>(catFilter==='Все'||t.category===catFilter)&&(search===''||t.name.toLowerCase().includes(search.toLowerCase())||t.desc.toLowerCase().includes(search.toLowerCase())));
 
+  /* Determine which image-doc upload cards to show for a given template */
+  interface CollectDoc{id:string;icon:string;label:string;sublabel:string;prompt:string;done:boolean;}
+  const getCollectDocs=(tpl:Template):CollectDoc[]=>{
+    const ex=new Set(tpl.extras);
+    const docs:CollectDoc[]=[];
+    docs.push({id:'passport',icon:'🪪',label:'Паспорт (разворот с фото)',sublabel:'ФИО, серия/номер, дата выдачи, адрес регистрации — заполнятся автоматически',prompt:'Главное — данные паспорта: ФИО, серия и номер, кем выдан, дата выдачи, дата рождения, место рождения, адрес регистрации, ИНН, СНИЛС.',done:!!(fields.fullName&&fields.passportNumber)});
+    if(ex.has('childName')||ex.has('childBirthDate'))docs.push({id:'child',icon:'👶',label:'Свидетельство о рождении ребёнка',sublabel:'ФИО и дата рождения ребёнка заполнятся автоматически',prompt:'Это свидетельство о рождении. Извлеки: childName (ФИО ребёнка), childBirthDate (дата рождения), childPassport.',done:!!(fields.childName)});
+    if(ex.has('carBrand')||ex.has('carVin')||ex.has('vehiclePlate'))docs.push({id:'car',icon:'🚗',label:'ПТС или СТС',sublabel:'Марка, VIN, год выпуска, госномер заполнятся автоматически',prompt:'Это ПТС или СТС. Извлеки: carBrand (марка), carYear (год), carVin (VIN), vehiclePlate (госномер).',done:!!(fields.carBrand&&fields.carVin)});
+    if(ex.has('counterFullName'))docs.push({id:'counter',icon:'👤',label:'Паспорт второй стороны (контрагента)',sublabel:'ФИО, адрес и данные второй стороны заполнятся автоматически',prompt:'Это паспорт второй стороны сделки. Извлеки: counterFullName, counterAddress, counterPhone.',done:!!(fields.counterFullName)});
+    return docs;
+  };
+
   const Field=({k,placeholder}:{k:keyof DocFields;placeholder?:string})=>(
     <div style={{marginBottom:10}}>
       <div style={{fontSize:10,fontWeight:700,color:SUB,marginBottom:4,textTransform:'uppercase',letterSpacing:0.5}}>{FL[k]}</div>
@@ -1869,13 +1902,14 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       <div style={{display:'flex',alignItems:'center',gap:12,padding:'48px 16px 12px',borderBottom:`1px solid ${BORDER}`,background:'rgba(9,9,15,0.98)',flexShrink:0,backdropFilter:'blur(16px)'}}>
         <motion.button whileTap={{scale:0.88}} onClick={()=>{
           if(tab==='templates'&&result){setResult(null);setSelectedTpl(null);setShowDlModal(false);}
+          else if(tab==='templates'&&collectingTpl){setCollectingTpl(null);}
           else if(tab==='templates'&&analysisResult){setAnalysisResult(null);}
           else if(tab==='reader'&&rViewing){setRViewing(false);}
           else onBack();
         }} style={{width:36,height:36,borderRadius:'50%',background:CARD,border:`1px solid ${BORDER}`,color:TEXT,fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>←</motion.button>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:15,fontWeight:900,color:TEXT}}>
-            {tab==='templates'&&result?(selectedTpl?.name??'Документ'):tab==='templates'&&analysisResult?'Анализ документа':'📂 Документы'}
+            {tab==='templates'&&result?(selectedTpl?.name??'Документ'):tab==='templates'&&collectingTpl?collectingTpl.name:tab==='templates'&&analysisResult?'Анализ документа':'📂 Документы'}
           </div>
           {tab==='data'&&filledCount>0&&<div style={{fontSize:10,color:GREEN,marginTop:1,fontWeight:700}}>✓ {filledCount}/{baseKeys.length} основных полей</div>}
         </div>
@@ -1897,7 +1931,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       </div>
 
       {/* Tab bar */}
-      {!(tab==='templates'&&(result||analysisResult))&&!(tab==='reader'&&rViewing)&&(
+      {!(tab==='templates'&&(result||analysisResult||collectingTpl))&&!(tab==='reader'&&rViewing)&&(
         <div style={{display:'flex',borderBottom:`1px solid ${BORDER}`,flexShrink:0,background:'rgba(9,9,15,0.98)'}}>
           {([{id:'data',icon:'👤',label:'Мои данные'},{id:'templates',icon:'📝',label:'Шаблоны'},{id:'reader',icon:'📂',label:'Читалка + Конвертер'}] as const).map(t=>(
             <motion.button key={t.id} whileTap={{scale:0.95}} onClick={()=>setTab(t.id)} style={{flex:1,padding:'12px 4px',background:'transparent',border:'none',color:tab===t.id?ACCENT:SUB,fontSize:10,fontWeight:800,cursor:'pointer',borderBottom:tab===t.id?`2px solid ${ACCENT}`:'2px solid transparent',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
@@ -1981,7 +2015,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
           )}
 
           {/* ═══ ШАБЛОНЫ — список ═══ */}
-          {tab==='templates'&&!result&&!analysisResult&&(
+          {tab==='templates'&&!result&&!analysisResult&&!collectingTpl&&(
             <motion.div key="tpl-list" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{height:'100%',overflowY:'auto',padding:'14px 14px 120px'}}>
               <motion.button whileTap={{scale:0.97}} disabled={analysing} onClick={()=>analyseRef.current?.click()}
                 style={{width:'100%',padding:'14px',borderRadius:14,background:'linear-gradient(135deg,#0d2230,#0d1b38)',border:`1px solid rgba(79,142,247,0.3)`,color:TEXT,fontSize:13,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',gap:12,marginBottom:14,boxSizing:'border-box',opacity:analysing?0.6:1}}>
@@ -2003,7 +2037,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:8}}>
                 {visibleTemplates.map(tpl=>(
-                  <motion.button key={tpl.id} whileTap={{scale:0.97}} onClick={()=>buildDoc(tpl)} style={{padding:'13px',borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:12}}>
+                  <motion.button key={tpl.id} whileTap={{scale:0.97}} onClick={()=>setCollectingTpl(tpl)} style={{padding:'13px',borderRadius:14,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:12}}>
                     <div style={{width:42,height:42,borderRadius:11,background:'rgba(79,142,247,0.12)',border:`1px solid rgba(79,142,247,0.2)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>{tpl.icon}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:12,fontWeight:800,color:TEXT}}>{tpl.name}</div>
@@ -2015,6 +2049,89 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
                 ))}
                 {visibleTemplates.length===0&&<div style={{textAlign:'center',padding:'40px 0',color:SUB,fontSize:13}}>Ничего не найдено</div>}
               </div>
+            </motion.div>
+          )}
+
+          {/* ═══ СБОР ДАННЫХ ДЛЯ ШАБЛОНА ═══ */}
+          {tab==='templates'&&collectingTpl&&!result&&!analysisResult&&(
+            <motion.div key="collect" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} style={{height:'100%',overflowY:'auto',padding:'16px 16px 120px'}}>
+
+              {/* Template card */}
+              <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px',borderRadius:16,background:'linear-gradient(135deg,#0d1b38,#0d2230)',border:`1px solid rgba(79,142,247,0.3)`,marginBottom:20}}>
+                <div style={{width:52,height:52,borderRadius:14,background:'rgba(79,142,247,0.15)',border:`1px solid rgba(79,142,247,0.25)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>{collectingTpl.icon}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:900,color:TEXT,lineHeight:1.3}}>{collectingTpl.name}</div>
+                  <div style={{fontSize:10,color:ACCENT,fontWeight:700,marginTop:3}}>{collectingTpl.category}</div>
+                  <div style={{fontSize:10,color:SUB,marginTop:2,lineHeight:1.4}}>{collectingTpl.desc}</div>
+                </div>
+              </div>
+
+              {/* Step 1: Image docs */}
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>1</div>
+                <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Загрузите документы — бот заполнит автоматически</div>
+              </div>
+
+              {getCollectDocs(collectingTpl).map(doc=>(
+                <div key={doc.id} style={{borderRadius:14,background:CARD,border:`1.5px solid ${doc.done?'rgba(52,211,153,0.5)':BORDER}`,padding:'14px',marginBottom:10,position:'relative',overflow:'hidden'}}>
+                  {doc.done&&<div style={{position:'absolute',top:10,right:12,fontSize:18}}>✅</div>}
+                  <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:10}}>
+                    <span style={{fontSize:24,flexShrink:0}}>{doc.icon}</span>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:800,color:TEXT,paddingRight:28}}>{doc.label}</div>
+                      <div style={{fontSize:10,color:SUB,marginTop:3,lineHeight:1.45}}>{doc.sublabel}</div>
+                    </div>
+                  </div>
+                  <motion.button whileTap={{scale:0.97}} disabled={collectExtracting===doc.id} onClick={()=>{collectDocIdRef.current=doc.id;collectPromptRef.current=doc.prompt;collectPhotoRef.current?.click();}}
+                    style={{width:'100%',padding:'11px',borderRadius:10,background:doc.done?'rgba(52,211,153,0.08)':'rgba(79,142,247,0.1)',border:`1px solid ${doc.done?'rgba(52,211,153,0.4)':ACCENT}`,color:doc.done?GREEN:ACCENT,fontSize:12,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxSizing:'border-box',opacity:collectExtracting===doc.id?0.7:1}}>
+                    {collectExtracting===doc.id?(
+                      <><motion.div animate={{rotate:360}} transition={{duration:1,repeat:Infinity,ease:'linear'}} style={{width:16,height:16,borderRadius:'50%',border:`2px solid rgba(79,142,247,0.2)`,borderTopColor:ACCENT}}/> Распознаю данные…</>
+                    ):doc.done?(
+                      <>📷 Загрузить другое фото</>
+                    ):(
+                      <>📷 {doc.id==='passport'?'Сфотографировать или выбрать фото':'Загрузить фото / скан'}</>
+                    )}
+                  </motion.button>
+                </div>
+              ))}
+
+              {/* Step 2: Manual fields */}
+              {collectingTpl.extras.length>0&&(
+                <>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:16,marginBottom:12}}>
+                    <div style={{width:22,height:22,borderRadius:'50%',background:ACCENT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900,color:'#fff',flexShrink:0}}>2</div>
+                    <div style={{fontSize:12,fontWeight:800,color:TEXT}}>Заполните данные для этого документа</div>
+                  </div>
+                  {collectingTpl.extras.map(k=>(
+                    <div key={k} style={{marginBottom:10}}>
+                      <div style={{fontSize:10,fontWeight:700,color:SUB,marginBottom:4,textTransform:'uppercase',letterSpacing:0.5}}>{FL[k]??k}</div>
+                      <input value={fields[k]} onChange={e=>setField(k,e.target.value)} placeholder={FL[k]??k}
+                        style={{width:'100%',padding:'11px 14px',borderRadius:10,background:CARD2,border:`1.5px solid ${fields[k]?'rgba(79,142,247,0.5)':BORDER}`,color:TEXT,fontSize:13,outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}/>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {/* Auto-filled data summary */}
+              {fields.fullName&&(
+                <div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:'rgba(52,211,153,0.07)',border:`1px solid rgba(52,211,153,0.2)`}}>
+                  <div style={{fontSize:10,fontWeight:800,color:GREEN,marginBottom:6,textTransform:'uppercase',letterSpacing:0.5}}>✅ Уже заполнено из ваших данных</div>
+                  <div style={{fontSize:11,color:TEXT,lineHeight:1.8}}>
+                    {fields.fullName&&<div>👤 {fields.fullName}</div>}
+                    {fields.passportNumber&&<div>🪪 Паспорт {fields.passportSeries} {fields.passportNumber}</div>}
+                    {fields.birthDate&&<div>📅 {fields.birthDate}</div>}
+                    {fields.regAddress&&<div>🏠 {fields.regAddress}</div>}
+                    {fields.inn&&<div>🔢 ИНН {fields.inn}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Create button */}
+              <motion.button whileTap={{scale:0.97}} onClick={()=>buildDoc(collectingTpl)}
+                style={{width:'100%',marginTop:20,padding:'17px',borderRadius:16,background:`linear-gradient(135deg,${ACCENT},#5b21b6)`,border:'none',color:'#fff',fontSize:15,fontWeight:900,cursor:'pointer',boxSizing:'border-box',boxShadow:`0 4px 24px rgba(79,142,247,0.35)`}}>
+                ✨ Создать документ
+              </motion.button>
+              <div style={{textAlign:'center',fontSize:10,color:SUB,marginTop:8,lineHeight:1.5}}>Документ будет готов мгновенно · Скачайте в PDF, DOCX, RTF или TXT</div>
             </motion.div>
           )}
 
@@ -2230,6 +2347,17 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       <input ref={fileRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onChange={e=>{const f=e.target.files?.[0];if(f)processReaderFile(f);e.target.value='';}} style={{display:'none'}}/>
       <input ref={analyseRef} type="file" accept="image/*,.pdf,.docx,.doc,.txt" onChange={e=>{const f=e.target.files?.[0];if(f)analyseDoc(f);e.target.value='';}} style={{display:'none'}}/>
       <input ref={convRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onChange={e=>{const f=e.target.files?.[0];if(f)loadConvFile(f);e.target.value='';}} style={{display:'none'}}/>
+      <input ref={collectPhotoRef} type="file" accept="image/*" onChange={e=>{
+        const f=e.target.files?.[0];
+        if(!f)return;
+        const reader=new FileReader();
+        reader.onload=async ev=>{
+          const dataUrl=ev.target?.result as string;
+          await collectExtract(dataUrl.split(',')[1],f.type||'image/jpeg',collectDocIdRef.current,collectPromptRef.current);
+        };
+        reader.readAsDataURL(f);
+        e.target.value='';
+      }} style={{display:'none'}}/>
     </div>
   );
 }
