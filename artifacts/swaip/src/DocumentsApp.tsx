@@ -1592,7 +1592,87 @@ const CATS=[...new Set(TEMPLATES.map(t=>t.category))];
 type ScannerInfo={imgSrc:string;file:File;docId:string;prompt:string};
 type ScanCrop={x:number;y:number;w:number;h:number};
 
-function ScannerModal({info,onExtract,onClose}:{info:ScannerInfo;onExtract:(b64:string,mime:string,docId:string,prompt:string)=>Promise<void>;onClose:()=>void}){
+/* Free OCR field parser (regex, no API) */
+function parseDocText(text:string):Record<string,string>{
+  const r:Record<string,string>={};
+  const clean=(s:string)=>s.replace(/\s+/g,' ').trim();
+
+  // ФИО: три слова из кириллицы подряд, каждое с заглавной
+  const fioRe=/[А-ЯЁ][а-яёА-ЯЁ]+\s+[А-ЯЁ][а-яёА-ЯЁ]+\s+[А-ЯЁ][а-яёА-ЯЁ]+/g;
+  const fioMatches=[...text.matchAll(fioRe)];
+  if(fioMatches.length>0)r.fullName=clean(fioMatches[0][0]);
+  if(fioMatches.length>1)r.counterFullName=clean(fioMatches[1][0]);
+
+  // Серия и номер паспорта: 4 + 6 цифр
+  const passRe=/(\d{2}\s?\d{2})\s+(\d{6})/g;
+  const passMatches=[...text.matchAll(passRe)];
+  if(passMatches.length>0){r.passportSeries=passMatches[0][1].replace(/\s/,'');r.passportNumber=passMatches[0][2];}
+  if(passMatches.length>1)r.counterPassport=`${passMatches[1][1].replace(/\s/,'')} ${passMatches[1][2]}`;
+
+  // Даты DD.MM.YYYY или DD/MM/YYYY
+  const dateRe=/\b(\d{2}[./]\d{2}[./]\d{4})\b/g;
+  const dates=[...text.matchAll(dateRe)].map(m=>m[1].replace(/\//g,'.'));
+  // Дата рождения — ищем контекст
+  const bdMatch=text.match(/(?:дата\s+рождения|рождения|р\.)[:\s]+(\d{2}[./]\d{2}[./]\d{4})/i);
+  if(bdMatch)r.birthDate=bdMatch[1].replace(/\//g,'.');
+  else if(dates.length>0)r.birthDate=dates[0];
+  // Дата выдачи
+  const issMatch=text.match(/(?:дата\s+выдачи|выдан[аоы]*)[:\s]+(\d{2}[./]\d{2}[./]\d{4})/i);
+  if(issMatch)r.passportIssuedDate=issMatch[1].replace(/\//g,'.');
+  else if(dates.length>1)r.passportIssuedDate=dates[1];
+
+  // Кем выдан
+  const issByMatch=text.match(/(?:кем\s+выдан|выдан(?:о)?)[:\s]+([^\n\d]{5,80})/i);
+  if(issByMatch)r.passportIssuedBy=clean(issByMatch[1]);
+
+  // Место рождения
+  const bpMatch=text.match(/(?:место\s+рождения|м\.р\.)[:\s]+([^\n]{3,100})/i);
+  if(bpMatch)r.birthPlace=clean(bpMatch[1]);
+
+  // Адрес регистрации
+  const addrMatch=text.match(/(?:адрес|место\s+жительства|зарегистрирован[а]?\s+по\s+адресу|проживает)[:\s]+([^\n]{5,150})/i);
+  if(addrMatch)r.regAddress=clean(addrMatch[1]);
+
+  // ИНН (12 цифр = физлицо, 10 = юрлицо)
+  const innMatch=text.match(/ИНН[:\s]*(\d{10,12})/i);
+  if(innMatch){
+    const v=innMatch[1];
+    if(v.length===12)r.inn=v;
+    else{r.orgInn=v;}
+  }
+
+  // СНИЛС: XXX-XXX-XXX XX или 11 цифр
+  const snilsMatch=text.match(/(\d{3}-\d{3}-\d{3}\s?\d{2})/);
+  if(snilsMatch)r.snils=snilsMatch[1];
+
+  // Телефон
+  const phoneMatch=text.match(/(\+7|8)[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}/);
+  if(phoneMatch)r.phone=phoneMatch[0];
+
+  // Наименование организации
+  const orgMatch=text.match(/(?:наименование|организация|ООО|ОАО|ЗАО|АО|ИП)[:\s"«]+([А-ЯЁа-яё\w\s"«»\-]{3,80})/i);
+  if(orgMatch)r.orgName=clean(orgMatch[1]);
+
+  // ОГРН
+  const ogrnMatch=text.match(/ОГРН[:\s]*(\d{13,15})/i);
+  if(ogrnMatch)r.ogrn=ogrnMatch[1];
+
+  // КПП
+  const kppMatch=text.match(/КПП[:\s]*(\d{9})/i);
+  if(kppMatch)r.kpp=kppMatch[1];
+
+  // БИК
+  const bikMatch=text.match(/БИК[:\s]*(\d{9})/i);
+  if(bikMatch)r.bankBik=bikMatch[1];
+
+  // Расчётный счёт
+  const accMatch=text.match(/(?:р[\/]?с|счёт)[:\s]*(\d{20})/i);
+  if(accMatch)r.bankAccount=accMatch[1];
+
+  return r;
+}
+
+function ScannerModal({info,onExtract,onFieldsSet,onClose}:{info:ScannerInfo;onExtract:(b64:string,mime:string,docId:string,prompt:string)=>Promise<void>;onFieldsSet:(fields:Record<string,string>)=>void;onClose:()=>void}){
   const [crop,setCrop]=useState<ScanCrop>({x:0.03,y:0.03,w:0.94,h:0.94});
   const [activeHandle,setActiveHandle]=useState<null|'move'|'tl'|'tr'|'bl'|'br'>(null);
   const [startPos,setStartPos]=useState({cx:0,cy:0,crop:{x:0,y:0,w:0,h:0}});
@@ -1664,11 +1744,40 @@ function ScannerModal({info,onExtract,onClose}:{info:ScannerInfo;onExtract:(b64:
     return cv.toDataURL('image/jpeg',0.93).split(',')[1];
   };
 
+  const [mode,setMode]=useState<'free'|'ai'>('free');
+  const [ocrProgress,setOcrProgress]=useState(0); // 0-100
+  const [ocrText,setOcrText]=useState<string|null>(null);
+
   const doScan=async(full:boolean)=>{
     setScanning(true);
     const b64=full?fullToBase64():await cropToBase64(crop);
-    onClose();
-    await onExtract(b64,'image/jpeg',info.docId,info.prompt);
+    if(mode==='free'){
+      try{
+        setOcrProgress(5);
+        const {createWorker}=await import('tesseract.js');
+        const worker=await createWorker('rus',1,{
+          logger:(m:{status:string;progress:number})=>{
+            if(m.status==='recognizing text')setOcrProgress(Math.round(5+m.progress*90));
+          },
+        });
+        const dataUrl=`data:image/jpeg;base64,${b64}`;
+        const {data:{text}}=await worker.recognize(dataUrl);
+        await worker.terminate();
+        setOcrProgress(100);
+        const parsed=parseDocText(text);
+        setOcrText(text);
+        onFieldsSet(parsed);
+        onClose();
+      }catch(err){
+        console.error(err);
+        // Fallback to AI on OCR failure
+        onClose();
+        await onExtract(b64,'image/jpeg',info.docId,info.prompt);
+      }
+    }else{
+      onClose();
+      await onExtract(b64,'image/jpeg',info.docId,info.prompt);
+    }
     setScanning(false);
   };
 
@@ -1740,15 +1849,44 @@ function ScannerModal({info,onExtract,onClose}:{info:ScannerInfo;onExtract:(b64:
         </>}
       </div>
 
-      <div style={{textAlign:'center',padding:'6px 12px',fontSize:10,color:'#555',flexShrink:0}}>
-        Перетащите угловые маркеры · Перетащите внутри рамки чтобы переместить · Нажмите вне рамки чтобы нарисовать новую
+      <div style={{textAlign:'center',padding:'5px 12px',fontSize:10,color:'#444',flexShrink:0}}>
+        Перетащите угловые маркеры · Внутри рамки — перемещение · Вне рамки — новая область
       </div>
 
-      <div style={{padding:'12px 16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,borderTop:'1px solid #1a1a1a',flexShrink:0}}>
-        <BtnA disabled={scanning||dlLoading} onClick={()=>doScan(false)} col="#4f8ef7">🔍 Сканировать область</BtnA>
-        <BtnA disabled={scanning||dlLoading} onClick={()=>doScan(true)} col="#374151">📄 Весь документ</BtnA>
-        <BtnA disabled={scanning||dlLoading} onClick={()=>doPdf(false)} col="#059669">⬇️ Скачать A4 (область)</BtnA>
-        <BtnA disabled={scanning||dlLoading} onClick={()=>doPdf(true)} col="#374151">📑 Скачать A4 (весь)</BtnA>
+      {/* Mode toggle */}
+      <div style={{padding:'0 16px 8px',flexShrink:0}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,background:'#161616',borderRadius:12,padding:4}}>
+          <button onClick={()=>setMode('free')} style={{padding:'9px',borderRadius:9,background:mode==='free'?'#059669':'transparent',border:'none',color:mode==='free'?'#fff':'#666',fontSize:11,fontWeight:800,cursor:'pointer',transition:'all 0.2s'}}>
+            🆓 Бесплатно (OCR)
+          </button>
+          <button onClick={()=>setMode('ai')} style={{padding:'9px',borderRadius:9,background:mode==='ai'?'#4f8ef7':'transparent',border:'none',color:mode==='ai'?'#fff':'#666',fontSize:11,fontWeight:800,cursor:'pointer',transition:'all 0.2s'}}>
+            🤖 ИИ (точнее)
+          </button>
+        </div>
+        <div style={{fontSize:9,color:'#444',textAlign:'center',marginTop:4}}>
+          {mode==='free'?'Распознавание прямо в браузере · без интернета · данные не покидают устройство':'Отправляет фото на ИИ · точнее для сложных документов'}
+        </div>
+      </div>
+
+      {/* OCR progress bar */}
+      {scanning&&mode==='free'&&ocrProgress>0&&ocrProgress<100&&(
+        <div style={{padding:'0 16px 8px',flexShrink:0}}>
+          <div style={{height:4,background:'#1a1a1a',borderRadius:4,overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${ocrProgress}%`,background:'#059669',borderRadius:4,transition:'width 0.3s'}}/>
+          </div>
+          <div style={{fontSize:10,color:'#059669',textAlign:'center',marginTop:4}}>Распознаю текст… {ocrProgress}%</div>
+        </div>
+      )}
+
+      <div style={{padding:'0 16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,borderTop:'1px solid #1a1a1a',paddingTop:12,flexShrink:0}}>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doScan(false)} col={mode==='free'?'#059669':'#4f8ef7'}>
+          {scanning?(mode==='free'?'OCR…':'ИИ анализирует…'):(mode==='free'?'🆓 Распознать область':'🔍 ИИ: область')}
+        </BtnA>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doScan(true)} col="#374151">
+          {mode==='free'?'🆓 Весь документ':'🤖 ИИ: весь'}
+        </BtnA>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doPdf(false)} col="#7c3aed">⬇️ PDF A4 (область)</BtnA>
+        <BtnA disabled={scanning||dlLoading} onClick={()=>doPdf(true)} col="#374151">📑 PDF A4 (весь)</BtnA>
       </div>
     </div>
   );
@@ -2657,6 +2795,7 @@ export default function DocumentsApp({onBack,myHash:_h}:{onBack:()=>void;myHash?
       {scanner&&<ScannerModal
         info={scanner}
         onExtract={async(b64,mime,docId,prompt)=>{await collectExtract(b64,mime,docId,prompt);}}
+        onFieldsSet={(parsed)=>{setFields(prev=>{const next={...prev};Object.entries(parsed).forEach(([k,v])=>{if(v&&k in next)(next as Record<string,string>)[k]=v;});return next;});}}
         onClose={()=>setScanner(null)}
       />}
     </div>
