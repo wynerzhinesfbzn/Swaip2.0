@@ -5999,25 +5999,8 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           userName={profName}
           userAvatar={avatarSrc||undefined}
           isActive={navTab==='channels'}
+          apiBase={apiBase}
         />
-        {/* Кнопка «Боты» — плавающая в правом нижнем углу */}
-        <motion.button whileTap={{scale:0.88}}
-          onClick={()=>{setNavTab('home');setTimeout(()=>{
-            const el=document.querySelector('[data-bots-trigger]') as HTMLElement|null;
-            if(el)el.click();
-            else{
-              const ev=new CustomEvent('open-bots');
-              window.dispatchEvent(ev);
-            }
-          },50);}}
-          style={{position:'fixed',right:18,bottom:'calc(80px + env(safe-area-inset-bottom,0px))',
-            zIndex:850,width:54,height:54,borderRadius:18,
-            background:`linear-gradient(135deg,${activeAccent},${activeAccent}cc)`,
-            boxShadow:`0 6px 24px ${activeAccent}55`,border:'none',cursor:'pointer',
-            display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2}}>
-          <span style={{fontSize:22,lineHeight:1}}>🤖</span>
-          <span style={{fontSize:8,fontWeight:800,color:'#fff',letterSpacing:'0.04em',lineHeight:1}}>БОТЫ</span>
-        </motion.button>
       </div>
     )}
 

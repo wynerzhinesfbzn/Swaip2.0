@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+const BotBuilder = lazy(() => import('./BotBuilder'));
 import { checkContent, collectPostText } from './contentFilter';
 import { BgMusicAutoplay, BgMusicPicker, type BgMusicPreset } from './BgMusic';
 import { PostExtrasComposer, PostExtrasRenderer, hasAnyExtras, type PostExtras } from './PostExtras';
@@ -495,12 +496,13 @@ interface Props {
   userAvatar?: string;
   isActive: boolean;
   onBack?: ()=>void;
+  apiBase?: string;
 }
 
-export default function ChannelsScreen({ userHash, isDark, c, accent, userName, userAvatar, isActive }: Props) {
+export default function ChannelsScreen({ userHash, isDark, c, accent, userName, userAvatar, isActive, apiBase='' }: Props) {
   const [channels, setChannels] = useChannelsStore(userHash);
   const [groups, setGroups] = useGroupsStore(userHash);
-  const [activeTab, setActiveTab] = useState<'channels'|'groups'>('channels');
+  const [activeTab, setActiveTab] = useState<'channels'|'groups'|'bots'>('channels');
   const [openId, setOpenId] = useState<string|null>(null);
   const [openGroupId, setOpenGroupId] = useState<string|null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -621,12 +623,12 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%',background:c.bg,overflow:'hidden'}}>
 
-      {/* ── Сегментный переключатель Каналы | Группы ── */}
+      {/* ── Сегментный переключатель Каналы | Группы | Боты ── */}
       <div style={{display:'flex',background:c.bg,borderBottom:`1px solid ${c.border}`,flexShrink:0,padding:'10px 16px 0'}}>
         <div style={{display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:12,padding:3,gap:2,width:'100%'}}>
-          {([['channels','📡 Каналы'],['groups','👥 Группы']] as const).map(([tab,label])=>(
+          {([['channels','📡 Каналы'],['groups','👥 Группы'],['bots','🤖 Боты']] as const).map(([tab,label])=>(
             <motion.button key={tab} whileTap={{scale:0.97}} onClick={()=>{setActiveTab(tab);setOpenId(null);setOpenGroupId(null);}}
-              style={{flex:1,padding:'8px 0',borderRadius:10,border:'none',cursor:'pointer',fontWeight:800,fontSize:13,
+              style={{flex:1,padding:'8px 0',borderRadius:10,border:'none',cursor:'pointer',fontWeight:800,fontSize:12,
                 fontFamily:'"Montserrat",sans-serif',transition:'all 0.2s',
                 background:activeTab===tab?accent:'transparent',
                 color:activeTab===tab?'#000':'rgba(255,255,255,0.5)'}}>
@@ -692,6 +694,11 @@ export default function ChannelsScreen({ userHash, isDark, c, accent, userName, 
                 tick={tick}/>
             )
           )
+        )}
+        {activeTab==='bots'&&(
+          <Suspense fallback={<div style={{textAlign:'center',padding:40,color:'rgba(255,255,255,0.4)'}}>Загрузка…</div>}>
+            <BotBuilder apiBase={apiBase} onClose={()=>setActiveTab('channels')}/>
+          </Suspense>
         )}
       </div>
 
