@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "SWAIP"
+title = "SWAP"
 version = "1.0.0"
 id = "artifacts/swaip"
 router = "path"

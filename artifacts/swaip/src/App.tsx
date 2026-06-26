@@ -5,7 +5,6 @@ import SwaipHome from './SwaipHome';
 import { ed25519 } from '@noble/curves/ed25519';
 import bgImage from "@assets/kuku-img_(7)_1775319807326.png";
 import bgCompass from "@assets/kuku-img_(7)_1775321655252.png";
-import heroSwaip from "@assets/image_(65)_1777224756965.jpg";
 import { useCallSignaling } from './useCallSignaling';
 import type { CallType, UseCallSignalingReturn } from './useCallSignaling';
 import { getTranslations, type T } from './i18n';

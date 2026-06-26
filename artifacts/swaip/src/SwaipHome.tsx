@@ -473,10 +473,11 @@ function RingtoneModal({c,isDark,modalStyle,mHead,ringtoneId,onSelect,onClose}:{
 }
 
 /* ══ Боковое меню (слайд слева) ══ */
-function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,onAssistant,onGames,onBots,onCinema,onClips,onEvents,onMusic,onListenTogether,onPetya,onDocuments,onContacts,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMusic?:()=>void;onListenTogether?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;onContacts?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
+function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onExchange,onAssistant,onClips,onEvents,onPetya,onDocuments,onContacts,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onEntertainment?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onClips?:()=>void;onEvents?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;onContacts?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
-  type Modal='language'|'privacy'|'about'|'docs'|'ringtone';
+  type Modal='settings'|'about'|'docs';
   const [modal,setModal]=useState<Modal|null>(null);
+  const [settingsTab,setSettingsTab]=useState<'language'|'ringtone'|'privacy'>('language');
   const [docType,setDocType]=useState<'privacy'|'terms'|'pd'|'cookies'>('privacy');
   const [langSearch,setLangSearch]=useState('');
   const [curLang,setCurLang]=useState(()=>{
@@ -534,21 +535,14 @@ function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,
   const SETTINGS=[
     {icon:'🎬',label:'Клипы',sub:'Короткие вертикальные видео — TikTok-стиль',fn:()=>{onClips?.();onClose();}},
     {icon:'🤖',label:'Виртуальные помощники',sub:'Юрист · Врач · Репетитор · Шеф · Психолог и другие',fn:()=>{onPetya?.();onClose();}},
-    {icon:'🎤',label:'Музыкальная комната',sub:'Каракоке · Голосовые эффекты · Синхронный плеер',fn:()=>{onMusic?.();onClose();}},
-    {icon:'🎵',label:'Слушаем вместе',sub:'Включи музыку для всей комнаты',fn:()=>{onListenTogether?.();onClose();}},
     {icon:'📅',label:'Мероприятия',sub:'Создавай события · Зови друзей · RSVP',fn:()=>{onEvents?.();onClose();}},
-    {icon:'🍿',label:'Кинотеатр',sub:'Смотри видео вместе с друзьями синхронно',fn:()=>{onCinema?.();onClose();}},
-    {icon:'🛋️',label:'Комнаты отдыха',sub:'Живой чат · Голосовые · До 20 человек',fn:()=>{onLounge?.();onClose();}},
-    {icon:'🤖',label:'Боты SWAP',sub:'Конструктор интерактивных ботов',fn:()=>{onBots?.();onClose();}},
-    {icon:'🎮',label:'Игры',sub:'80+ игр · Сега, Денди, Флэш и онлайн',fn:()=>{onGames?.();onClose();}},
+    {icon:'🎭',label:'Развлечения',sub:'Игры · Кино · Музыка · Чат · Вместе',fn:()=>{onEntertainment?.();onClose();}},
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
     {icon:'📂',label:'Читалка документов',sub:'PDF · DOCX · TXT · XLSX · CSV · Сканер',fn:()=>{onDocuments?.();onClose();}},
     {icon:'📊',label:'Биржа SWP',sub:'Монета SWAP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
     {icon:'📲',label:'Контакты телефона',sub:'Пригласи друзей в SWAP через SMS',fn:()=>{onContacts?.();onClose();}},
     {icon:'🎨',label:'Оформление',sub:'Тема, обложка, аватар',fn:()=>{onDesign?.();onClose();}},
-    {icon:'🔔',label:'Рингтон звонка',sub:curRingName,fn:()=>setModal('ringtone')},
-    {icon:'🔒',label:'Приватность',sub:'Кто видит мой профиль',fn:()=>setModal('privacy')},
-    {icon:'🌏',label:'Язык',sub:curLangInfo.flag+' '+curLangInfo.native,fn:()=>setModal('language')},
+    {icon:'⚙️',label:'Настройки',sub:'Язык · Рингтон · Приватность',fn:()=>{setSettingsTab('language');setModal('settings');}},
     {icon:'💬',label:'Поддержка',sub:'Написать в SWAP',fn:()=>window.open('mailto:support@swaip.ru','_blank')},
     {icon:'📄',label:'Документы',sub:'Конфиденциальность, условия, 152-ФЗ',fn:()=>setModal('docs')},
     {icon:'📖',label:'О приложении',sub:'SWAP v2.0',fn:()=>setModal('about')},
@@ -877,111 +871,129 @@ function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,
       )}
     </AnimatePresence>
 
-    {/* ── Модал: Рингтон ── */}
+    {/* ── Модал: Настройки (Язык + Рингтон + Приватность) ── */}
     <AnimatePresence>
-      {open&&modal==='ringtone'&&(
-        <RingtoneModal
-          c={c} isDark={isDark} modalStyle={modalStyle} mHead={mHead}
-          ringtoneId={ringtoneId||'classic'}
-          onSelect={(id)=>{onRingtoneChange?.(id);}}
-          onClose={()=>setModal(null)}
-        />
-      )}
-    </AnimatePresence>
-
-    {/* ── Модал: Язык ── */}
-    <AnimatePresence>
-      {open&&modal==='language'&&(
+      {open&&modal==='settings'&&(
         <motion.div initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}}
           transition={{type:'spring',stiffness:340,damping:32}}
           style={{...modalStyle,zIndex:610}}>
-          {mHead('Язык интерфейса',()=>{setModal(null);setLangSearch('');})}
-          {/* Поиск */}
-          <div style={{padding:'10px 16px',background:isDark?'rgba(10,10,22,0.98)':'rgba(248,248,252,0.98)',
-            position:'sticky',top:66,zIndex:1,backdropFilter:'blur(16px)'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,background:c.cardAlt,
-              border:`1px solid ${c.borderB}`,borderRadius:12,padding:'0 12px'}}>
-              <span style={{fontSize:16,opacity:0.5}}>🔍</span>
-              <input autoFocus value={langSearch} onChange={e=>setLangSearch(e.target.value)}
-                placeholder="Поиск / Search / 搜索..."
-                style={{flex:1,background:'transparent',border:'none',outline:'none',
-                  color:c.light,fontSize:14,padding:'11px 0',fontFamily:'inherit'}}/>
-              {langSearch&&<button onClick={()=>setLangSearch('')}
-                style={{background:'none',border:'none',color:c.sub,fontSize:18,cursor:'pointer',padding:'0 4px'}}>×</button>}
-            </div>
+          {mHead('Настройки',()=>{setModal(null);setLangSearch('');})}
+          {/* Таб-бар */}
+          <div style={{display:'flex',padding:'10px 12px',gap:6,borderBottom:`1px solid ${c.border}`,
+            background:isDark?'rgba(10,10,22,0.98)':'rgba(248,248,252,0.98)',
+            position:'sticky',top:66,zIndex:2,backdropFilter:'blur(16px)',flexShrink:0}}>
+            {(['language','ringtone','privacy'] as const).map(tab=>{
+              const labels={language:'🌏 Язык',ringtone:'🔔 Рингтон',privacy:'🔒 Приватность'};
+              const active=settingsTab===tab;
+              return(
+                <motion.button key={tab} whileTap={{scale:0.95}} onClick={()=>setSettingsTab(tab)}
+                  style={{flex:1,padding:'8px 4px',borderRadius:12,
+                    border:`1.5px solid ${active?c.mid:c.borderB}`,
+                    background:active?`rgba(160,160,200,0.15)`:'transparent',
+                    color:active?c.light:c.sub,fontWeight:700,fontSize:11,
+                    cursor:'pointer',letterSpacing:'0.01em'}}>
+                  {labels[tab]}
+                </motion.button>
+              );
+            })}
           </div>
-          {/* Список */}
-          <div style={{flex:1,overflowY:'auto'}}>
-            {filteredLangs.length===0
-              ?<div style={{textAlign:'center',padding:40,color:c.sub,fontSize:14}}>Ничего не найдено</div>
-              :filteredLangs.map(lang=>(
-                <motion.div key={lang.code} whileTap={{backgroundColor:isDark?'rgba(160,160,200,0.1)':'rgba(0,0,0,0.05)'}}
-                  onClick={()=>pickLang(lang.code)}
-                  style={{display:'flex',alignItems:'center',gap:14,padding:'12px 18px',cursor:'pointer',
-                    borderBottom:`1px solid ${c.border}`,
-                    background:curLang===lang.code?`rgba(160,160,200,0.1)`:'transparent',transition:'background 0.15s'}}>
-                  <span style={{fontSize:28,flexShrink:0,lineHeight:1}}>{lang.flag}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{color:c.light,fontWeight:700,fontSize:15}}>{lang.native}</div>
-                    <div style={{color:c.sub,fontSize:12,marginTop:1}}>{lang.name}</div>
-                  </div>
-                  {curLang===lang.code&&<span style={{color:c.mid,fontSize:18,fontWeight:900}}>✓</span>}
-                </motion.div>
-              ))
-            }
-          </div>
-          <div style={{padding:'12px 16px calc(16px + env(safe-area-inset-bottom,0px))',borderTop:`1px solid ${c.border}`}}>
-            <motion.button whileTap={{scale:0.97}} onClick={()=>{setModal(null);setLangSearch('');}}
-              style={{width:'100%',padding:'13px',background:c.cardAlt,border:`1px solid ${c.borderB}`,
-                borderRadius:14,color:c.mid,fontWeight:700,fontSize:14,cursor:'pointer'}}>Закрыть</motion.button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-
-    {/* ── Модал: Приватность ── */}
-    <AnimatePresence>
-      {open&&modal==='privacy'&&(
-        <motion.div initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}}
-          transition={{type:'spring',stiffness:340,damping:32}}
-          style={{...modalStyle,zIndex:610}}>
-          {mHead('Приватность',()=>setModal(null))}
-          <div style={{flex:1,overflowY:'auto',padding:'20px 16px'}}>
-            <PrivSelect label="Кто видит мой профиль" value={privWho} onChange={setPrivWho}/>
-            <PrivSelect label="Кто видит мой номер телефона" value={privPhone} onChange={setPrivPhone}/>
-            <div style={{marginTop:8}}>
-              <Toggle label="Показывать меня в поиске" sub="Другие пользователи смогут найти ваш профиль по имени и нику" value={privSearch} onChange={setPrivSearch}/>
-              <Toggle label="Показывать статус «онлайн»" sub="Другие видят, когда вы были активны" value={privOnline} onChange={setPrivOnline}/>
+          {/* Содержимое — Язык */}
+          {settingsTab==='language'&&(
+            <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
+              <div style={{padding:'10px 16px',background:isDark?'rgba(10,10,22,0.98)':'rgba(248,248,252,0.98)',
+                position:'sticky',top:0,zIndex:1,backdropFilter:'blur(16px)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,background:c.cardAlt,
+                  border:`1px solid ${c.borderB}`,borderRadius:12,padding:'0 12px'}}>
+                  <span style={{fontSize:16,opacity:0.5}}>🔍</span>
+                  <input autoFocus value={langSearch} onChange={e=>setLangSearch(e.target.value)}
+                    placeholder="Поиск / Search / 搜索..."
+                    style={{flex:1,background:'transparent',border:'none',outline:'none',
+                      color:c.light,fontSize:14,padding:'11px 0',fontFamily:'inherit'}}/>
+                  {langSearch&&<button onClick={()=>setLangSearch('')}
+                    style={{background:'none',border:'none',color:c.sub,fontSize:18,cursor:'pointer',padding:'0 4px'}}>×</button>}
+                </div>
+              </div>
+              <div style={{flex:1,overflowY:'auto'}}>
+                {filteredLangs.length===0
+                  ?<div style={{textAlign:'center',padding:40,color:c.sub,fontSize:14}}>Ничего не найдено</div>
+                  :filteredLangs.map(lang=>(
+                    <motion.div key={lang.code} whileTap={{backgroundColor:isDark?'rgba(160,160,200,0.1)':'rgba(0,0,0,0.05)'}}
+                      onClick={()=>pickLang(lang.code)}
+                      style={{display:'flex',alignItems:'center',gap:14,padding:'12px 18px',cursor:'pointer',
+                        borderBottom:`1px solid ${c.border}`,
+                        background:curLang===lang.code?`rgba(160,160,200,0.1)`:'transparent',transition:'background 0.15s'}}>
+                      <span style={{fontSize:28,flexShrink:0,lineHeight:1}}>{lang.flag}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{color:c.light,fontWeight:700,fontSize:15}}>{lang.native}</div>
+                        <div style={{color:c.sub,fontSize:12,marginTop:1}}>{lang.name}</div>
+                      </div>
+                      {curLang===lang.code&&<span style={{color:c.mid,fontSize:18,fontWeight:900}}>✓</span>}
+                    </motion.div>
+                  ))
+                }
+              </div>
             </div>
-            <div style={{marginTop:20,padding:'14px',background:c.cardAlt,borderRadius:14,border:`1px solid ${c.border}`}}>
-              <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:6}}>Управление данными</div>
-              <motion.button whileTap={{scale:0.96}}
-                onClick={()=>{if(confirm('Удалить все данные профиля? Это действие необратимо.')){}}}
-                style={{width:'100%',padding:'11px',borderRadius:12,background:'rgba(239,68,68,0.07)',
-                  border:'1.5px solid rgba(239,68,68,0.2)',color:'#f87171',fontWeight:700,fontSize:13,cursor:'pointer',marginBottom:8}}>
-                🗑️ Запросить удаление данных
-              </motion.button>
-              <motion.button whileTap={{scale:0.96}}
-                onClick={()=>{
-                  try{
-                    const _uh=localStorage.getItem('swaip_user_hash')||localStorage.getItem('sw_hash')||'';
-                    const snapshot:Record<string,unknown>={exportedAt:new Date().toISOString(),userHash:_uh};
-                    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k){try{snapshot[k]=JSON.parse(localStorage.getItem(k)||'""');}catch{snapshot[k]=localStorage.getItem(k);}}}
-                    const blob=new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'});
-                    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`swaip-data-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000);
-                  }catch(e){alert('Ошибка при генерации архива: '+String(e));}
-                }}
-                style={{width:'100%',padding:'11px',borderRadius:12,background:c.cardAlt,
-                  border:`1px solid ${c.borderB}`,color:c.mid,fontWeight:700,fontSize:13,cursor:'pointer'}}>
-                📥 Скачать мои данные
-              </motion.button>
+          )}
+          {/* Содержимое — Рингтон */}
+          {settingsTab==='ringtone'&&(
+            <div style={{flex:1,overflowY:'auto',padding:'16px'}}>
+              <div style={{fontSize:12,color:c.sub,marginBottom:16,lineHeight:1.5}}>
+                Выберите мелодию входящего звонка. Нажмите ▶ чтобы прослушать.
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {RINGTONE_OPTIONS.map(r=>{
+                  const isActive=(ringtoneId||'classic')===r.id;
+                  return(
+                    <motion.div key={r.id} whileTap={{scale:0.98}}
+                      onClick={()=>onRingtoneChange?.(r.id)}
+                      style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderRadius:14,
+                        border:`1.5px solid ${isActive?c.mid:c.border}`,
+                        background:isActive?`rgba(160,160,200,0.13)`:'transparent',cursor:'pointer'}}>
+                      <span style={{fontSize:20,flexShrink:0}}>{r.emoji}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:isActive?800:600,color:isActive?c.light:c.mid}}>{r.name}</div>
+                        <div style={{fontSize:10,color:c.sub,marginTop:2}}>
+                          {r.id==='custom'?'Файл: /custom-ringtone.mp3':'Синтезированная мелодия'}
+                        </div>
+                      </div>
+                      {isActive&&<span style={{fontSize:16,color:c.mid,flexShrink:0}}>✓</span>}
+                    </motion.div>
+                  );
+                })}
+              </div>
             </div>
-            <div style={{marginTop:12,fontSize:11,color:c.sub,lineHeight:1.6,textAlign:'center'}}>
-              Настройки соответствуют требованиям 152-ФЗ «О персональных данных».<br/>
-              Роскомнадзор: <a href="https://rkn.gov.ru" target="_blank" rel="noreferrer" style={{color:c.mid}}>rkn.gov.ru</a>
+          )}
+          {/* Содержимое — Приватность */}
+          {settingsTab==='privacy'&&(
+            <div style={{flex:1,overflowY:'auto',padding:'20px 16px'}}>
+              <PrivSelect label="Кто видит мой профиль" value={privWho} onChange={setPrivWho}/>
+              <PrivSelect label="Кто видит мой номер телефона" value={privPhone} onChange={setPrivPhone}/>
+              <div style={{marginTop:8}}>
+                <Toggle label="Показывать меня в поиске" sub="Другие пользователи смогут найти ваш профиль по имени и нику" value={privSearch} onChange={setPrivSearch}/>
+                <Toggle label="Показывать статус «онлайн»" sub="Другие видят, когда вы были активны" value={privOnline} onChange={setPrivOnline}/>
+              </div>
+              <div style={{marginTop:20,padding:'14px',background:c.cardAlt,borderRadius:14,border:`1px solid ${c.border}`}}>
+                <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.06em',textTransform:'uppercase',marginBottom:6}}>Управление данными</div>
+                <motion.button whileTap={{scale:0.96}}
+                  onClick={()=>{if(confirm('Удалить все данные профиля? Это действие необратимо.')){}}}
+                  style={{width:'100%',padding:'11px',borderRadius:12,background:'rgba(239,68,68,0.07)',
+                    border:'1.5px solid rgba(239,68,68,0.2)',color:'#f87171',fontWeight:700,fontSize:13,cursor:'pointer',marginBottom:8}}>
+                  🗑️ Запросить удаление данных
+                </motion.button>
+                <motion.button whileTap={{scale:0.96}}
+                  onClick={()=>{try{const _uh=localStorage.getItem('swaip_user_hash')||localStorage.getItem('sw_hash')||'';const snapshot:Record<string,unknown>={exportedAt:new Date().toISOString(),userHash:_uh};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k){try{snapshot[k]=JSON.parse(localStorage.getItem(k)||'""');}catch{snapshot[k]=localStorage.getItem(k);}}}const blob=new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`swaip-data-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000);}catch(e){alert('Ошибка при генерации архива: '+String(e));}}}
+                  style={{width:'100%',padding:'11px',borderRadius:12,background:c.cardAlt,
+                    border:`1px solid ${c.borderB}`,color:c.mid,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+                  📥 Скачать мои данные
+                </motion.button>
+              </div>
+              <div style={{marginTop:12,fontSize:11,color:c.sub,lineHeight:1.6,textAlign:'center'}}>
+                Настройки соответствуют требованиям 152-ФЗ.<br/>
+                Роскомнадзор: <a href="https://rkn.gov.ru" target="_blank" rel="noreferrer" style={{color:c.mid}}>rkn.gov.ru</a>
+              </div>
+              <div style={{height:32}}/>
             </div>
-            <div style={{height:32}}/>
-          </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
@@ -4454,7 +4466,7 @@ function CallOverlayUI({call,peerInfo,apiBase}:{call:ReturnType<typeof useCallSi
 export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLogout,onOldMode,initialProfileHash}:SwaipHomeProps){
   const [isDark,setIsDark]=useState(true);
   let c:Pal=isDark?DARK:LIGHT;
-  const [currentScreen,setCurrentScreen]=useState<'home'|'exchange'|'assistant'|'games'|'bots'|'lounge'|'cinema'|'clips'|'events'|'music'|'listenTogether'|'assistants'|'documents'|'contacts'>('home');
+  const [currentScreen,setCurrentScreen]=useState<'home'|'exchange'|'assistant'|'games'|'lounge'|'cinema'|'clips'|'events'|'music'|'listenTogether'|'assistants'|'documents'|'contacts'|'entertainment'>('home');
   const [myMood,setMyMood]=useState<{emoji:string;text:string}|null>(null);
   const [friendMoods,setFriendMoods]=useState<{userHash:string;userName:string;emoji:string;text:string}[]>([]);
   const [showFeedMoodPicker,setShowFeedMoodPicker]=useState(false);
@@ -5797,8 +5809,57 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
 
     {/* ═══ LAZY ЭКРАНЫ ═══ */}
     <Suspense fallback={null}>
+
+    {/* ── ХАБ: Развлечения ── */}
+    {currentScreen==='entertainment'&&(
+      <motion.div initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}}
+        transition={{type:'spring',stiffness:340,damping:32}}
+        style={{position:'fixed',inset:0,zIndex:800,background:c.bg,
+          display:'flex',flexDirection:'column',overflowY:'auto'}}>
+        {/* Шапка */}
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',
+          background:isDark?'rgba(10,10,22,0.98)':'rgba(248,248,252,0.98)',
+          borderBottom:`1px solid ${c.border}`,position:'sticky',top:0,zIndex:2,
+          backdropFilter:'blur(16px)',flexShrink:0}}>
+          <motion.button whileTap={{scale:0.88}} onClick={()=>setCurrentScreen('home')}
+            style={{width:38,height:38,borderRadius:12,border:`1px solid ${c.borderB}`,
+              background:c.cardAlt,cursor:'pointer',fontSize:18,color:c.mid,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>←</motion.button>
+          <div>
+            <div style={{fontSize:17,fontWeight:900,color:c.light,fontFamily:"'Montserrat',sans-serif"}}>🎭 Развлечения</div>
+            <div style={{fontSize:11,color:c.sub}}>Выбери раздел</div>
+          </div>
+        </div>
+        {/* Плитки */}
+        <div style={{padding:'20px 16px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+          {[
+            {icon:'🎮',label:'Игры',sub:'80+ игр · Сега, Денди, Флэш',screen:'games',grad:'linear-gradient(135deg,#1a0a3a,#3a1060)'},
+            {icon:'🍿',label:'Кинотеатр',sub:'Смотри видео с друзьями',screen:'cinema',grad:'linear-gradient(135deg,#0a1a2a,#1a3a60)'},
+            {icon:'🎤',label:'Музыкальная комната',sub:'Каракоке · Голосовые эффекты',screen:'music',grad:'linear-gradient(135deg,#1a0a1a,#60106a)'},
+            {icon:'🎵',label:'Слушаем вместе',sub:'Синхронный плеер',screen:'listenTogether',grad:'linear-gradient(135deg,#0a1a0a,#106030)'},
+            {icon:'🛋️',label:'Комнаты отдыха',sub:'Голосовые · До 20 человек',screen:'lounge',grad:'linear-gradient(135deg,#1a1200,#4a3000)'},
+          ].map(item=>(
+            <motion.button key={item.screen}
+              whileTap={{scale:0.94}}
+              onClick={()=>setCurrentScreen(item.screen as typeof currentScreen)}
+              style={{background:item.grad,border:`1.5px solid ${activeAccent}22`,
+                borderRadius:20,padding:'20px 14px',cursor:'pointer',textAlign:'left',
+                display:'flex',flexDirection:'column',gap:8,minHeight:130,
+                boxShadow:`0 4px 20px rgba(0,0,0,0.4)`}}>
+              <span style={{fontSize:32,lineHeight:1}}>{item.icon}</span>
+              <div>
+                <div style={{fontSize:13,fontWeight:800,color:'#fff',lineHeight:1.25,
+                  fontFamily:"'Montserrat',sans-serif"}}>{item.label}</div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.5)',marginTop:4,lineHeight:1.4}}>{item.sub}</div>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+    )}
+
     {currentScreen==='cinema'&&(
-      <CinemaScreen myHash={userHash} sessionToken={propToken||getSessionToken()||''} onBack={()=>setCurrentScreen('home')}/>
+      <CinemaScreen myHash={userHash} sessionToken={propToken||getSessionToken()||''} onBack={()=>setCurrentScreen('entertainment')}/>
     )}
     {currentScreen==='clips'&&(
       <ClipsScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
@@ -5807,7 +5868,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       <EventsScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
     )}
     {currentScreen==='music'&&(
-      <MusicRoomScreen myHash={userHash} myName={profName} sessionToken={propToken||getSessionToken()||''} onBack={()=>setCurrentScreen('home')}/>
+      <MusicRoomScreen myHash={userHash} myName={profName} sessionToken={propToken||getSessionToken()||''} onBack={()=>setCurrentScreen('entertainment')}/>
     )}
     {currentScreen==='assistants'&&(
       <AssistantsHub onBack={()=>setCurrentScreen('home')}/>
@@ -5816,18 +5877,13 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       <ContactsScreen userHash={userHash} isDark={isDark} accentColor={activeAccent} onBack={()=>setCurrentScreen('home')}/>
     )}
     {currentScreen==='listenTogether'&&(
-      <ListenTogetherScreen myHash={userHash} myName={profName} onBack={()=>setCurrentScreen('home')}/>
+      <ListenTogetherScreen myHash={userHash} myName={profName} onBack={()=>setCurrentScreen('entertainment')}/>
     )}
     {currentScreen==='lounge'&&(
-      <LoungeScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
+      <LoungeScreen myHash={userHash} onBack={()=>setCurrentScreen('entertainment')}/>
     )}
     {currentScreen==='games'&&(
-      <GamesArcade accentColor={activeAccent} onBack={()=>setCurrentScreen('home')}/>
-    )}
-    {currentScreen==='bots'&&(
-      <div style={{position:'fixed',inset:0,zIndex:800}}>
-        <BotBuilder apiBase={apiBase} onClose={()=>setCurrentScreen('home')}/>
-      </div>
+      <GamesArcade accentColor={activeAccent} onBack={()=>setCurrentScreen('entertainment')}/>
     )}
     {currentScreen==='exchange'&&(
       <SwpExchange
@@ -5877,6 +5933,24 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           userAvatar={avatarSrc||undefined}
           isActive={navTab==='channels'}
         />
+        {/* Кнопка «Боты» — плавающая в правом нижнем углу */}
+        <motion.button whileTap={{scale:0.88}}
+          onClick={()=>{setNavTab('home');setTimeout(()=>{
+            const el=document.querySelector('[data-bots-trigger]') as HTMLElement|null;
+            if(el)el.click();
+            else{
+              const ev=new CustomEvent('open-bots');
+              window.dispatchEvent(ev);
+            }
+          },50);}}
+          style={{position:'fixed',right:18,bottom:'calc(80px + env(safe-area-inset-bottom,0px))',
+            zIndex:850,width:54,height:54,borderRadius:18,
+            background:`linear-gradient(135deg,${activeAccent},${activeAccent}cc)`,
+            boxShadow:`0 6px 24px ${activeAccent}55`,border:'none',cursor:'pointer',
+            display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2}}>
+          <span style={{fontSize:22,lineHeight:1}}>🤖</span>
+          <span style={{fontSize:8,fontWeight:800,color:'#fff',letterSpacing:'0.04em',lineHeight:1}}>БОТЫ</span>
+        </motion.button>
       </div>
     )}
 
@@ -5891,7 +5965,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMusic={()=>setCurrentScreen('music')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} onContacts={()=>setCurrentScreen('contacts')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onEntertainment={()=>setCurrentScreen('entertainment')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} onContacts={()=>setCurrentScreen('contacts')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
