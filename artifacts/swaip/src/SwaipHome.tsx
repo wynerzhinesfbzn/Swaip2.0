@@ -472,7 +472,7 @@ function RingtoneModal({c,isDark,modalStyle,mHead,ringtoneId,onSelect,onClose}:{
 }
 
 /* ══ Боковое меню (слайд слева) ══ */
-function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,onAssistant,onBrowser,onGames,onBots,onCinema,onClips,onEvents,onMusic,onListenTogether,onPetya,onDocuments,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMusic?:()=>void;onListenTogether?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
+function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,onAssistant,onGames,onBots,onCinema,onClips,onEvents,onMusic,onListenTogether,onPetya,onDocuments,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMusic?:()=>void;onListenTogether?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
   type Modal='language'|'privacy'|'about'|'docs'|'ringtone';
   const [modal,setModal]=useState<Modal|null>(null);
@@ -540,7 +540,6 @@ function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,
     {icon:'🛋️',label:'Комнаты отдыха',sub:'Живой чат · Голосовые · До 20 человек',fn:()=>{onLounge?.();onClose();}},
     {icon:'🤖',label:'Боты SWAP',sub:'Конструктор интерактивных ботов',fn:()=>{onBots?.();onClose();}},
     {icon:'🎮',label:'Игры',sub:'80+ игр · Сега, Денди, Флэш и онлайн',fn:()=>{onGames?.();onClose();}},
-    {icon:'🌐',label:'Браузер SWAP',sub:'Открыть встроенный браузер',fn:()=>{onBrowser?.();onClose();}},
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
     {icon:'📂',label:'Читалка документов',sub:'PDF · DOCX · TXT · XLSX · CSV · Сканер',fn:()=>{onDocuments?.();onClose();}},
     {icon:'📊',label:'Биржа SWP',sub:'Монета SWAP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
@@ -4462,61 +4461,12 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [pollForm,setPollForm]=useState({question:'',opts:['',''],allowMultiple:false});
 
   /* ── Навигация и звонки (до условных возвратов!) ── */
-  const [navTab,setNavTab]=useState<'home'|'messages'|'channels'|'browser'|'booking'|'stream'>('home');
+  const [navTab,setNavTab]=useState<'home'|'messages'|'channels'|'booking'|'stream'>('home');
   const [userStatus,setUserStatus]=useState<'online'|'busy'|'dnd'|'invisible'>(() => {
     try { return (localStorage.getItem('swaip_user_status') as any) || 'online'; } catch { return 'online'; }
   });
   const [showStatusPicker,setShowStatusPicker]=useState(false);
   const [showQRModal,setShowQRModal]=useState(false);
-  const [browserUrl,setBrowserUrl]=useState('');
-  const [browserInput,setBrowserInput]=useState('');
-  const [browserHistory,setBrowserHistory]=useState<string[]>([]);
-  const [browserHistIdx,setBrowserHistIdx]=useState(-1);
-  const [browserLoading,setBrowserLoading]=useState(false);
-  const browserRef=useRef<HTMLIFrameElement>(null);
-  const browserInputRef=useRef<HTMLInputElement>(null);
-
-  const mkProxyUrl=(url:string)=>`${window.location.origin}/api/browser-proxy?url=${encodeURIComponent(url)}`;
-
-  const openBrowser=(url:string)=>{
-    const full=url.startsWith('http')?url:`https://${url}`;
-    setBrowserUrl(full);setBrowserInput('');setBrowserLoading(true);
-    setBrowserHistory(h=>{const trimmed=h.slice(0,browserHistIdx+1);return [...trimmed,full];});
-    setBrowserHistIdx(i=>i+1);
-    setNavTab('browser');
-  };
-  const browserNav=(url:string)=>{
-    setBrowserUrl(url);setBrowserInput('');setBrowserLoading(true);
-  };
-  const browserGo=(raw:string)=>{
-    const q=raw.trim();if(!q)return;
-    const url=q.match(/^https?:\/\/|^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/)?q.startsWith('http')?q:`https://${q}`:`https://www.google.com/search?q=${encodeURIComponent(q)}`;
-    setBrowserHistory(h=>{const trimmed=h.slice(0,browserHistIdx+1);return [...trimmed,url];});
-    setBrowserHistIdx(i=>i+1);
-    browserNav(url);
-  };
-
-  const openBrowserRef=useRef(openBrowser);
-  useEffect(()=>{openBrowserRef.current=openBrowser;});
-
-  /* Глобальный перехватчик ссылок → открыть во встроенном браузере */
-  useEffect(()=>{
-    const handler=(e:MouseEvent)=>{
-      let target=e.target as HTMLElement|null;
-      while(target&&target.tagName!=='A')target=target.parentElement;
-      if(!target)return;
-      const href=(target as HTMLAnchorElement).href;
-      if(!href)return;
-      if(href.startsWith('mailto:')||href.startsWith('tel:'))return;
-      if(!href.startsWith('http'))return;
-      if((target as HTMLAnchorElement).closest('iframe'))return;
-      e.preventDefault();
-      e.stopPropagation();
-      openBrowserRef.current(href);
-    };
-    document.addEventListener('click',handler,true);
-    return()=>document.removeEventListener('click',handler,true);
-  },[]);
   const [chatTarget,setChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [secretChatTarget,setSecretChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [ringtoneId, setRingtoneId] = useSaved<RingtoneId>(RINGTONE_PREF_KEY, 'classic');
@@ -5925,141 +5875,6 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       </div>
     )}
 
-    {/* ═══ ЭКРАН: БРАУЗЕР SWAP ═══ */}
-    {navTab==='browser'&&currentScreen==='home'&&(()=>{
-      const SPEED_DIAL=[
-        {ico:'🔍',label:'Google',url:'https://www.google.com'},
-        {ico:'📹',label:'YouTube',url:'https://www.youtube.com'},
-        {ico:'📰',label:'Яндекс',url:'https://yandex.ru'},
-        {ico:'📡',label:'VK',url:'https://vk.com'},
-        {ico:'🤖',label:'ChatGPT',url:'https://chatgpt.com'},
-        {ico:'🌍',label:'Wikipedia',url:'https://ru.wikipedia.org'},
-        {ico:'🛒',label:'Wildberries',url:'https://wildberries.ru'},
-        {ico:'🗺️',label:'Я.Карты',url:'https://maps.yandex.ru'},
-      ];
-      const canBack=browserHistIdx>0;
-      const canFwd=browserHistIdx<browserHistory.length-1;
-      const displayHost=()=>{if(!browserUrl)return '';try{return new URL(browserUrl).hostname;}catch{return browserUrl;}};
-      return(
-        <div style={{position:'fixed',inset:0,zIndex:800,display:'flex',flexDirection:'column',
-          background:isDark?'#08080f':'#f0f0f8'}}>
-
-          {/* Адресная строка */}
-          <div style={{background:isDark?'rgba(12,12,24,0.97)':'rgba(248,248,255,0.97)',
-            backdropFilter:'blur(20px)',borderBottom:`1px solid ${c.border}`,
-            padding:'max(14px,env(safe-area-inset-top)) 10px 8px',display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-
-            {/* Назад */}
-            <motion.button whileTap={{scale:0.85}} disabled={!canBack}
-              onClick={()=>{if(canBack){const ni=browserHistIdx-1;setBrowserHistIdx(ni);browserNav(browserHistory[ni]);}}}
-              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:canBack?'pointer':'default',
-                color:canBack?c.mid:'transparent',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              ‹
-            </motion.button>
-
-            {/* Вперёд */}
-            <motion.button whileTap={{scale:0.85}} disabled={!canFwd}
-              onClick={()=>{if(canFwd){const ni=browserHistIdx+1;setBrowserHistIdx(ni);browserNav(browserHistory[ni]);}}}
-              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:canFwd?'pointer':'default',
-                color:canFwd?c.mid:'transparent',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              ›
-            </motion.button>
-
-            {/* URL bar */}
-            <div style={{flex:1,background:isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)',
-              borderRadius:12,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',overflow:'hidden'}}>
-              <span style={{fontSize:13,paddingLeft:10,flexShrink:0,opacity:0.5}}>🔒</span>
-              <input ref={browserInputRef}
-                value={browserInput!==''?browserInput:displayHost()}
-                onChange={e=>setBrowserInput(e.target.value)}
-                onFocus={()=>setBrowserInput(browserUrl||'')}
-                onBlur={()=>setBrowserInput('')}
-                onKeyDown={e=>{if(e.key==='Enter'){browserInputRef.current?.blur();browserGo(browserInput);}}}
-                style={{flex:1,background:'none',border:'none',outline:'none',color:c.light,
-                  fontSize:13,padding:'8px 6px',fontFamily:'monospace',minWidth:0}}
-                placeholder="Поиск или адрес сайта..."
-                spellCheck={false} autoCapitalize="none"
-              />
-              {browserLoading&&<motion.div animate={{rotate:360}} transition={{repeat:Infinity,duration:0.8,ease:'linear'}}
-                style={{width:16,height:16,borderRadius:'50%',border:`2px solid ${activeAccent}`,borderTopColor:'transparent',
-                  marginRight:8,flexShrink:0}}/>}
-              {!browserLoading&&<motion.button whileTap={{scale:0.85}} onClick={()=>browserNav(browserUrl)}
-                style={{background:'none',border:'none',cursor:'pointer',color:c.sub,fontSize:16,padding:'4px 8px',flexShrink:0}}>↺</motion.button>}
-            </div>
-
-            {/* Поделиться */}
-            <motion.button whileTap={{scale:0.88}} onClick={()=>{try{navigator.share?.({url:browserUrl,title:displayHost()});}catch{}}}
-              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:'pointer',
-                color:c.mid,fontSize:17,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              ↗
-            </motion.button>
-
-            {/* Открыть в реальном браузере */}
-            <motion.button whileTap={{scale:0.88}} onClick={()=>window.open(browserUrl,'_blank')}
-              style={{width:34,height:34,borderRadius:10,background:'none',border:'none',cursor:'pointer',
-                color:c.sub,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              ⤤
-            </motion.button>
-          </div>
-
-          {/* Прогресс-бар */}
-          <AnimatePresence>
-            {browserLoading&&(
-              <motion.div initial={{scaleX:0}} animate={{scaleX:1}} exit={{opacity:0}} transition={{duration:2,ease:'linear'}}
-                style={{height:2,background:`linear-gradient(90deg,${activeAccent},${activeAccent}88)`,transformOrigin:'left',flexShrink:0}}
-                onAnimationComplete={()=>setBrowserLoading(false)}/>
-            )}
-          </AnimatePresence>
-
-          {/* Контент */}
-          {browserUrl?(
-            <iframe
-              ref={browserRef}
-              key={browserUrl}
-              src={mkProxyUrl(browserUrl)}
-              style={{flex:1,border:'none',background:isDark?'#111':'#fff'}}
-              onLoad={()=>setBrowserLoading(false)}
-              onError={()=>setBrowserLoading(false)}
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-              title="SWAP Browser"
-            />
-          ):(
-            <div style={{flex:1}}/>
-          )}
-
-          {/* Стартовая страница — показывается когда url пустой */}
-          {!browserUrl&&!browserLoading&&(
-            <div style={{position:'absolute',inset:0,top:72,background:isDark?'#08080f':'#f4f4fc',
-              display:'flex',flexDirection:'column',alignItems:'center',padding:'40px 20px 100px',overflowY:'auto'}}>
-              <div style={{fontSize:40,marginBottom:4}}>🌐</div>
-              <div style={{fontSize:22,fontWeight:900,color:c.light,marginBottom:4,letterSpacing:'-0.02em'}}>SWAP Browser</div>
-              <div style={{fontSize:12,color:c.sub,marginBottom:28}}>Быстрый · Безопасный · Встроенный</div>
-              {/* Строка поиска на главной */}
-              <div style={{width:'100%',maxWidth:360,background:isDark?'rgba(255,255,255,0.08)':'#fff',
-                borderRadius:24,border:`1.5px solid ${c.border}`,display:'flex',alignItems:'center',
-                padding:'8px 16px',gap:8,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',marginBottom:32}}>
-                <span style={{fontSize:18}}>🔍</span>
-                <input style={{flex:1,background:'none',border:'none',outline:'none',color:c.light,fontSize:15,fontFamily:'inherit'}}
-                  placeholder="Поиск в интернете..."
-                  onKeyDown={e=>{if(e.key==='Enter')browserGo((e.target as HTMLInputElement).value);}}/>
-              </div>
-              {/* Speed dial */}
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,width:'100%',maxWidth:360}}>
-                {SPEED_DIAL.map(s=>(
-                  <motion.button key={s.url} whileTap={{scale:0.88}} onClick={()=>browserGo(s.url)}
-                    style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:'14px 8px',
-                      borderRadius:16,background:isDark?'rgba(255,255,255,0.06)':'#fff',
-                      border:`1px solid ${c.border}`,cursor:'pointer',boxShadow:'0 2px 12px rgba(0,0,0,0.08)'}}>
-                    <span style={{fontSize:26}}>{s.ico}</span>
-                    <span style={{fontSize:10,fontWeight:700,color:c.mid,letterSpacing:'0.01em'}}>{s.label}</span>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    })()}
 
 
     <div style={{minHeight:'100dvh',background:c.bg,display:'flex',alignItems:'flex-start',justifyContent:'center',
@@ -6071,7 +5886,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMusic={()=>setCurrentScreen('music')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMusic={()=>setCurrentScreen('music')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
