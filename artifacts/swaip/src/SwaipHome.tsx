@@ -23,6 +23,7 @@ const EventsScreen        = lazy(() => import('./EventsScreen'));
 const MusicRoomScreen     = lazy(() => import('./MusicRoomScreen'));
 const ListenTogetherScreen= lazy(() => import('./ListenTogetherScreen'));
 const AssistantsHub       = lazy(() => import('./AssistantsHub'));
+const ContactsScreen      = lazy(() => import('./ContactsScreen'));
 const DocumentsApp        = lazy(() => import('./DocumentsApp'));
 const BabelAirApp         = lazy(() => import('./BabelAirApp'));
 declare global{interface Window{_sqTimer:ReturnType<typeof setTimeout>;}}
@@ -472,7 +473,7 @@ function RingtoneModal({c,isDark,modalStyle,mHead,ringtoneId,onSelect,onClose}:{
 }
 
 /* ══ Боковое меню (слайд слева) ══ */
-function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,onAssistant,onGames,onBots,onCinema,onClips,onEvents,onMusic,onListenTogether,onPetya,onDocuments,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMusic?:()=>void;onListenTogether?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
+function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,onAssistant,onGames,onBots,onCinema,onClips,onEvents,onMusic,onListenTogether,onPetya,onDocuments,onContacts,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMusic?:()=>void;onListenTogether?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;onContacts?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
   type Modal='language'|'privacy'|'about'|'docs'|'ringtone';
   const [modal,setModal]=useState<Modal|null>(null);
@@ -543,6 +544,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
     {icon:'📂',label:'Читалка документов',sub:'PDF · DOCX · TXT · XLSX · CSV · Сканер',fn:()=>{onDocuments?.();onClose();}},
     {icon:'📊',label:'Биржа SWP',sub:'Монета SWAP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
+    {icon:'📲',label:'Контакты телефона',sub:'Пригласи друзей в SWAP через SMS',fn:()=>{onContacts?.();onClose();}},
     {icon:'🎨',label:'Оформление',sub:'Тема, обложка, аватар',fn:()=>{onDesign?.();onClose();}},
     {icon:'🔔',label:'Рингтон звонка',sub:curRingName,fn:()=>setModal('ringtone')},
     {icon:'🔒',label:'Приватность',sub:'Кто видит мой профиль',fn:()=>setModal('privacy')},
@@ -4452,7 +4454,7 @@ function CallOverlayUI({call,peerInfo,apiBase}:{call:ReturnType<typeof useCallSi
 export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLogout,onOldMode,initialProfileHash}:SwaipHomeProps){
   const [isDark,setIsDark]=useState(true);
   let c:Pal=isDark?DARK:LIGHT;
-  const [currentScreen,setCurrentScreen]=useState<'home'|'exchange'|'assistant'|'games'|'bots'|'lounge'|'cinema'|'clips'|'events'|'music'|'listenTogether'|'assistants'|'documents'>('home');
+  const [currentScreen,setCurrentScreen]=useState<'home'|'exchange'|'assistant'|'games'|'bots'|'lounge'|'cinema'|'clips'|'events'|'music'|'listenTogether'|'assistants'|'documents'|'contacts'>('home');
   const [myMood,setMyMood]=useState<{emoji:string;text:string}|null>(null);
   const [friendMoods,setFriendMoods]=useState<{userHash:string;userName:string;emoji:string;text:string}[]>([]);
   const [showFeedMoodPicker,setShowFeedMoodPicker]=useState(false);
@@ -5810,6 +5812,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     {currentScreen==='assistants'&&(
       <AssistantsHub onBack={()=>setCurrentScreen('home')}/>
     )}
+    {currentScreen==='contacts'&&(
+      <ContactsScreen userHash={userHash} isDark={isDark} accentColor={activeAccent} onBack={()=>setCurrentScreen('home')}/>
+    )}
     {currentScreen==='listenTogether'&&(
       <ListenTogetherScreen myHash={userHash} myName={profName} onBack={()=>setCurrentScreen('home')}/>
     )}
@@ -5886,7 +5891,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMusic={()=>setCurrentScreen('music')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMusic={()=>setCurrentScreen('music')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} onContacts={()=>setCurrentScreen('contacts')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
