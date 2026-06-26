@@ -4582,6 +4582,10 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   });
   const [showStatusPicker,setShowStatusPicker]=useState(false);
   const [showQRModal,setShowQRModal]=useState(false);
+  const [showNotifCenter,setShowNotifCenter]=useState(false);
+  const [notifs,setNotifs]=useState<{id:string;icon:string;title:string;body:string;ts:number;read:boolean}[]>(()=>{
+    try{return JSON.parse(localStorage.getItem('swaip_notifications')||'[]');}catch{return[];}
+  });
   const [chatTarget,setChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [secretChatTarget,setSecretChatTarget]=useState<{hash:string;info:ConvUser}|null>(null);
   const [ringtoneId, setRingtoneId] = useSaved<RingtoneId>(RINGTONE_PREF_KEY, 'classic');
@@ -6924,8 +6928,15 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
             style={{width:32,height:32,borderRadius:'50%',background:showSearch?c.borderB:c.cardAlt,border:`1px solid ${c.border}`,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>
             {showSearch?'✕':'🔍'}
           </motion.button>
-          <motion.button whileTap={{scale:0.88}}
-            style={{width:32,height:32,borderRadius:'50%',background:c.cardAlt,border:`1px solid ${c.border}`,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>🔔</motion.button>
+          <motion.button whileTap={{scale:0.88}} onClick={()=>{setShowNotifCenter(v=>!v);setNotifs(prev=>{const next=prev.map(n=>({...n,read:true}));try{localStorage.setItem('swaip_notifications',JSON.stringify(next));}catch{}return next;});}}
+            style={{width:32,height:32,borderRadius:'50%',background:showNotifCenter?activeAccent:c.cardAlt,border:`1px solid ${showNotifCenter?activeAccent:c.border}`,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,position:'relative'}}>
+            🔔
+            {notifs.filter(n=>!n.read).length>0&&(
+              <span style={{position:'absolute',top:-3,right:-3,width:14,height:14,borderRadius:'50%',background:'#ef4444',border:`2px solid ${c.bg}`,fontSize:8,fontWeight:900,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>
+                {notifs.filter(n=>!n.read).length>9?'9+':notifs.filter(n=>!n.read).length}
+              </span>
+            )}
+          </motion.button>
           <motion.button whileTap={{scale:0.88}} onClick={()=>setShowSideMenu(true)}
             style={{width:32,height:32,borderRadius:'50%',overflow:'hidden',border:`2px solid ${c.borderB}`,cursor:'pointer',flexShrink:0}}>
             <img src={avatarSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
@@ -6944,6 +6955,56 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         </div>
 
       </div>
+
+      {/* ══ ЦЕНТР УВЕДОМЛЕНИЙ ══ */}
+      {showNotifCenter&&(
+        <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:900,display:'flex',flexDirection:'column'}}>
+          <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={()=>setShowNotifCenter(false)}/>
+          <div style={{position:'absolute',top:0,left:0,right:0,background:c.bg,borderBottom:`1px solid ${c.border}`,
+            boxShadow:'0 8px 32px rgba(0,0,0,0.5)',maxHeight:'70vh',display:'flex',flexDirection:'column',zIndex:1}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 16px 10px'}}>
+              <span style={{fontSize:16,fontWeight:900,color:c.light,fontFamily:'"Montserrat",sans-serif'}}>🔔 Уведомления</span>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                {notifs.length>0&&(
+                  <button onClick={()=>{const next:typeof notifs=[];try{localStorage.setItem('swaip_notifications',JSON.stringify(next));}catch{}setNotifs(next);}}
+                    style={{background:'none',border:'none',cursor:'pointer',fontSize:11,color:c.sub,fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>
+                    Очистить
+                  </button>
+                )}
+                <button onClick={()=>setShowNotifCenter(false)}
+                  style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:c.sub,lineHeight:1}}>✕</button>
+              </div>
+            </div>
+            <div style={{overflowY:'auto',flex:1}}>
+              {notifs.length===0?(
+                <div style={{textAlign:'center',padding:'40px 20px',color:c.sub,fontSize:14}}>
+                  <div style={{fontSize:40,marginBottom:12}}>🔕</div>
+                  <div style={{fontWeight:700,color:c.mid,fontFamily:'"Montserrat",sans-serif'}}>Пока тихо</div>
+                  <div style={{fontSize:12,marginTop:6,lineHeight:1.5}}>Уведомления появятся здесь, когда вам напишут или поставят реакцию</div>
+                </div>
+              ):(
+                [...notifs].reverse().map(n=>(
+                  <div key={n.id} style={{display:'flex',gap:12,padding:'12px 16px',
+                    background:n.read?'transparent':'rgba(255,255,255,0.03)',
+                    borderBottom:`1px solid ${c.border}`,alignItems:'flex-start'}}>
+                    <div style={{fontSize:24,flexShrink:0,lineHeight:1}}>{n.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:700,color:c.light,fontFamily:'"Montserrat",sans-serif'}}>{n.title}</div>
+                      <div style={{fontSize:12,color:c.sub,marginTop:2,lineHeight:1.4}}>{n.body}</div>
+                      <div style={{fontSize:10,color:c.sub,marginTop:4,opacity:0.6}}>
+                        {new Date(n.ts).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}
+                        {' · '}
+                        {new Date(n.ts).toLocaleDateString('ru',{day:'numeric',month:'long'})}
+                      </div>
+                    </div>
+                    {!n.read&&<div style={{width:8,height:8,borderRadius:'50%',background:activeAccent,flexShrink:0,marginTop:4}}/>}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ ИСТОРИИ ══ */}
       <div style={{flexShrink:0,background:c.surface,borderBottom:`1px solid ${c.border}`}}>

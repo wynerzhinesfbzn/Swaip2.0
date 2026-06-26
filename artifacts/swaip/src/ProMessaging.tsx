@@ -235,6 +235,8 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
   const [battleCountdown, setBattleCountdown] = useState(30);
   const battlePollRef = useRef<ReturnType<typeof setInterval>|null>(null);
   const battleCdRef   = useRef<ReturnType<typeof setInterval>|null>(null);
+  /* ── Стикеры ── */
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   /* ── Chat Games ── */
   const [showGamePicker, setShowGamePicker] = useState(false);
   const [showBgMusicPicker, setShowBgMusicPicker] = useState(false);
@@ -625,6 +627,19 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
       }
     } catch {}
     setSending(false);
+  };
+
+  const STICKER_PACKS = [
+    { label:'😄 Смайлики', stickers:['😀','😂','🥹','😍','🤩','😎','🤔','😴','🤯','😱','🥳','😇','🤭','🫡','😤','🥺'] },
+    { label:'❤️ Сердечки', stickers:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💗','💕','💞','💝','💘','💓','🫶','❤️‍🔥'] },
+    { label:'👍 Жесты',    stickers:['👍','👎','✌️','🤞','🙏','🤝','👏','🎉','🔥','⚡','💪','🫂','🤙','👋','🙌','🫵'] },
+    { label:'🐶 Животные', stickers:['🐶','🐱','🐻','🦊','🐼','🐸','🦁','🐧','🦋','🌸','🐨','🐯','🦄','🐺','🦝','🐙'] },
+  ];
+  const [stickerTab, setStickerTab] = useState(0);
+
+  const sendSticker = async (emoji: string) => {
+    setShowStickerPicker(false);
+    await sendMsg(emoji, 'sticker');
   };
 
   const handleSend = async () => {
@@ -1275,6 +1290,13 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                         <span>исчезнет через {msgTimers[m.id] ?? '...'}</span>
                       </div>
                     )}
+                    {m.messageType==='sticker' && !isDeleted ? (
+                      <div onMouseDown={onPressStart} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
+                        onTouchStart={onPressStart} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
+                        style={{ fontSize:56, lineHeight:1, cursor:'default', userSelect:'none', padding:'2px 0' }}>
+                        {m.content}
+                      </div>
+                    ) : (
                     <div
                       onMouseDown={onPressStart} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
                       onTouchStart={onPressStart} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
@@ -1372,6 +1394,7 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                         </>
                       )}
                     </div>
+                    )}
                     {/* ── Реакции ── */}
                     {hasReactions && !isDeleted && (
                       <div style={{ display:'flex', flexWrap:'wrap', gap:3, marginTop:3,
@@ -1437,6 +1460,40 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                   {e}
                 </motion.button>
               ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sticker picker */}
+      <AnimatePresence>
+        {showStickerPicker && (
+          <motion.div initial={{ height:0, opacity:0 }} animate={{ height:'auto', opacity:1 }} exit={{ height:0, opacity:0 }}
+            style={{ overflow:'hidden', flexShrink:0 }}>
+            <div style={{ background:'rgba(10,12,20,0.97)', borderTop:`1px solid ${eff}22` }}>
+              {/* Tabs */}
+              <div style={{ display:'flex', overflowX:'auto', scrollbarWidth:'none', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
+                {STICKER_PACKS.map((pack, i) => (
+                  <button key={i} onClick={() => setStickerTab(i)}
+                    style={{ padding:'8px 12px', background:'none', border:'none', cursor:'pointer',
+                      fontSize:13, fontWeight: stickerTab===i ? 800 : 400, color: stickerTab===i ? eff : 'rgba(255,255,255,0.45)',
+                      borderBottom: stickerTab===i ? `2px solid ${eff}` : '2px solid transparent',
+                      whiteSpace:'nowrap', fontFamily:'"Montserrat",sans-serif', transition:'all 0.15s' }}>
+                    {pack.label}
+                  </button>
+                ))}
+              </div>
+              {/* Stickers grid */}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:4, padding:'10px 12px' }}>
+                {STICKER_PACKS[stickerTab].stickers.map(s => (
+                  <motion.button key={s} whileTap={{ scale:0.8 }} onClick={() => sendSticker(s)}
+                    style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)',
+                      borderRadius:10, width:48, height:48, cursor:'pointer', fontSize:28,
+                      display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {s}
+                  </motion.button>
+                ))}
+              </div>
             </div>
           </motion.div>
         )}
@@ -1917,9 +1974,17 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
               </motion.button>
             )}
             {/* Emoji */}
-            <motion.button whileTap={{ scale:0.88 }} onClick={() => setShowEmoji(s=>!s)}
+            <motion.button whileTap={{ scale:0.88 }} onClick={() => { setShowEmoji(s=>!s); setShowStickerPicker(false); }}
               style={{ background:'rgba(255,255,255,0.07)', border:'none', borderRadius:'50%', width:36, height:36,
                 cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>😊</motion.button>
+            {/* Stickers */}
+            {!isSecret && (
+              <motion.button whileTap={{ scale:0.88 }} onClick={() => { setShowStickerPicker(s=>!s); setShowEmoji(false); }}
+                style={{ background: showStickerPicker ? `${eff}22` : 'rgba(255,255,255,0.07)',
+                  border: showStickerPicker ? `1.5px solid ${eff}55` : 'none',
+                  borderRadius:'50%', width:36, height:36, cursor:'pointer', fontSize:18,
+                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>🎭</motion.button>
+            )}
             {/* Text input */}
             <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
               onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); } }}
