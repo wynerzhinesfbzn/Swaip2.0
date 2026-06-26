@@ -475,9 +475,9 @@ function RingtoneModal({c,isDark,modalStyle,mHead,ringtoneId,onSelect,onClose}:{
 /* ══ Боковое меню (слайд слева) ══ */
 function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onExchange,onAssistant,onClips,onEvents,onPetya,onDocuments,onContacts,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onEntertainment?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onClips?:()=>void;onEvents?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;onContacts?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
-  type Modal='settings'|'about'|'docs';
+  type Modal='settings';
   const [modal,setModal]=useState<Modal|null>(null);
-  const [settingsTab,setSettingsTab]=useState<'language'|'ringtone'|'privacy'>('language');
+  const [settingsTab,setSettingsTab]=useState<'language'|'ringtone'|'privacy'|'design'|'docs'|'about'|'support'>('language');
   const [docType,setDocType]=useState<'privacy'|'terms'|'pd'|'cookies'>('privacy');
   const [langSearch,setLangSearch]=useState('');
   const [curLang,setCurLang]=useState(()=>{
@@ -541,11 +541,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
     {icon:'📂',label:'Читалка документов',sub:'PDF · DOCX · TXT · XLSX · CSV · Сканер',fn:()=>{onDocuments?.();onClose();}},
     {icon:'📊',label:'Биржа SWP',sub:'Монета SWAP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
     {icon:'📲',label:'Контакты телефона',sub:'Пригласи друзей в SWAP через SMS',fn:()=>{onContacts?.();onClose();}},
-    {icon:'🎨',label:'Оформление',sub:'Тема, обложка, аватар',fn:()=>{onDesign?.();onClose();}},
-    {icon:'⚙️',label:'Настройки',sub:'Язык · Рингтон · Приватность',fn:()=>{setSettingsTab('language');setModal('settings');}},
-    {icon:'💬',label:'Поддержка',sub:'Написать в SWAP',fn:()=>window.open('mailto:support@swaip.ru','_blank')},
-    {icon:'📄',label:'Документы',sub:'Конфиденциальность, условия, 152-ФЗ',fn:()=>setModal('docs')},
-    {icon:'📖',label:'О приложении',sub:'SWAP v2.0',fn:()=>setModal('about')},
+    {icon:'⚙️',label:'Настройки',sub:'Язык · Оформление · Приватность · Документы',fn:()=>{setSettingsTab('language');setModal('settings');}},
   ];
 
   /* Применяем сохранённый порядок и скрытые разделы */
@@ -881,17 +877,21 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
           {/* Таб-бар */}
           <div style={{display:'flex',padding:'10px 12px',gap:6,borderBottom:`1px solid ${c.border}`,
             background:isDark?'rgba(10,10,22,0.98)':'rgba(248,248,252,0.98)',
-            position:'sticky',top:66,zIndex:2,backdropFilter:'blur(16px)',flexShrink:0}}>
-            {(['language','ringtone','privacy'] as const).map(tab=>{
-              const labels={language:'🌏 Язык',ringtone:'🔔 Рингтон',privacy:'🔒 Приватность'};
+            position:'sticky',top:66,zIndex:2,backdropFilter:'blur(16px)',flexShrink:0,
+            overflowX:'auto',WebkitOverflowScrolling:'touch' as any}}>
+            {(['language','ringtone','privacy','design','docs','about','support'] as const).map(tab=>{
+              const labels:{[k:string]:string}={
+                language:'🌏 Язык',ringtone:'🔔 Рингтон',privacy:'🔒 Приватность',
+                design:'🎨 Оформление',docs:'📄 Документы',about:'📖 О нас',support:'💬 Поддержка'
+              };
               const active=settingsTab===tab;
               return(
                 <motion.button key={tab} whileTap={{scale:0.95}} onClick={()=>setSettingsTab(tab)}
-                  style={{flex:1,padding:'8px 4px',borderRadius:12,
+                  style={{flexShrink:0,padding:'8px 12px',borderRadius:12,
                     border:`1.5px solid ${active?c.mid:c.borderB}`,
                     background:active?`rgba(160,160,200,0.15)`:'transparent',
                     color:active?c.light:c.sub,fontWeight:700,fontSize:11,
-                    cursor:'pointer',letterSpacing:'0.01em'}}>
+                    cursor:'pointer',letterSpacing:'0.01em',whiteSpace:'nowrap'}}>
                   {labels[tab]}
                 </motion.button>
               );
@@ -994,144 +994,172 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
               <div style={{height:32}}/>
             </div>
           )}
-        </motion.div>
-      )}
-    </AnimatePresence>
-
-    {/* ── Модал: Документы ── */}
-    <AnimatePresence>
-      {open&&modal==='docs'&&(
-        <motion.div initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}}
-          transition={{type:'spring',stiffness:340,damping:32}}
-          style={{...modalStyle,zIndex:610}}>
-          {mHead('Правовые документы',()=>setModal(null))}
-          <div style={{padding:'12px 16px',borderBottom:`1px solid ${c.border}`,display:'flex',gap:6,flexWrap:'wrap'}}>
-            {([
-              {k:'privacy',lbl:'Конфиденциальность'},
-              {k:'terms',lbl:'Соглашение'},
-              {k:'pd',lbl:'152-ФЗ / ПД'},
-              {k:'cookies',lbl:'Cookies'},
-            ] as const).map(({k,lbl})=>(
-              <motion.button key={k} whileTap={{scale:0.96}} onClick={()=>setDocType(k)}
-                style={{padding:'7px 14px',borderRadius:99,
-                  background:docType===k?c.mid:'transparent',
-                  border:`1.5px solid ${docType===k?c.mid:c.borderB}`,
-                  color:docType===k?'#000':c.mid,fontWeight:700,fontSize:11,cursor:'pointer',letterSpacing:'0.02em'}}>
-                {lbl}
-              </motion.button>
-            ))}
-          </div>
-          <div style={{flex:1,overflowY:'auto',padding:'20px 16px'}}>
-            <DocText type={docType}/>
-            <div style={{height:32}}/>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-
-    {/* ── Модал: О приложении ── */}
-    <AnimatePresence>
-      {open&&modal==='about'&&(
-        <motion.div initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}}
-          transition={{type:'spring',stiffness:340,damping:32}}
-          style={{...modalStyle,zIndex:610}}>
-          {mHead('О приложении',()=>setModal(null))}
-          <div style={{flex:1,overflowY:'auto'}}>
-            {/* Логотип */}
-            <div style={{padding:'32px 20px 20px',textAlign:'center',borderBottom:`1px solid ${c.border}`}}>
-              <div style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
-                width:80,height:80,borderRadius:20,
-                background:'linear-gradient(135deg,#e0e0f0 0%,#f8f8ff 40%,#c8c8dc 100%)',
-                boxShadow:'0 8px 32px rgba(0,0,0,0.25)',marginBottom:14}}>
-                <span style={{fontSize:12,fontWeight:900,letterSpacing:'0.18em',color:'#1a1a2a'}}>SWAP</span>
-              </div>
-              <div style={{fontSize:22,fontWeight:900,color:c.light,letterSpacing:'0.05em',marginBottom:4}}>SWAP</div>
-              <div style={{fontSize:13,color:c.sub,marginBottom:8}}>Социальная сеть с четырьмя жизнями</div>
-              <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 14px',
-                borderRadius:99,background:c.cardAlt,border:`1px solid ${c.borderB}`}}>
-                <span style={{fontSize:11,color:c.sub}}>Версия</span>
-                <span style={{fontSize:12,fontWeight:800,color:c.mid}}>2.0</span>
+          {/* Содержимое — Оформление */}
+          {settingsTab==='design'&&(
+            <div style={{flex:1,overflowY:'auto',padding:'24px 16px'}}>
+              <div style={{textAlign:'center',padding:'16px 0 28px'}}>
+                <div style={{fontSize:52,marginBottom:14}}>🎨</div>
+                <div style={{fontSize:17,fontWeight:900,color:c.light,letterSpacing:'0.02em',marginBottom:6}}>Оформление</div>
+                <div style={{fontSize:13,color:c.sub,marginBottom:28,lineHeight:1.6}}>
+                  Тема, обложка профиля,<br/>цвета и аватар
+                </div>
+                <motion.button whileTap={{scale:0.96}}
+                  onClick={()=>{setModal(null);onDesign?.();}}
+                  style={{padding:'14px 36px',borderRadius:16,
+                    background:`linear-gradient(135deg,${c.mid} 0%,rgba(140,140,200,0.8) 100%)`,
+                    border:'none',cursor:'pointer',color:'#000',fontWeight:800,fontSize:15,
+                    letterSpacing:'0.03em',boxShadow:`0 4px 20px rgba(160,160,220,0.3)`}}>
+                  Открыть оформление
+                </motion.button>
               </div>
             </div>
-            <div style={{padding:'20px 16px',display:'flex',flexDirection:'column',gap:1}}>
-              {/* О продукте */}
-              <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
-                <div style={{padding:'14px 16px',borderBottom:`1px solid ${c.border}`}}>
-                  <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>О продукте</div>
-                  <p style={{fontSize:13,color:c.mid,lineHeight:1.7,margin:0}}>
-                    SWAP — российская социальная сеть нового поколения, объединяющая четыре ключевых аспекта жизни: профессиональный (ПРО), публичный (ПОТОК), приватный (КОМПАС) и корпоративный (КОНФЕРЕНЦИИ).
-                  </p>
+          )}
+          {/* Содержимое — Документы */}
+          {settingsTab==='docs'&&(
+            <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
+              <div style={{padding:'12px 16px',borderBottom:`1px solid ${c.border}`,display:'flex',gap:6,flexWrap:'wrap',flexShrink:0}}>
+                {([
+                  {k:'privacy',lbl:'Конфиденциальность'},
+                  {k:'terms',lbl:'Соглашение'},
+                  {k:'pd',lbl:'152-ФЗ / ПД'},
+                  {k:'cookies',lbl:'Cookies'},
+                ] as const).map(({k,lbl})=>(
+                  <motion.button key={k} whileTap={{scale:0.96}} onClick={()=>setDocType(k)}
+                    style={{padding:'7px 14px',borderRadius:99,
+                      background:docType===k?c.mid:'transparent',
+                      border:`1.5px solid ${docType===k?c.mid:c.borderB}`,
+                      color:docType===k?'#000':c.mid,fontWeight:700,fontSize:11,cursor:'pointer',letterSpacing:'0.02em'}}>
+                    {lbl}
+                  </motion.button>
+                ))}
+              </div>
+              <div style={{flex:1,overflowY:'auto',padding:'20px 16px'}}>
+                <DocText type={docType}/>
+                <div style={{height:32}}/>
+              </div>
+            </div>
+          )}
+          {/* Содержимое — О приложении */}
+          {settingsTab==='about'&&(
+            <div style={{flex:1,overflowY:'auto'}}>
+              <div style={{padding:'32px 20px 20px',textAlign:'center',borderBottom:`1px solid ${c.border}`}}>
+                <div style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
+                  width:80,height:80,borderRadius:20,
+                  background:'linear-gradient(135deg,#e0e0f0 0%,#f8f8ff 40%,#c8c8dc 100%)',
+                  boxShadow:'0 8px 32px rgba(0,0,0,0.25)',marginBottom:14}}>
+                  <span style={{fontSize:12,fontWeight:900,letterSpacing:'0.18em',color:'#1a1a2a'}}>SWAP</span>
                 </div>
-                <div style={{padding:'14px 16px'}}>
-                  <p style={{fontSize:13,color:c.mid,lineHeight:1.7,margin:0}}>
-                    Приложение создано для тех, кто ценит приватность, профессионализм и удобство. Мы не продаём ваши данные и работаем исключительно на серверах в России.
-                  </p>
+                <div style={{fontSize:22,fontWeight:900,color:c.light,letterSpacing:'0.05em',marginBottom:4}}>SWAP</div>
+                <div style={{fontSize:13,color:c.sub,marginBottom:8}}>Социальная сеть с четырьмя жизнями</div>
+                <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 14px',
+                  borderRadius:99,background:c.cardAlt,border:`1px solid ${c.borderB}`}}>
+                  <span style={{fontSize:11,color:c.sub}}>Версия</span>
+                  <span style={{fontSize:12,fontWeight:800,color:c.mid}}>2.0</span>
                 </div>
               </div>
-              {/* Разработчик */}
-              <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
-                <div style={{padding:'14px 16px',borderBottom:`1px solid ${c.border}`}}>
-                  <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Разработчик</div>
-                  {[
-                    {icon:'🏢',label:'Компания',value:'ООО «СВАЙП»'},
-                    {icon:'🇷🇺',label:'Страна',value:'Российская Федерация'},
-                    {icon:'📧',label:'Поддержка',value:'support@swaip.ru'},
-                    {icon:'⚖️',label:'По правовым вопросам',value:'legal@swaip.ru'},
-                    {icon:'🔒',label:'Персональные данные',value:'privacy@swaip.ru'},
-                  ].map(row=>(
-                    <div key={row.label} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:`1px solid ${c.border}`}}>
-                      <span style={{fontSize:16,flexShrink:0,lineHeight:1.5}}>{row.icon}</span>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:10,color:c.sub,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em'}}>{row.label}</div>
-                        <div style={{fontSize:13,color:c.mid,marginTop:1}}>{row.value}</div>
+              <div style={{padding:'20px 16px',display:'flex',flexDirection:'column',gap:1}}>
+                <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
+                  <div style={{padding:'14px 16px',borderBottom:`1px solid ${c.border}`}}>
+                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>О продукте</div>
+                    <p style={{fontSize:13,color:c.mid,lineHeight:1.7,margin:0}}>
+                      SWAP — российская социальная сеть нового поколения, объединяющая четыре ключевых аспекта жизни: профессиональный (ПРО), публичный (ПОТОК), приватный (КОМПАС) и корпоративный (КОНФЕРЕНЦИИ).
+                    </p>
+                  </div>
+                  <div style={{padding:'14px 16px'}}>
+                    <p style={{fontSize:13,color:c.mid,lineHeight:1.7,margin:0}}>
+                      Приложение создано для тех, кто ценит приватность, профессионализм и удобство. Мы не продаём ваши данные и работаем исключительно на серверах в России.
+                    </p>
+                  </div>
+                </div>
+                <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
+                  <div style={{padding:'14px 16px',borderBottom:`1px solid ${c.border}`}}>
+                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Разработчик</div>
+                    {[
+                      {icon:'🏢',label:'Компания',value:'ООО «СВАЙП»'},
+                      {icon:'🇷🇺',label:'Страна',value:'Российская Федерация'},
+                    ].map(row=>(
+                      <div key={row.label} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:`1px solid ${c.border}`}}>
+                        <span style={{fontSize:16,flexShrink:0,lineHeight:1.5}}>{row.icon}</span>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:10,color:c.sub,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em'}}>{row.label}</div>
+                          <div style={{fontSize:13,color:c.mid,marginTop:1}}>{row.value}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-              {/* Стек и соответствие */}
-              <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
-                <div style={{padding:'14px 16px'}}>
-                  <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Соответствие</div>
-                  {[
-                    {badge:'152-ФЗ',text:'Обработка персональных данных на серверах РФ'},
-                    {badge:'PWA',text:'Прогрессивное веб-приложение — работает офлайн'},
-                    {badge:'E2E',text:'Сессионные ключи генерируются на устройстве'},
-                    {badge:'РКН',text:'Включён в реестр операторов персональных данных'},
-                  ].map(row=>(
-                    <div key={row.badge} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:`1px solid ${c.border}`}}>
-                      <div style={{padding:'2px 8px',borderRadius:6,background:c.cardAlt,border:`1px solid ${c.borderB}`,
-                        fontSize:10,fontWeight:900,color:c.mid,flexShrink:0,letterSpacing:'0.05em'}}>{row.badge}</div>
-                      <div style={{fontSize:12,color:c.mid}}>{row.text}</div>
-                    </div>
-                  ))}
+                <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
+                  <div style={{padding:'14px 16px'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Соответствие</div>
+                    {[
+                      {badge:'152-ФЗ',text:'Обработка персональных данных на серверах РФ'},
+                      {badge:'PWA',text:'Прогрессивное веб-приложение — работает офлайн'},
+                      {badge:'E2E',text:'Сессионные ключи генерируются на устройстве'},
+                      {badge:'РКН',text:'Включён в реестр операторов персональных данных'},
+                    ].map(row=>(
+                      <div key={row.badge} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:`1px solid ${c.border}`}}>
+                        <div style={{padding:'2px 8px',borderRadius:6,background:c.cardAlt,border:`1px solid ${c.borderB}`,
+                          fontSize:10,fontWeight:900,color:c.mid,flexShrink:0,letterSpacing:'0.05em'}}>{row.badge}</div>
+                        <div style={{fontSize:12,color:c.mid}}>{row.text}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              {/* Ссылки на документы */}
-              <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
-                <div style={{padding:'14px 16px'}}>
-                  <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Документы</div>
-                  {([
-                    {k:'privacy' as const,lbl:'Политика конфиденциальности'},
-                    {k:'terms' as const,lbl:'Пользовательское соглашение'},
-                    {k:'pd' as const,lbl:'Согласие на обработку ПД (152-ФЗ)'},
-                    {k:'cookies' as const,lbl:'Политика Cookie'},
-                  ]).map(({k,lbl})=>(
-                    <motion.button key={k} whileTap={{scale:0.97}} onClick={()=>{setModal('docs');setDocType(k);}}
-                      style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
-                        padding:'10px 0',border:'none',background:'none',cursor:'pointer',
-                        borderBottom:`1px solid ${c.border}`,textAlign:'left'}}>
-                      <span style={{fontSize:13,color:c.mid,fontWeight:600}}>{lbl}</span>
-                      <span style={{color:c.sub,fontSize:14}}>›</span>
-                    </motion.button>
-                  ))}
+                <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
+                  <div style={{padding:'14px 16px'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Документы</div>
+                    {([
+                      {k:'privacy' as const,lbl:'Политика конфиденциальности'},
+                      {k:'terms' as const,lbl:'Пользовательское соглашение'},
+                      {k:'pd' as const,lbl:'Согласие на обработку ПД (152-ФЗ)'},
+                      {k:'cookies' as const,lbl:'Политика Cookie'},
+                    ]).map(({k,lbl})=>(
+                      <motion.button key={k} whileTap={{scale:0.97}}
+                        onClick={()=>{setDocType(k);setSettingsTab('docs');}}
+                        style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
+                          padding:'10px 0',border:'none',background:'none',cursor:'pointer',
+                          borderBottom:`1px solid ${c.border}`,textAlign:'left'}}>
+                        <span style={{fontSize:13,color:c.mid,fontWeight:600}}>{lbl}</span>
+                        <span style={{color:c.sub,fontSize:14}}>›</span>
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div style={{textAlign:'center',padding:'8px 0 16px',color:c.sub,fontSize:11,lineHeight:1.6}}>
-                © {new Date().getFullYear()} ООО «СВАЙП»<br/>Все права защищены
+                <div style={{textAlign:'center',padding:'8px 0 16px',color:c.sub,fontSize:11,lineHeight:1.6}}>
+                  © {new Date().getFullYear()} ООО «СВАЙП»<br/>Все права защищены
+                </div>
               </div>
             </div>
-          </div>
+          )}
+          {/* Содержимое — Поддержка */}
+          {settingsTab==='support'&&(
+            <div style={{flex:1,overflowY:'auto',padding:'24px 16px'}}>
+              <div style={{textAlign:'center',padding:'16px 0 28px'}}>
+                <div style={{fontSize:52,marginBottom:14}}>💬</div>
+                <div style={{fontSize:17,fontWeight:900,color:c.light,letterSpacing:'0.02em',marginBottom:6}}>Поддержка</div>
+                <div style={{fontSize:13,color:c.sub,lineHeight:1.6}}>Мы на связи — напишите нам</div>
+              </div>
+              {[
+                {icon:'📧',label:'Общая поддержка',email:'support@swaip.ru',desc:'Вопросы, отзывы, баги'},
+                {icon:'⚖️',label:'Правовые вопросы',email:'legal@swaip.ru',desc:'Претензии, авторские права'},
+                {icon:'🔒',label:'Персональные данные',email:'privacy@swaip.ru',desc:'Удаление, выгрузка данных'},
+              ].map(row=>(
+                <motion.button key={row.email} whileTap={{scale:0.97}}
+                  onClick={()=>window.open(`mailto:${row.email}`,'_blank')}
+                  style={{width:'100%',display:'flex',alignItems:'center',gap:14,padding:'16px',
+                    marginBottom:10,borderRadius:16,background:c.cardAlt,
+                    border:`1px solid ${c.borderB}`,cursor:'pointer',textAlign:'left'}}>
+                  <span style={{fontSize:26,flexShrink:0}}>{row.icon}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:c.light}}>{row.label}</div>
+                    <div style={{fontSize:11,color:c.sub,marginTop:2}}>{row.desc}</div>
+                    <div style={{fontSize:11,color:c.mid,marginTop:3,fontWeight:600}}>{row.email}</div>
+                  </div>
+                  <span style={{color:c.sub,fontSize:16,flexShrink:0}}>→</span>
+                </motion.button>
+              ))}
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
