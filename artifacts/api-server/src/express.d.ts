@@ -1,7 +1,9 @@
 import "express";
 
-declare module "express-serve-static-core" {
-  interface Request {
-    userHash?: string;
+declare global {
+  namespace Express {
+    interface Request {
+      userHash?: string;
+    }
   }
 }

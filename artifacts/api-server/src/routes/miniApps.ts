@@ -14,7 +14,7 @@ function genId(): string {
 /* GET /api/mini-apps — мини-аппы текущего пользователя */
 router.get("/mini-apps", requireSession, async (req, res) => {
   try {
-    const { userHash } = req;
+    const userHash = req.userHash as string;
     const rows = await db
       .select()
       .from(miniAppsTable)
@@ -40,7 +40,7 @@ router.get("/mini-apps/public", async (_req, res) => {
 /* GET /api/mini-apps/:id — получить мини-апп (публичный или свой) */
 router.get("/mini-apps/:id", requireSession, async (req, res) => {
   try {
-    const { userHash } = req;
+    const userHash = req.userHash as string;
     const id = String(req.params.id ?? "");
     const [app] = await db.select().from(miniAppsTable).where(eq(miniAppsTable.id, id));
     if (!app) return res.status(404).json({ error: "Mini app not found" });
@@ -57,7 +57,7 @@ router.get("/mini-apps/:id", requireSession, async (req, res) => {
 /* POST /api/mini-apps — создать мини-апп */
 router.post("/mini-apps", requireSession, async (req, res) => {
   try {
-    const { userHash } = req;
+    const userHash = req.userHash as string;
     const body = req.body as Record<string, unknown>;
     const { name, description, icon, config, isPublic } = body as {
       name?: string; description?: string; icon?: string;
@@ -95,7 +95,7 @@ router.post("/mini-apps", requireSession, async (req, res) => {
 /* PUT /api/mini-apps/:id — обновить мини-апп */
 router.put("/mini-apps/:id", requireSession, async (req, res) => {
   try {
-    const { userHash } = req;
+    const userHash = req.userHash as string;
     const { id } = req.params as { id: string };
     const { name, description, icon, config, isPublic } = req.body as {
       name?: string; description?: string; icon?: string;
@@ -122,7 +122,7 @@ router.put("/mini-apps/:id", requireSession, async (req, res) => {
 /* DELETE /api/mini-apps/:id — удалить мини-апп */
 router.delete("/mini-apps/:id", requireSession, async (req, res) => {
   try {
-    const { userHash } = req;
+    const userHash = req.userHash as string;
     const { id } = req.params as { id: string };
     const [existing] = await db.select().from(miniAppsTable).where(eq(miniAppsTable.id, id));
     if (!existing) return res.status(404).json({ error: "Not found" });

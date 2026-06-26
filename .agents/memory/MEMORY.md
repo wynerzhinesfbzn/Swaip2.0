@@ -1,1 +1,2 @@
 - [SWAIP upload testing pitfall](swaip-upload-pitfall.md) — media upload routes read RAW request body, not multipart; curl -F gives a misleading 500. Test with --data-binary.
+- [Express 5 Request augmentation](express5-request-augmentation.md) — augment `global Express.Request`, NOT `declare module "express-serve-static-core"`; the latter silently fails to merge under @types/express@5.

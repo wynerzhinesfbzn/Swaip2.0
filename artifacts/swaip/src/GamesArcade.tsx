@@ -1408,7 +1408,7 @@ function ReactionGame() {
   const [times, setTimes] = useState<number[]>([]);
   const [lastTime, setLastTime] = useState(0);
   const startRef = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const ROUNDS = 5;
 
   const startRound = () => {

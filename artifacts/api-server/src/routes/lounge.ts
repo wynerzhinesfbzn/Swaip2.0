@@ -42,7 +42,7 @@ router.get('/lounge/rooms', async (_req, res): Promise<void> => {
 
 /* POST /api/lounge/rooms — create room */
 router.post('/lounge/rooms', requireSession as RequestHandler, async (req, res): Promise<void> => {
-  const userHash: string = req.userHash;
+  const userHash = req.userHash as string;
   const { name, theme = 'cozy', maxPlayers = 20 } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'Название комнаты обязательно' });
@@ -100,7 +100,7 @@ router.get('/lounge/join/:code', async (req, res): Promise<void> => {
 
 /* DELETE /api/lounge/rooms/:roomId — delete room (creator only) */
 router.delete('/lounge/rooms/:roomId', requireSession as RequestHandler, async (req, res): Promise<void> => {
-  const userHash: string = req.userHash;
+  const userHash = req.userHash as string;
   const roomId = req.params.roomId as string;
   const rows = await db.select().from(loungeRoomsTable)
     .where(eq(loungeRoomsTable.roomId, roomId)).limit(1);
