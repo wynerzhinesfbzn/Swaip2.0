@@ -759,7 +759,7 @@ const IGOR_FORM_CONFIGS: IgorDocFormConfig[] = [
         { key: 'rid_name', label: 'Название программы для ЭВМ / базы данных', type: 'text', placeholder: 'Система управления задачами «SWAP Task»', required: true },
       ]},
       { heading: 'Правообладатель (Заявитель)', fields: [
-        { key: 'owner_name', label: 'ФИО физ. лица или наименование юр. лица', type: 'text', placeholder: 'ООО «СВАЙП» / Иванов Иван Иванович', required: true },
+        { key: 'owner_name', label: 'ФИО физ. лица или наименование юр. лица', type: 'text', placeholder: 'SWAP Platform Ltd / Иванов Иван Иванович', required: true },
         { key: 'owner_address', label: 'Место жительства / место нахождения', type: 'text', placeholder: 'г. Набережные Челны, пр. Мира, д. 1', required: true },
         { key: 'owner_ogrn', label: 'ОГРН (для юр. лица)', type: 'text', placeholder: '1021600000000' },
         { key: 'owner_inn', label: 'ИНН', type: 'text', placeholder: '1650000000' },
