@@ -987,10 +987,6 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
                   📥 Скачать мои данные
                 </motion.button>
               </div>
-              <div style={{marginTop:12,fontSize:11,color:c.sub,lineHeight:1.6,textAlign:'center'}}>
-                Настройки соответствуют требованиям 152-ФЗ.<br/>
-                Роскомнадзор: <a href="https://rkn.gov.ru" target="_blank" rel="noreferrer" style={{color:c.mid}}>rkn.gov.ru</a>
-              </div>
               <div style={{height:32}}/>
             </div>
           )}
@@ -1050,7 +1046,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
                   <span style={{fontSize:12,fontWeight:900,letterSpacing:'0.18em',color:'#1a1a2a'}}>SWAP</span>
                 </div>
                 <div style={{fontSize:22,fontWeight:900,color:c.light,letterSpacing:'0.05em',marginBottom:4}}>SWAP</div>
-                <div style={{fontSize:13,color:c.sub,marginBottom:8}}>Социальная сеть с четырьмя жизнями</div>
+                <div style={{fontSize:13,color:c.sub,marginBottom:8}}>Общение, контент и возможности</div>
                 <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 14px',
                   borderRadius:99,background:c.cardAlt,border:`1px solid ${c.borderB}`}}>
                   <span style={{fontSize:11,color:c.sub}}>Версия</span>
@@ -1060,14 +1056,14 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
               <div style={{padding:'20px 16px',display:'flex',flexDirection:'column',gap:1}}>
                 <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
                   <div style={{padding:'14px 16px',borderBottom:`1px solid ${c.border}`}}>
-                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>О продукте</div>
+                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>О приложении</div>
                     <p style={{fontSize:13,color:c.mid,lineHeight:1.7,margin:0}}>
-                      SWAP — российская социальная сеть нового поколения, объединяющая четыре ключевых аспекта жизни: профессиональный (ПРО), публичный (ПОТОК), приватный (КОМПАС) и корпоративный (КОНФЕРЕНЦИИ).
+                      SWAP — платформа для общения, публикации контента и совместного времяпровождения. Здесь можно вести каналы, смотреть клипы, участвовать в мероприятиях, слушать музыку, смотреть кино, торговать на бирже SWP и многое другое.
                     </p>
                   </div>
                   <div style={{padding:'14px 16px'}}>
                     <p style={{fontSize:13,color:c.mid,lineHeight:1.7,margin:0}}>
-                      Приложение создано для тех, кто ценит приватность, профессионализм и удобство. Мы не продаём ваши данные и работаем исключительно на серверах в России.
+                      Виртуальные помощники, читалка документов, голосовые комнаты и инструменты доступности — всё в одном приложении для тех, кто ценит удобство и приватность.
                     </p>
                   </div>
                 </div>
@@ -1090,12 +1086,13 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
                 </div>
                 <div style={{background:c.card,borderRadius:14,overflow:'hidden',border:`1px solid ${c.border}`,marginBottom:16}}>
                   <div style={{padding:'14px 16px'}}>
-                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Соответствие</div>
+                    <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>Возможности</div>
                     {[
-                      {badge:'152-ФЗ',text:'Обработка персональных данных на серверах РФ'},
-                      {badge:'PWA',text:'Прогрессивное веб-приложение — работает офлайн'},
-                      {badge:'E2E',text:'Сессионные ключи генерируются на устройстве'},
-                      {badge:'РКН',text:'Включён в реестр операторов персональных данных'},
+                      {badge:'Клипы',text:'Короткие видео и контент от авторов'},
+                      {badge:'Каналы',text:'Публичные и приватные каналы'},
+                      {badge:'Развлечения',text:'Кино, музыка, игры, голосовые комнаты'},
+                      {badge:'Биржа',text:'Торговля и кошелёк SWP'},
+                      {badge:'PWA',text:'Работает офлайн, устанавливается на устройство'},
                     ].map(row=>(
                       <div key={row.badge} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:`1px solid ${c.border}`}}>
                         <div style={{padding:'2px 8px',borderRadius:6,background:c.cardAlt,border:`1px solid ${c.borderB}`,
