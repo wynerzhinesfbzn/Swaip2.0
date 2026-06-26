@@ -108,7 +108,7 @@ export default function MarketplaceScreen({ myHash, onBack, onOpenChat }: {
         <motion.button whileTap={{scale:0.9}} onClick={onBack} style={{width:40,height:40,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.15)',background:'rgba(255,255,255,0.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#fff'}}>←</motion.button>
         <div style={{flex:1}}>
           <div style={{fontWeight:900,fontSize:18,color:'#fff'}}>🛍️ Маркетплейс</div>
-          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Купи и продай внутри SWAIP</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Купи и продай внутри SWAP</div>
         </div>
         <motion.button whileTap={{scale:0.92}} onClick={()=>setShowCreate(true)} style={{padding:'10px 18px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#7c3aed,#db2777)',color:'#fff',fontWeight:800,fontSize:13,cursor:'pointer',fontFamily:'"Montserrat",sans-serif'}}>+ Продать</motion.button>
       </div>

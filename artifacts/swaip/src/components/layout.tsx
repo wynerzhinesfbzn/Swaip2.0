@@ -21,7 +21,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             S
           </div>
           <span className="font-bold text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
-            SWAIP
+            SWAP
           </span>
         </div>
 

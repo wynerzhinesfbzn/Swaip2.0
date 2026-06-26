@@ -28,7 +28,7 @@ interface SkinConfig {
 
 const SKINS: Record<VideoSkin, SkinConfig> = {
   swaip: {
-    name: 'SWAIP Dark',
+    name: 'SWAP Dark',
     emoji: '🟣',
     bg: 'linear-gradient(160deg,#06061A 0%,#0D0A24 50%,#07091F 100%)',
     panelBg: 'rgba(12,10,30,0.92)',
@@ -43,7 +43,7 @@ const SKINS: Record<VideoSkin, SkinConfig> = {
     timeColor: '#C4B5FD',
     scrubberThumb: '#7C6FFF',
     bottomGradient: 'linear-gradient(0deg,rgba(4,3,18,0.98) 0%,rgba(7,5,25,0.8) 40%,transparent 100%)',
-    brandText: 'SWAIP',
+    brandText: 'SWAP',
     brandGradient: 'linear-gradient(135deg,#7C6FFF,#A78BFA)',
   },
   noir: {
@@ -62,7 +62,7 @@ const SKINS: Record<VideoSkin, SkinConfig> = {
     timeColor: '#D4AF37',
     scrubberThumb: '#D4AF37',
     bottomGradient: 'linear-gradient(0deg,rgba(0,0,0,0.99) 0%,rgba(2,1,0,0.85) 40%,transparent 100%)',
-    brandText: 'SWAIP',
+    brandText: 'SWAP',
     brandGradient: 'linear-gradient(135deg,#8B6914,#D4AF37,#F7E98E)',
   },
   aurora: {
@@ -81,7 +81,7 @@ const SKINS: Record<VideoSkin, SkinConfig> = {
     timeColor: '#00E5CC',
     scrubberThumb: '#00E5CC',
     bottomGradient: 'linear-gradient(0deg,rgba(2,4,16,0.98) 0%,rgba(3,7,20,0.8) 40%,transparent 100%)',
-    brandText: 'SWAIP',
+    brandText: 'SWAP',
     brandGradient: 'linear-gradient(135deg,#0AFFE8,#00BFFF,#E040FB)',
   },
   titanium: {
@@ -100,7 +100,7 @@ const SKINS: Record<VideoSkin, SkinConfig> = {
     timeColor: '#B0B0D0',
     scrubberThumb: '#C0C0E0',
     bottomGradient: 'linear-gradient(0deg,rgba(8,8,12,0.98) 0%,rgba(12,12,18,0.8) 40%,transparent 100%)',
-    brandText: 'SWAIP',
+    brandText: 'SWAP',
     brandGradient: 'linear-gradient(135deg,#5A5A78,#C0C0E0,#FFFFFF)',
   },
   crimson: {
@@ -119,7 +119,7 @@ const SKINS: Record<VideoSkin, SkinConfig> = {
     timeColor: '#FF6080',
     scrubberThumb: '#DC143C',
     bottomGradient: 'linear-gradient(0deg,rgba(8,1,4,0.98) 0%,rgba(12,2,6,0.82) 40%,transparent 100%)',
-    brandText: 'SWAIP',
+    brandText: 'SWAP',
     brandGradient: 'linear-gradient(135deg,#7F0014,#DC143C,#FF6B35)',
   },
 };
@@ -364,7 +364,7 @@ export default function SwaipVideoPlayer({
             style={{ position:'absolute',bottom:0,left:0,right:0,background:sk.bottomGradient,padding:'40px 14px 14px' }}
             onClick={e=>e.stopPropagation()}>
 
-            {/* SWAIP бренд */}
+            {/* SWAP бренд */}
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
               {title && (
                 <div style={{ fontSize:12,fontWeight:700,color:sk.textColor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,marginRight:10 }}>

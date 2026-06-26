@@ -250,7 +250,7 @@ function WebViewer({ url, title, onClose }: { url:string; title:string; onClose:
         <motion.button whileTap={{ scale:0.85 }} onClick={onClose}
           style={{ width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.15)', color:'#fff', fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>←</motion.button>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:9, fontWeight:900, letterSpacing:2, textTransform:'uppercase', background:'linear-gradient(90deg,#a78bfa,#60a5fa)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>🏛️ SWAIP — ДЕТИ</div>
+          <div style={{ fontSize:9, fontWeight:900, letterSpacing:2, textTransform:'uppercase', background:'linear-gradient(90deg,#a78bfa,#60a5fa)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>🏛️ SWAP — ДЕТИ</div>
           <div style={{ fontSize:12, fontWeight:800, color:'#fff', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{title}</div>
         </div>
       </div>

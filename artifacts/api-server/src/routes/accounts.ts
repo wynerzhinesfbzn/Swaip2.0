@@ -317,7 +317,7 @@ router.get("/invite-code/:code", async (req, res) => {
         if (customCode && customCode === code) {
           return res.json({
             found: true, hash: row.hash, mode: 'pro',
-            name:   parse(d['pro_displayName'])  || 'Участник SWAIP',
+            name:   parse(d['pro_displayName'])  || 'Участник SWAP',
             avatar: parse(d['pro_avatarUrl']),
             handle: parse(d['pro_fullName']),
           });
@@ -327,10 +327,10 @@ router.get("/invite-code/:code", async (req, res) => {
         for (const mode of ['pro', 'scene', 'krug'] as const) {
           if (computeInviteCode(row.hash, mode) === code) {
             const name = mode === 'scene'
-              ? (parse(d['scene_artistName']) || parse(d['scene_handle']) || 'Артист SWAIP')
+              ? (parse(d['scene_artistName']) || parse(d['scene_handle']) || 'Артист SWAP')
               : mode === 'krug'
               ? (parse(d['krug_displayName']) || 'Участник Круга')
-              : (parse(d['pro_displayName'])  || 'Участник SWAIP');
+              : (parse(d['pro_displayName'])  || 'Участник SWAP');
             const avatar = mode === 'scene'
               ? parse(d['scene_avatarUrl'])
               : mode === 'krug'

@@ -46,7 +46,7 @@ router.get("/exchange/ticker", (_req, res) => {
   const priceRub = last.close;
   res.json({
     symbol: "SWP",
-    name: "SWAIP Token",
+    name: "SWAP Token",
     prices: {
       RUB: +priceRub.toFixed(4),
       USD: +priceRub.toFixed(4),

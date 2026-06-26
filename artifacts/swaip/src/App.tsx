@@ -55,7 +55,7 @@ interface AppTheme {
 
 const THEMES: AppTheme[] = [
   {
-    id:'swaip', name:'SWAIP', emoji:'🌌',
+    id:'swaip', name:'SWAP', emoji:'🌌',
     preview:'linear-gradient(135deg,#0a0014 0%,#1a0050 50%,#07070f 100%)',
     bg:'#07070f', surface:'rgba(255,255,255,0.05)', card2:'rgba(255,255,255,0.09)',
     text:'#ffffff', sub:'rgba(255,255,255,0.5)', border:'rgba(255,255,255,0.08)',
@@ -1058,7 +1058,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
             <motion.div initial={{ y:14, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.64 }}
               style={{ fontSize:14, color:'rgba(255,255,255,0.5)', textAlign:'center',
                 lineHeight:1.6, maxWidth:260 }}>
-              Добро пожаловать в SWAIP
+              Добро пожаловать в SWAP
             </motion.div>
 
             {/* Прогресс-бар */}
@@ -1110,7 +1110,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
             <motion.div initial={{ y:8, opacity:0 }} animate={{ y:0, opacity:1 }} transition={{ delay:0.18 }}
               style={{ textAlign:'center', color:'rgba(245,200,80,0.95)', fontSize:13,
                 fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:22 }}>
-              это ваш единственный вход в SWAIP
+              это ваш единственный вход в SWAP
             </motion.div>
 
             {/* Большое поле с ключом */}
@@ -1235,7 +1235,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
           filter:'blur(12px)' }} />
 
         {/* ─── Герой: картинка во весь экран сверху, обрезана снизу чтобы убрать "1 МЕЕР" и кнопки ─── */}
-        <div role="img" aria-label="SWAIP"
+        <div role="img" aria-label="SWAP"
           style={{ position:'absolute', top:0, left:0, right:0,
             width:'100%', aspectRatio:'784/700',
             backgroundImage:`url("${heroSwaip}")`,
@@ -1480,7 +1480,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
                 </motion.button>
               </div>
 
-              {/* Кнопка «Вход в SWAIP» */}
+              {/* Кнопка «Вход в SWAP» */}
               <motion.button
                 whileTap={step===3 ? { scale:0.97 } : {}}
                 onClick={async () => {
@@ -1666,7 +1666,7 @@ const ETHER_COVERS = [
   { bg:'linear-gradient(135deg,#0f2027,#203a43,#2c5364)', label:'Teal'  },
   { bg:'linear-gradient(135deg,#2d1b69,#11998e)',          label:'Aurora'  },
   { bg:'linear-gradient(135deg,#2c003e,#8a0e8a)',          label:'Purple'  },
-  { bg:'linear-gradient(135deg,#0a0a0f,#1a0a3a,#3a0060)', label:'SWAIP'   },
+  { bg:'linear-gradient(135deg,#0a0a0f,#1a0a3a,#3a0060)', label:'SWAP'   },
   { bg:'linear-gradient(135deg,#1c1c1c,#3a3a3a,#1c1c1c)', label:'Dark'      },
   { bg:'linear-gradient(135deg,#0d0d0d,#003322,#005533)', label:'Matrix' },
   { bg:'linear-gradient(135deg,#3d0000,#6b0000,#3d0000)', label:'Ruby'   },
@@ -2068,7 +2068,7 @@ function ProStylePostCard({ post, accent, layoutVariant, userHash, isOwner, onDe
         const likeBtn  = () => toggleReact('❤️');
         const cmtBtn   = () => setOpenCmts(v => !v);
         const reactBtn = () => setShowEmojiPanel(v => !v);
-        const doShare  = async () => { if (navigator.share) { try { await navigator.share({title:'SWAIP',url:shareUrl}); } catch {} } else { try { await navigator.clipboard.writeText(shareUrl); } catch {} } };
+        const doShare  = async () => { if (navigator.share) { try { await navigator.share({title:'SWAP',url:shareUrl}); } catch {} } else { try { await navigator.clipboard.writeText(shareUrl); } catch {} } };
         const ownerBtn = isOwner
           ? <motion.button whileTap={{scale:0.85}} onClick={handleDelete} disabled={deleting} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,color:'rgba(255,80,80,0.5)',padding:'0 6px'}}>{deleting?'…':'🗑'}</motion.button>
           : <motion.button whileTap={{scale:0.85}} onClick={() => setReportOpen(true)} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,color:'rgba(255,255,255,0.2)',padding:'0 6px'}}>🚩</motion.button>;
@@ -2386,7 +2386,7 @@ function BroadcastCard({ post, userHash, accent, onOpenComments, isOwner, onDele
                       <circle cx="40" cy="15" r="2.5" fill="rgba(255,255,255,0.22)" />
                       <circle cx="108" cy="15" r="2.5" fill="rgba(255,255,255,0.22)" />
                       <text x="75" y="20" textAnchor="middle" fill="white" fontSize="13" fontWeight="900"
-                        fontFamily="'Montserrat',Impact,sans-serif" letterSpacing="2">SWAIP</text>
+                        fontFamily="'Montserrat',Impact,sans-serif" letterSpacing="2">SWAP</text>
                     </motion.g>
                     <circle cx="18" cy="36" r="8" fill="#93c5fd" />
                     <circle cx="18" cy="36" r="5.5" fill="#bfdbfe" />
@@ -3233,39 +3233,39 @@ const INVITE_CONFIG = {
 /* 15 рабочих текстов (Про / Стенд) */
 const INVITE_TEXTS_PRO = [
   (link:string) => `Все мои работы указаны в этом свайпе — рабочем. Заходи: ${link}`,
-  (link:string) => `Добро пожаловать в SWAIP. Моя рабочая анкета — свайп вверх. Вот она: ${link}`,
-  (link:string) => `Привет! Я в SWAIP. Найдёшь меня по свайпу вверх — там моё портфолио. ${link}`,
+  (link:string) => `Добро пожаловать в SWAP. Моя рабочая анкета — свайп вверх. Вот она: ${link}`,
+  (link:string) => `Привет! Я в SWAP. Найдёшь меня по свайпу вверх — там моё портфолио. ${link}`,
   (link:string) => `Смотри, у меня теперь цифровой стенд с кейсами. Тыкай: ${link}`,
   (link:string) => `Свайпни вверх на моём профиле — увидишь, чем я зарабатываю. ${link}`,
   (link:string) => `Для заказчиков и партнёров — вот мой рабочий свайп. Всё чётко: ${link}`,
-  (link:string) => `Забудь про pdf. Моё резюме — в SWAIP, свайп вверх. Заходи: ${link}`,
+  (link:string) => `Забудь про pdf. Моё резюме — в SWAP, свайп вверх. Заходи: ${link}`,
   (link:string) => `Здесь мои проекты, контакты и стек. Рабочий режим включён. ${link}`,
   (link:string) => `Приглашаю в свой Стенд. Оцени мои работы и напиши, если что. ${link}`,
-  (link:string) => `Коллега, теперь я в SWAIP. Моя визитка — по ссылке. Свайпни вверх: ${link}`,
+  (link:string) => `Коллега, теперь я в SWAP. Моя визитка — по ссылке. Свайпни вверх: ${link}`,
   (link:string) => `Хочешь нанять меня? Всё что нужно — в моём рабочем свайпе. ${link}`,
-  (link:string) => `Без лишних слов: вот ссылка на мой профессиональный профиль в SWAIP. ${link}`,
-  (link:string) => `Закинул все сертификаты и работы в SWAIP. Свайп вверх — смотри. ${link}`,
+  (link:string) => `Без лишних слов: вот ссылка на мой профессиональный профиль в SWAP. ${link}`,
+  (link:string) => `Закинул все сертификаты и работы в SWAP. Свайп вверх — смотри. ${link}`,
   (link:string) => `Мой Стенд открыт. Там можно скачать портфолио и написать мне. ${link}`,
   (link:string) => `Рабочий свайп — как витрина мастерской. Заходи, посмотри: ${link}`,
 ];
 
 /* 15 публичных текстов (Сцена / Публичная) */
 const INVITE_TEXTS_SCENE = [
-  (link:string) => `Добро пожаловать в SWAIP. Меня там найдёшь по свайпу — моя Сцена. ${link}`,
-  (link:string) => `Сегодня я в офигительной соцсети — SWAIP. Давай ко мне, посмотри на мой аккаунт и делай так же: ${link}`,
-  (link:string) => `Привет! Я теперь на SWAIP. Моя публичная анкета — жду: ${link}`,
-  (link:string) => `Зацени мою Сцену в SWAIP. Там я без фильтров, но красиво. ${link}`,
+  (link:string) => `Добро пожаловать в SWAP. Меня там найдёшь по свайпу — моя Сцена. ${link}`,
+  (link:string) => `Сегодня я в офигительной соцсети — SWAP. Давай ко мне, посмотри на мой аккаунт и делай так же: ${link}`,
+  (link:string) => `Привет! Я теперь на SWAP. Моя публичная анкета — жду: ${link}`,
+  (link:string) => `Зацени мою Сцену в SWAP. Там я без фильтров, но красиво. ${link}`,
   (link:string) => `Свайпни на моём профиле — увидишь, какой я в жизни. ${link}`,
-  (link:string) => `Я в SWAIP под своим именем. Ищу своих. Вот ссылка на мою Сцену: ${link}`,
-  (link:string) => `Смотри, я завёл аккаунт в SWAIP. Там можно листать людей. Меня найдёшь легко: ${link}`,
-  (link:string) => `Приглашаю в SWAIP. Моя Сцена уже горит. Твой ход: ${link}`,
-  (link:string) => `В SWAIP я веду публичную анкету. Подпишись, там будет интересно. ${link}`,
-  (link:string) => `О, у меня теперь есть Сцена в SWAIP. Заходи, пообщаемся: ${link}`,
-  (link:string) => `Моя новая цифровая тусовка — SWAIP. Меня найти просто — свайп: ${link}`,
+  (link:string) => `Я в SWAP под своим именем. Ищу своих. Вот ссылка на мою Сцену: ${link}`,
+  (link:string) => `Смотри, я завёл аккаунт в SWAP. Там можно листать людей. Меня найдёшь легко: ${link}`,
+  (link:string) => `Приглашаю в SWAP. Моя Сцена уже горит. Твой ход: ${link}`,
+  (link:string) => `В SWAP я веду публичную анкету. Подпишись, там будет интересно. ${link}`,
+  (link:string) => `О, у меня теперь есть Сцена в SWAP. Заходи, пообщаемся: ${link}`,
+  (link:string) => `Моя новая цифровая тусовка — SWAP. Меня найти просто — свайп: ${link}`,
   (link:string) => `Я там выкладываю мысли и фото. Не как в инсте, а по-честному. Вот ссылка: ${link}`,
   (link:string) => `Свайп — и ты на моей публичной анкете. Просто смотри: ${link}`,
-  (link:string) => `Привет! Это я в SWAIP. Моя Сцена открыта для всех. Заходи знакомиться: ${link}`,
-  (link:string) => `Зацени мой профиль в SWAIP. Если понравится — добавимся в друзья. ${link}`,
+  (link:string) => `Привет! Это я в SWAP. Моя Сцена открыта для всех. Заходи знакомиться: ${link}`,
+  (link:string) => `Зацени мой профиль в SWAP. Если понравится — добавимся в друзья. ${link}`,
 ];
 
 function getInviteTexts(mode: string) {
@@ -3394,7 +3394,7 @@ function InviteModal({
                     <span style={{ fontSize:14 }}>{cfg.emoji}</span>
                     <span style={{ fontSize:11, fontWeight:800, color:cfg.color,
                       fontFamily:'"Montserrat",sans-serif', letterSpacing:'0.06em' }}>
-                      SWAIP · {t[cfg.labelKey] ?? cfg.label}
+                      SWAP · {t[cfg.labelKey] ?? cfg.label}
                     </span>
                   </div>
                 </div>
@@ -3485,7 +3485,7 @@ function InviteModal({
               <motion.button whileTap={{ scale:0.97 }}
                 onClick={async () => {
                   try {
-                    await navigator.share({ title: 'SWAIP', text: inviteText, url: link });
+                    await navigator.share({ title: 'SWAP', text: inviteText, url: link });
                   } catch {}
                 }}
                 style={{ width:'100%', padding:'15px', borderRadius:16, fontSize:15, fontWeight:800,
@@ -3571,7 +3571,7 @@ function InviteModal({
 }
 
 /* ══════════════════════════════════════
-   SWAIP BRAND STRIP — горизонтальная полоска с металлическим логотипом
+   SWAP BRAND STRIP — горизонтальная полоска с металлическим логотипом
    Используется в шапке каждого аккаунта и на аватаре-телевизоре
 ══════════════════════════════════════ */
 function SwaipStrip({ zIndex = 8 }: { zIndex?: number }) {
@@ -3585,7 +3585,7 @@ function SwaipStrip({ zIndex = 8 }: { zIndex?: number }) {
       {/* Тонкая горящая линия сверху */}
       <div style={{ position:'absolute', top:0, left:'15%', right:'15%', height:1,
         background:'linear-gradient(90deg,transparent,rgba(200,200,220,0.35) 40%,rgba(255,255,255,0.55) 50%,rgba(200,200,220,0.35) 60%,transparent)' }} />
-      {/* Буквы SWAIP — металлический хром */}
+      {/* Буквы SWAP — металлический хром */}
       <span style={{
         position:'relative', zIndex:2,
         fontSize:10, letterSpacing:7, fontWeight:900,
@@ -3596,7 +3596,7 @@ function SwaipStrip({ zIndex = 8 }: { zIndex?: number }) {
         WebkitTextFillColor:'transparent',
         filter:'drop-shadow(0 0 4px rgba(200,200,255,0.35))',
         paddingLeft:7 /* компенсация letterSpacing у последней буквы */
-      } as React.CSSProperties}>SWAIP</span>
+      } as React.CSSProperties}>SWAP</span>
       {/* Тонкая горящая линия снизу */}
       <div style={{ position:'absolute', bottom:0, left:'15%', right:'15%', height:1,
         background:'linear-gradient(90deg,transparent,rgba(150,150,180,0.2) 40%,rgba(200,200,220,0.35) 50%,rgba(150,150,180,0.2) 60%,transparent)' }} />
@@ -4414,7 +4414,7 @@ function SelfieFrameWrapper({ frameId, children, mini = false }: { frameId: stri
           <rect x="208" y="380" width="22" height="28" rx="5" fill="#a07830"/>
           <rect x="55" y="405" width="52" height="10" rx="4" fill="#8b6914"/>
           <rect x="193" y="405" width="52" height="10" rx="4" fill="#8b6914"/>
-          <text x="148" y="358" textAnchor="middle" fill="#c8a96e" fontSize="9" fontFamily="serif" letterSpacing="2">SWAIP-O-VISION</text>
+          <text x="148" y="358" textAnchor="middle" fill="#c8a96e" fontSize="9" fontFamily="serif" letterSpacing="2">SWAP-O-VISION</text>
         </svg>
       </div>
     );
@@ -4434,7 +4434,7 @@ function SelfieFrameWrapper({ frameId, children, mini = false }: { frameId: stri
           <rect x="130" y="326" width="40" height="3" rx="1.5" fill="#3b82f6" opacity="0.7"/>
           <rect x="125" y="329" width="50" height="14" rx="3" fill="#222"/>
           <rect x="85" y="340" width="130" height="10" rx="5" fill="#2a2a2a" stroke="#333" strokeWidth="1"/>
-          <text x="150" y="322" textAnchor="middle" fill="#333" fontSize="8" fontFamily="sans-serif" letterSpacing="2">SWAIP TV</text>
+          <text x="150" y="322" textAnchor="middle" fill="#333" fontSize="8" fontFamily="sans-serif" letterSpacing="2">SWAP TV</text>
         </svg>
       </div>
     );
@@ -4690,7 +4690,7 @@ function SelfieFrameWrapper({ frameId, children, mini = false }: { frameId: stri
           <rect x="80" y="334" width="140" height="32" rx="5" fill="#1a1a1a" stroke="#2a2a2a" strokeWidth="1"/>
           <circle cx="288" cy="300" r="4" fill="#222"/>
           <circle cx="288" cy="300" r="2" fill="#3b82f6" opacity="0.5"/>
-          <text x="150" y="299" textAnchor="middle" fill="#2a2a2a" fontSize="7" letterSpacing="2">SWAIP</text>
+          <text x="150" y="299" textAnchor="middle" fill="#2a2a2a" fontSize="7" letterSpacing="2">SWAP</text>
         </svg>
       </div>
     );
@@ -5815,7 +5815,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
     { id:5,  bg:'linear-gradient(135deg,#2d1b69,#11998e)',               label:t.grad_aurora    },
     { id:6,  bg:'linear-gradient(135deg,#1e3c72,#2a5298)',               label:'Ocean'    },
     { id:7,  bg:'linear-gradient(135deg,#2c003e,#8a0e8a)',               label:t.grad_purple    },
-    { id:8,  bg:'linear-gradient(135deg,#0a0a0f,#1a0a3a,#3a0060)',      label:'SWAIP'     },
+    { id:8,  bg:'linear-gradient(135deg,#0a0a0f,#1a0a3a,#3a0060)',      label:'SWAP'     },
     { id:9,  bg:'linear-gradient(135deg,#1c1c1c,#3a3a3a,#1c1c1c)',      label:t.grad_anthracite  },
     { id:10, bg:'linear-gradient(135deg,#0d0d0d,#003322,#005533)',       label:t.grad_matrix   },
     { id:11, bg:'linear-gradient(135deg,#3d0000,#6b0000,#3d0000)',       label:t.grad_ruby     },
@@ -7859,7 +7859,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                 fontFamily:'"Montserrat","Arial Black",sans-serif',
                 background:'linear-gradient(180deg,#dcdce8,#fff 40%,#a8a8be 65%,#d0d0e0)',
                 WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', paddingLeft:4
-              } as React.CSSProperties}>SWAIP</span>
+              } as React.CSSProperties}>SWAP</span>
             </div>
           </div>
         );
@@ -8283,7 +8283,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
               <div style={{ position:'absolute', inset:0, clipPath:'polygon(62% 0,100% 0,100% 100%,50% 100%)', background:'#000' }}>
                 <div style={{ position:'absolute', bottom:20, left:'25%', right:12, transform:'translateX(10%)' }}>
                   <div style={{ fontSize:9, letterSpacing:4, color:`${ac}cc`, fontWeight:900, fontFamily:'"Montserrat",sans-serif', textTransform:'uppercase', marginBottom:4 }}>PRO</div>
-                  <div style={{ fontSize:11, color:'rgba(255,255,255,0.5)', fontFamily:'"Montserrat",sans-serif', letterSpacing:2, textTransform:'uppercase' }}>SWAIP</div>
+                  <div style={{ fontSize:11, color:'rgba(255,255,255,0.5)', fontFamily:'"Montserrat",sans-serif', letterSpacing:2, textTransform:'uppercase' }}>SWAP</div>
                 </div>
               </div>
               {/* Красная диагональная линия */}
@@ -10725,7 +10725,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                         <div style={{ position:'absolute', right:14, bottom:16, fontSize:24,
                           opacity: isPlaying ? 0.1 : 0.4, transition:'opacity 0.4s' }}>🎙️</div>
 
-                        {/* ── Человечек с флагом SWAIP ── */}
+                        {/* ── Человечек с флагом SWAP ── */}
                         <AnimatePresence>
                           {isPlaying && (
                             <motion.div
@@ -10761,11 +10761,11 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                                   {/* Звёздочки по краям */}
                                   <circle cx="40" cy="15" r="2.5" fill="rgba(255,255,255,0.22)" />
                                   <circle cx="108" cy="15" r="2.5" fill="rgba(255,255,255,0.22)" />
-                                  {/* Надпись SWAIP */}
+                                  {/* Надпись SWAP */}
                                   <text x="75" y="20" textAnchor="middle" fill="white"
                                     fontSize="13" fontWeight="900"
                                     fontFamily="'Montserrat',Impact,sans-serif"
-                                    letterSpacing="2">SWAIP</text>
+                                    letterSpacing="2">SWAP</text>
                                 </motion.g>
 
                                 {/* ── Голова ── */}
@@ -10875,7 +10875,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                   const doShare = async () => {
                     const url = `${window.location.origin}/#pro_${userHash}`;
                     const text = (post.content||'').slice(0,200);
-                    if (navigator.share) { try { await navigator.share({title:'SWAIP',text,url}); } catch {} }
+                    if (navigator.share) { try { await navigator.share({title:'SWAP',text,url}); } catch {} }
                     else { try { await navigator.clipboard.writeText(url); } catch {} }
                   };
                   /* Общие данные */
@@ -11530,7 +11530,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
           };
           const shareRef = async () => {
             if (navigator.share) {
-              try { await navigator.share({ title:'Зарегистрируйся в SWAIP', url: refLink }); return; } catch {}
+              try { await navigator.share({ title:'Зарегистрируйся в SWAP', url: refLink }); return; } catch {}
             }
             copyRef();
           };
@@ -11614,7 +11614,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                       {[
                         { icon:'🔗', text:'Поделитесь своей реферальной ссылкой с другом' },
-                        { icon:'✅', text:'Друг регистрируется в SWAIP по вашей ссылке' },
+                        { icon:'✅', text:'Друг регистрируется в SWAP по вашей ссылке' },
                         { icon:'🪙', text:'Вы получаете 50 монет, друг — 25 монет' },
                         { icon:'🎁', text:'Монеты можно тратить на продвижение постов (скоро)' },
                       ].map((s, i) => (
@@ -13510,7 +13510,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
         {showShareChannel && openEtherId && (() => {
           const ch = ethers.find(e=>e.id===openEtherId);
           if (!ch) return null;
-          const shareText = `📡 ${ch.name}\n${ch.desc||''}\nSWAIP`;
+          const shareText = `📡 ${ch.name}\n${ch.desc||''}\nSWAP`;
           const shareItems = [
             { icon:'📋', label:'Скопировать ссылку', action: () => { navigator.clipboard?.writeText(shareText).catch(()=>{}); setShowShareChannel(false); } },
             { icon:'✈️', label:'Telegram', action: () => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareText)}`,'_blank') },
@@ -13519,7 +13519,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
             { icon:'📌', label:'Pinterest', action: () => window.open(`https://pinterest.com/pin/create/button/?description=${encodeURIComponent(shareText)}`,'_blank') },
             { icon:'🐦', label:'Twitter/X', action: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`,'_blank') },
             { icon:'📨', label:'Email', action: () => window.open(`mailto:?subject=${encodeURIComponent(ch.name)}&body=${encodeURIComponent(shareText)}`,'_blank') },
-            { icon:'💎', label:'Одноклассники', action: () => window.open(`https://connect.ok.ru/offer?url=https://swaip.app&title=${encodeURIComponent(ch.name)}`,'_blank') },
+            { icon:'💎', label:'Одноклассники', action: () => window.open(`https://connect.ok.ru/offer?url=https://swap.app&title=${encodeURIComponent(ch.name)}`,'_blank') },
             { icon:'📱', label:'SMS', action: () => window.open(`sms:?body=${encodeURIComponent(shareText)}`,'_blank') },
           ];
           return (
@@ -14302,9 +14302,9 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
               </div>
               <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:18, padding:18 }}>
                 <div style={{ fontSize:28, marginBottom:10 }}>🌟</div>
-                <div style={{ fontSize:15, fontWeight:800, color:'#fff', marginBottom:6, fontFamily:'"Montserrat",sans-serif' }}>Реальные отзывы участников SWAIP</div>
+                <div style={{ fontSize:15, fontWeight:800, color:'#fff', marginBottom:6, fontFamily:'"Montserrat",sans-serif' }}>Реальные отзывы участников SWAP</div>
                 <div style={{ fontSize:13, color:'rgba(255,255,255,0.55)', lineHeight:1.6 }}>
-                  Другие пользователи SWAIP могут оставить вам верифицированный отзыв прямо с вашего профиля. Они отображаются отдельно — защищены от накрутки на уровне базы данных.
+                  Другие пользователи SWAP могут оставить вам верифицированный отзыв прямо с вашего профиля. Они отображаются отдельно — защищены от накрутки на уровне базы данных.
                 </div>
               </div>
               <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:18, padding:18 }}>
@@ -16382,7 +16382,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                   <div style={{ padding:'10px 14px', background:'rgba(59,130,246,0.07)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:12 }}>
                     <div style={{ fontSize:12, color:'rgba(59,130,246,0.9)', lineHeight:1.6 }}>
                       <b>«+ Добавить»</b> — для ваших ручных отзывов (скриншоты, письма от клиентов с других платформ). Вы управляете ими сами.<br/>
-                      <span style={{ color:'rgba(255,255,255,0.45)' }}>Реальные гостевые отзывы от других участников SWAIP появятся ниже автоматически.</span>
+                      <span style={{ color:'rgba(255,255,255,0.45)' }}>Реальные гостевые отзывы от других участников SWAP появятся ниже автоматически.</span>
                     </div>
                   </div>
                 </div>
@@ -16447,7 +16447,7 @@ function ProScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger,
                             </div>
                             <div style={{ fontSize:14, color:'rgba(255,255,255,0.8)', lineHeight:1.6, marginBottom:8 }}>«{rv.text}»</div>
                             <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                              <span style={{ fontSize:10, color:'rgba(34,197,94,0.6)', fontWeight:600 }}>✅ Верифицированный участник SWAIP</span>
+                              <span style={{ fontSize:10, color:'rgba(34,197,94,0.6)', fontWeight:600 }}>✅ Верифицированный участник SWAP</span>
                               <motion.button whileTap={{ scale:0.93 }}
                                 onClick={async () => {
                                   if (!confirm('Удалить этот отзыв?')) return;
@@ -19170,7 +19170,7 @@ function SceneScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigge
       <div style={{ position:'relative', zIndex:5 }}>
         {/* Обложка — контейнер для контролов, прозрачный (фото вынесено в bleed-слой) */}
         <div style={{ position:'relative', height:290, overflow:'hidden', background:'transparent' }}>
-          {/* SWAIP brand strip */}
+          {/* SWAP brand strip */}
           <SwaipStrip zIndex={9} />
           {/* ─── Топ-бар ─── */}
           <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:10,
@@ -19218,7 +19218,7 @@ function SceneScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigge
             <div style={{ width:132, height:188, borderRadius:26, overflow:'hidden',
               position:'relative', background:'#07070f' }}>
               <img src={avatarUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              {/* Шильдик SWAIP снизу */}
+              {/* Шильдик SWAP снизу */}
               <div style={{ position:'absolute', bottom:0, left:0, right:0,
                 height:22, display:'flex', alignItems:'center', justifyContent:'center',
                 background:`linear-gradient(90deg,transparent 0%,rgba(7,7,15,0.85) 18%,rgba(7,7,15,0.95) 50%,rgba(7,7,15,0.85) 82%,transparent 100%)`,
@@ -19228,7 +19228,7 @@ function SceneScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigge
                   fontFamily:'"Montserrat","Arial Black",sans-serif',
                   background:`linear-gradient(180deg,${CYAN} 0%,#ffffff 45%,${CYAN}99 100%)`,
                   WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', paddingLeft:5
-                } as React.CSSProperties}>SWAIP</span>
+                } as React.CSSProperties}>SWAP</span>
               </div>
             </div>
             {/* Карандаш */}
@@ -19449,7 +19449,7 @@ function SceneScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigge
       <AnimatePresence>
         {showShareFor && (() => {
           const sharePost = posts.find(p => p.id === showShareFor);
-          const shareUrl = `swaip.app/scene/${handle || 'user'}`;
+          const shareUrl = `swap.app/scene/${handle || 'user'}`;
           const SHARE_APPS = [
             { icon:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/120px-WhatsApp.svg.png',  name:'WhatsApp',   onClick:() => window.open(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`) },
             { icon:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Telegram_2019_Logo.svg/120px-Telegram_2019_Logo.svg.png', name:'Telegram', onClick:() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}`) },
@@ -20973,7 +20973,7 @@ function KrugScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:15, fontWeight:700, color:'#fff', whiteSpace:'nowrap',
                             overflow:'hidden', textOverflow:'ellipsis' }}>
-                            {p.info.name || 'Участник SWAIP'}
+                            {p.info.name || 'Участник SWAP'}
                           </div>
                           {p.info.handle && (
                             <div style={{ fontSize:12, color:`${GOLD}88`, marginTop:1 }}>@{p.info.handle}</div>
@@ -21321,7 +21321,7 @@ function KrugScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger
       {/* ═══ SHARE SHEET ═══ */}
       <AnimatePresence>
         {showShareFor && (() => {
-          const shareUrl = `swaip.app/krug/${userHash}`;
+          const shareUrl = `swap.app/krug/${userHash}`;
           const SHARE_APPS = [
             { icon:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/120px-WhatsApp.svg.png', name:'WhatsApp', onClick:()=>window.open(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`) },
             { icon:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Telegram_2019_Logo.svg/120px-Telegram_2019_Logo.svg.png', name:'Telegram', onClick:()=>window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}`) },
@@ -21547,7 +21547,7 @@ function KrugScreen({ onBack, userHash, onInvite, isActive, registerCoverTrigger
 }
 
 /* ─────────────────────────────────────────────────
-   SEARCH SCREEN — "SWAIP: Все здесь"
+   SEARCH SCREEN — "SWAP: Все здесь"
 ───────────────────────────────────────────────── */
 const DEMO_USERS = [
   { id:'u1', name:'Денис Владимирович', nick:'@denis_v', mode:'pro'    as const, hash:'9f3k2mPq8vR', emoji:'👨‍💼' },
@@ -21568,12 +21568,12 @@ const MODE_META = {
 };
 
 const INVITE_TEMPLATES = [
-  (link:string) => `Присоединяйся ко мне в SWAIP — новой социальной сети с 4 жизнями! 🔥\n${link}`,
-  (link:string) => `Меня теперь можно найти только здесь → SWAIP. 1 ссылка = 4 жизни\n${link}`,
-  (link:string) => `Смотри, у меня теперь аккаунт в SWAIP. Заходи, там интересно!\n${link}`,
-  (link:string) => `Я в SWAIP. Здесь у меня сразу 4 жизни. Присоединяйся!\n${link}`,
-  (link:string) => `В SWAIP у каждого 4 жизни. Ищи меня там 🌐\n${link}`,
-  (link:string) => `Зашёл в SWAIP — и всё. Просто приходи 👇\n${link}`,
+  (link:string) => `Присоединяйся ко мне в SWAP — новой социальной сети с 4 жизнями! 🔥\n${link}`,
+  (link:string) => `Меня теперь можно найти только здесь → SWAP. 1 ссылка = 4 жизни\n${link}`,
+  (link:string) => `Смотри, у меня теперь аккаунт в SWAP. Заходи, там интересно!\n${link}`,
+  (link:string) => `Я в SWAP. Здесь у меня сразу 4 жизни. Присоединяйся!\n${link}`,
+  (link:string) => `В SWAP у каждого 4 жизни. Ищи меня там 🌐\n${link}`,
+  (link:string) => `Зашёл в SWAP — и всё. Просто приходи 👇\n${link}`,
 ];
 
 interface RealUser {
@@ -21625,7 +21625,7 @@ const FLOW_SEED: FlowCard[] = [
   { kind:'shop',    id:'s1', interest:'fishing', emoji:'🛒', title:'РыбакМаркет — новинки апреля', role:'Официальный магазин · Снасти и снаряжение', body:'Поступили новые воблеры Rapala и силиконовые приманки Lucky John! Скидка 15% на все катушки Daiwa до конца месяца. Доставка по всей России от 2 дней. Более 5 000 товаров в наличии.', accent:'#22c55e', meta:'Рыбалка', badge:'Магазин', likes:87, time:'5 ч назад' },
   { kind:'post',    id:'p1', interest:'fishing', emoji:'🐟', title:'Поймал 7-кг сома на Волге!', role:'Карповая рыбалка · Самара', body:'Выезд в субботу утром. Место — 12 км ниже по течению от Самары, левый берег. Насадка — варёная кукуруза + ферментированный горох. Клёвое утро: 3 поклёвки за 5 часов, самый крупный — 7.2 кг! Сома отпустил. Место помечено в GPS, готов поделиться с теми кто давно ищет карповое место.', accent:'#60a5fa', meta:'Рыбалка', badge:'Пост', likes:534, time:'вчера' },
   { kind:'news',    id:'n1', interest:'fishing', emoji:'📰', title:'Открытие сезона 2026', role:'Новость · Рыболовство России', body:'С 1 мая открыт сезон рыболовства на большинстве рек Центральной России. Официальный запрет на нерестовый период снят. Напоминаем: ловля на спиннинг разрешена только крючками без бородки в водоохранных зонах.', accent:'#a78bfa', meta:'Рыбалка', badge:'Новость', likes:201, time:'1 день' },
-  { kind:'account', id:'a2', interest:'fishing', emoji:'🏕', title:'ПодводникPRO', role:'Подводная охота · Видеоблог · Сцена SWAIP', body:'Снимаю подводные охоты по всей России — Байкал, Ладога, реки Сибири. Последнее видео: охота на щуку в тростнике — 11 минут под водой без дыхания. Присоединяйся к каналу!', accent:'#00e5ff', meta:'Рыбалка', badge:'Сцена', likes:892, time:'3 ч назад' },
+  { kind:'account', id:'a2', interest:'fishing', emoji:'🏕', title:'ПодводникPRO', role:'Подводная охота · Видеоблог · Сцена SWAP', body:'Снимаю подводные охоты по всей России — Байкал, Ладога, реки Сибири. Последнее видео: охота на щуку в тростнике — 11 минут под водой без дыхания. Присоединяйся к каналу!', accent:'#00e5ff', meta:'Рыбалка', badge:'Сцена', likes:892, time:'3 ч назад' },
   // СТРОИТЕЛЬСТВО
   { kind:'account', id:'a3', interest:'build', emoji:'🏗', title:'МастерГараж', role:'Строительство гаражей и складов · 8.1к подписчиков', body:'Строю гаражи и хозпостройки под ключ по всему Поволжью. Работаю с 2012 года, более 340 объектов. В этой неделе выложу полный фотоотчёт постройки гаража 6×9м за 18 дней с нуля до ворот.', accent:'#3b82f6', meta:'Стройка', badge:'Про', likes:445, time:'4 ч назад' },
   { kind:'shop',    id:'s3', interest:'build', emoji:'🏪', title:'СтройМатериалы24 — доставка от 2 часов', role:'Стройматериалы оптом и в розницу', body:'Газоблок D500, кирпич М150, арматура 12мм — всё в наличии на складе 8000 м². Собственный автопарк: доставка по городу от 2 часов, до 500 км — от 6 часов. Оплата по факту доставки. Прайс в профиле.', accent:'#22c55e', meta:'Стройка', badge:'Магазин', likes:156, time:'6 ч назад' },
@@ -21637,11 +21637,11 @@ const FLOW_SEED: FlowCard[] = [
   { kind:'shop',    id:'s5', interest:'auto', emoji:'🔩', title:'ЗапчастиОпт — 50 000+ позиций', role:'Автозапчасти оптом и в розницу', body:'Оригинальные и аналоговые запчасти для всех марок авто. Ежедневное обновление склада. Доставка по России 1–3 дня. Бесплатный подбор по VIN. Гарантия 12 месяцев на все детали. Новинка: тормозные колодки Brembo со скидкой 20%.', accent:'#22c55e', meta:'Авто', badge:'Магазин', likes:341, time:'3 ч назад' },
   { kind:'post',    id:'p5', interest:'auto', emoji:'⚙️', title:'ТО за 2000 рублей — реально?', role:'Автосервис своими руками', body:'Менял масло и фильтры сам первый раз — делюсь опытом. Что нужно: подъёмник (аренда 500₽/час), масло 5W-40 (4л = 1400₽), масляный + воздушный + салонный фильтры = итого ~2100₽. Экономия 4000–6000₽ против сервиса. Снял видео всего процесса — 23 минуты, без воды.', accent:'#60a5fa', meta:'Авто', badge:'Пост', likes:3782, time:'вчера' },
   { kind:'news',    id:'n5', interest:'auto', emoji:'🛞', title:'Новые тарифы ОСАГО с мая 2026', role:'Страхование · Авто', body:'Центробанк утвердил новые базовые ставки ОСАГО. Для легковых авто категории B тариф снизится на 8–12% в зависимости от региона. Расширен коридор КБМ: теперь безаварийные водители получат скидку до 54%. Поправки вступают в силу с 1 мая.', accent:'#a78bfa', meta:'Авто', badge:'Новость', likes:1567, time:'2 дня' },
-  { kind:'account', id:'a6', interest:'auto', emoji:'🏎', title:'TurboLife — тюнинг и тест-драйвы', role:'Автоблогер · Сцена SWAIP', body:'Тюниную и тестирую авто уже 8 лет. На этой неделе — тест-драйв Lada Vesta NG после установки турбокита. 0-100 за 7.8 секунды! Смотрите полную запись на моей странице Сцена.', accent:'#00e5ff', meta:'Авто', badge:'Сцена', likes:4512, time:'5 ч назад' },
+  { kind:'account', id:'a6', interest:'auto', emoji:'🏎', title:'TurboLife — тюнинг и тест-драйвы', role:'Автоблогер · Сцена SWAP', body:'Тюниную и тестирую авто уже 8 лет. На этой неделе — тест-драйв Lada Vesta NG после установки турбокита. 0-100 за 7.8 секунды! Смотрите полную запись на моей странице Сцена.', accent:'#00e5ff', meta:'Авто', badge:'Сцена', likes:4512, time:'5 ч назад' },
   // МУЗЫКА
-  { kind:'account', id:'a7', interest:'music', emoji:'🎸', title:'RockBand_RF', role:'Рок-группа из Москвы · Сцена SWAIP · 15к подписчиков', body:'Мы — RockBand_RF. Играем рок с элементами электроники с 2019 года. Выступили на 47 площадках России. Новый альбом «Сигнал» выходит 15 мая! Слушай первый трек прямо сейчас на нашей Сцене.', accent:'#00e5ff', meta:'Музыка', badge:'Сцена', likes:6231, time:'2 ч назад' },
+  { kind:'account', id:'a7', interest:'music', emoji:'🎸', title:'RockBand_RF', role:'Рок-группа из Москвы · Сцена SWAP · 15к подписчиков', body:'Мы — RockBand_RF. Играем рок с элементами электроники с 2019 года. Выступили на 47 площадках России. Новый альбом «Сигнал» выходит 15 мая! Слушай первый трек прямо сейчас на нашей Сцене.', accent:'#00e5ff', meta:'Музыка', badge:'Сцена', likes:6231, time:'2 ч назад' },
   { kind:'post',    id:'p7', interest:'music', emoji:'🎶', title:'Учу аккорды Am, C, G, Em за неделю', role:'Гитара для начинающих', body:'Метод, который реально работает. 20 минут в день по схеме: 5 мин разминка пальцев, 10 мин отработка переходов между аккордами, 5 мин игра под песню. Через 7 дней ты сможешь сыграть «Звезду» Короля и Шута. Видео-уроки у меня в профиле, все бесплатно.', accent:'#60a5fa', meta:'Музыка', badge:'Пост', likes:891, time:'3 дня' },
-  { kind:'news',    id:'n7', interest:'music', emoji:'🎤', title:'Фестиваль SWAIP Sound 2026', role:'Событие · Москва', body:'20–22 июня в Парке Сокольники пройдёт первый музыкальный фестиваль SWAIP Sound. Более 30 артистов на 3 сценах. Хедлайнеры объявлены! Билеты уже в продаже — ранняя птица до 1 мая со скидкой 30%. Подробности на официальной странице фестиваля.', accent:'#a78bfa', meta:'Музыка', badge:'Новость', likes:4320, time:'1 день' },
+  { kind:'news',    id:'n7', interest:'music', emoji:'🎤', title:'Фестиваль SWAP Sound 2026', role:'Событие · Москва', body:'20–22 июня в Парке Сокольники пройдёт первый музыкальный фестиваль SWAP Sound. Более 30 артистов на 3 сценах. Хедлайнеры объявлены! Билеты уже в продаже — ранняя птица до 1 мая со скидкой 30%. Подробности на официальной странице фестиваля.', accent:'#a78bfa', meta:'Музыка', badge:'Новость', likes:4320, time:'1 день' },
   // СПОРТ
   { kind:'account', id:'a8', interest:'sport', emoji:'⚽', title:'FitCoach_Ivan', role:'Персональный тренер · 34к подписчиков', body:'Тренирую уже 9 лет. Помогаю людям без опыта начать тренироваться и получить результат за 30 дней. Мой подход: простые упражнения, регулярность, правильное питание. Новая 30-дневная программа для пресса запускается в понедельник — успевай записаться!', accent:'#3b82f6', meta:'Спорт', badge:'Про', likes:5123, time:'2 ч назад' },
   { kind:'shop',    id:'s8', interest:'sport', emoji:'🏋', title:'SportLife Store — спортпит и инвентарь', role:'Спортивный магазин', body:'Протеин, гейнеры, BCAA от топовых брендов (Optimum Nutrition, MyProtein, BSN). Тренажёры и инвентарь в наличии — штанги, гантели, резинки. Бесплатная доставка от 3000₽ по России. Акция: протеин 2кг + шейкер в подарок до 30 апреля!', accent:'#22c55e', meta:'Спорт', badge:'Магазин', likes:673, time:'6 ч назад' },
@@ -22354,7 +22354,7 @@ function SwaipInviteButton({ targetHash, inviteUrl, myHash, accent, onViewProfil
     return (
       <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 0',
         color:'#4ade80', fontSize:12, fontWeight:800, fontFamily:'"Montserrat",sans-serif' }}>
-        ✓ Вы теперь друзья в SWAIP
+        ✓ Вы теперь друзья в SWAP
       </div>
     );
   }
@@ -23152,7 +23152,7 @@ function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBack, isGr
                               <div style={{ width:16, height:16, borderRadius:'50%', background:'#111', border:'2px solid #444', display:'flex', alignItems:'center', justifyContent:'center' }}>
                                 <div style={{ width:8, height:8, borderRadius:'50%', background:'#222', border:'1px solid #555' }}/>
                               </div>
-                              <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)', fontFamily:'monospace', letterSpacing:1 }}>SWAIP CAM</span>
+                              <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)', fontFamily:'monospace', letterSpacing:1 }}>SWAP CAM</span>
                               <motion.div animate={{ opacity:[1,0.3,1] }} transition={{ repeat:Infinity, duration:1.2 }}
                                 style={{ width:8, height:8, borderRadius:'50%', background:'#ef4444' }}/>
                             </div>
@@ -23266,7 +23266,7 @@ function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBack, isGr
                       </a>
                     )}
                     {m.messageType === 'text' && (() => {
-                      /* Детектируем SWAIP-ссылку-приглашение */
+                      /* Детектируем SWAP-ссылку-приглашение */
                       const inviteMatch = m.content?.match(/(https?:\/\/[^\s]+\/([a-f0-9]{64})\/(pro|scene|krug|circle))/i);
                       if (inviteMatch) {
                         const inviteUrl  = inviteMatch[1];
@@ -23466,7 +23466,7 @@ function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBack, isGr
                 <div style={{ width:16, height:16, borderRadius:'50%', background:'#111', border:'2px solid #444', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <div style={{ width:8, height:8, borderRadius:'50%', background:'#222', border:'1px solid #555' }}/>
                 </div>
-                <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)', fontFamily:'monospace', letterSpacing:1 }}>SWAIP CAM</span>
+                <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)', fontFamily:'monospace', letterSpacing:1 }}>SWAP CAM</span>
                 <motion.div animate={{ opacity:[1,0.2,1] }} transition={{ repeat:Infinity, duration:1.1 }}
                   style={{ width:8, height:8, borderRadius:'50%', background: videoRecording?'#ef4444':'#22c55e' }}/>
               </div>
@@ -23710,7 +23710,7 @@ function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBack, isGr
                 title="Отправить ссылку-приглашение в Круг"
                 onClick={() => {
                   const link = `${window.location.origin}/${myHash}/krug`;
-                  setInput(`Приглашаю тебя в мой Круг на SWAIP: ${link}`);
+                  setInput(`Приглашаю тебя в мой Круг на SWAP: ${link}`);
                   setTimeout(() => inputRef.current?.focus(), 50);
                 }}
                 style={{ background:'rgba(201,152,58,0.15)', border:'1.5px solid rgba(201,152,58,0.4)',
@@ -24076,7 +24076,7 @@ function UserProfileView({ hash, myHash, onBack, onOpenChat, onCall }: {
   }, [hash, myHash]);
 
   /* ── Данные Про ── */
-  const proName    = str(getPD('pro_displayName')) || 'Участник SWAIP';
+  const proName    = str(getPD('pro_displayName')) || 'Участник SWAP';
   const proFull    = str(getPD('pro_fullName'));
   const proAvatar  = validUrl(getPD('pro_avatarUrl'));
   const proBio     = str(getPD('pro_bio'));
@@ -24290,7 +24290,7 @@ function UserProfileView({ hash, myHash, onBack, onOpenChat, onCall }: {
   if (loading) return (
     <div style={{ position:'fixed', inset:0, background:'#03050f', display:'flex', alignItems:'center',
       justifyContent:'center', flexDirection:'column', gap:16, zIndex:2000 }}>
-      <div style={{ fontSize:32, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:6, color:'#a78bfa' }}>SWAIP</div>
+      <div style={{ fontSize:32, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:6, color:'#a78bfa' }}>SWAP</div>
       <div style={{ width:48, height:4, borderRadius:2, background:'rgba(255,255,255,0.1)', overflow:'hidden', position:'relative' }}>
         <motion.div animate={{ x:['-100%','100%'] }} transition={{ repeat:Infinity, duration:0.9, ease:'linear' }}
           style={{ position:'absolute', inset:0, background:'#a78bfa', borderRadius:2 }} />
@@ -24330,7 +24330,7 @@ function UserProfileView({ hash, myHash, onBack, onOpenChat, onCall }: {
         </div>
       </div>
 
-      {/* Аватар Про — квадратный с бейджем SWAIP, как у владельца */}
+      {/* Аватар Про — квадратный с бейджем SWAP, как у владельца */}
       <div style={{ display:'flex', justifyContent:'center', marginTop:-52, position:'relative', zIndex:10 }}>
         <div style={{ position:'relative' }}>
           <div style={{ width:104, height:104, borderRadius:22, overflow:'hidden',
@@ -24339,7 +24339,7 @@ function UserProfileView({ hash, myHash, onBack, onOpenChat, onCall }: {
               ? <img src={proAvatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
               : <div style={{ width:'100%', height:'100%', background:'rgba(167,139,250,0.18)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:40 }}>👤</div>
             }
-            {/* Бейдж SWAIP снизу */}
+            {/* Бейдж SWAP снизу */}
             <div style={{ position:'absolute', bottom:0, left:0, right:0, height:20,
               display:'flex', alignItems:'center', justifyContent:'center',
               background:'linear-gradient(90deg,transparent 0%,rgba(12,12,20,0.82) 18%,rgba(16,16,28,0.92) 50%,rgba(12,12,20,0.82) 82%,transparent 100%)',
@@ -24348,7 +24348,7 @@ function UserProfileView({ hash, myHash, onBack, onOpenChat, onCall }: {
                 fontFamily:'"Montserrat","Arial Black",sans-serif',
                 background:'linear-gradient(180deg,#dcdce8 0%,#ffffff 40%,#a8a8be 65%,#d0d0e0 100%)',
                 WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-                paddingLeft:5 } as React.CSSProperties}>SWAIP</span>
+                paddingLeft:5 } as React.CSSProperties}>SWAP</span>
             </div>
           </div>
         </div>
@@ -24465,7 +24465,7 @@ function UserProfileView({ hash, myHash, onBack, onOpenChat, onCall }: {
                   ? <img src={scAvatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                   : <div style={{ width:'100%', height:'100%', background:'rgba(0,229,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:40 }}>🎭</div>
                 }
-                {/* SWAIP бейдж снизу */}
+                {/* SWAP бейдж снизу */}
                 <div style={{ position:'absolute', bottom:0, left:0, right:0, height:22,
                   display:'flex', alignItems:'center', justifyContent:'center',
                   background:`linear-gradient(90deg,transparent 0%,rgba(7,7,15,0.88) 18%,rgba(7,7,15,0.96) 50%,rgba(7,7,15,0.88) 82%,transparent 100%)`,
@@ -24474,13 +24474,13 @@ function UserProfileView({ hash, myHash, onBack, onOpenChat, onCall }: {
                     fontFamily:'"Montserrat","Arial Black",sans-serif',
                     background:`linear-gradient(180deg,#00e5ff 0%,#ffffff 45%,#00e5ff99 100%)`,
                     WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', paddingLeft:5
-                  } as React.CSSProperties}>SWAIP</span>
+                  } as React.CSSProperties}>SWAP</span>
                 </div>
               </div>
             </div>
             <div style={{ textAlign:'center', marginTop:12 }}>
               <div style={{ fontWeight:900, fontSize:18, color:'#fff', letterSpacing:2, textTransform:'uppercase',
-                fontFamily:'"Bebas Neue","Arial Black",sans-serif' }}>{scName || 'Артист SWAIP'}</div>
+                fontFamily:'"Bebas Neue","Arial Black",sans-serif' }}>{scName || 'Артист SWAP'}</div>
               {scHandle && <div style={{ fontSize:12, color:'#00e5ff', fontWeight:700, marginTop:2 }}>@{scHandle.replace('@','')}</div>}
               {scBio && <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', marginTop:6, lineHeight:1.6, maxWidth:280 }}>{scBio}</div>}
             </div>
@@ -24630,7 +24630,7 @@ const PWA_NUDGE_STEPS = [
   },
   {
     title: 'Привет, вчера не успели 👋',
-    body: 'Может, всё-таки добавим? Мастер-ключ вводить не придётся, и экран станет полноэкранным — никакой адресной строки, только SWAIP 📱',
+    body: 'Может, всё-таки добавим? Мастер-ключ вводить не придётся, и экран станет полноэкранным — никакой адресной строки, только SWAP 📱',
     bodyIOS: 'Поделиться → На экран «Домой» — и мастер-ключ вводить не нужно. Экран полностью твой, без адресной строки',
     dismiss: 'Не сейчас',
   },
@@ -24773,7 +24773,7 @@ function GuestPublicView({ hash, onLogin, onBack }: { hash: string; onLogin: () 
     } catch { setBkStatus('error'); setBkErr('Нет соединения'); }
   };
 
-  const name: string = data.pro_displayName || data.pro_fullName || data.sw_nick || 'Профиль SWAIP';
+  const name: string = data.pro_displayName || data.pro_fullName || data.sw_nick || 'Профиль SWAP';
   const nick: string = data.sw_nick || '';
   const bio: string = data.pro_bio || '';
   const avatar: string = data.pro_avatarUrl || `https://api.dicebear.com/7.x/thumbs/svg?seed=${hash.slice(0,14)}&size=200`;
@@ -24856,7 +24856,7 @@ function GuestPublicView({ hash, onLogin, onBack }: { hash: string; onLogin: () 
 
           {/* Призыв к действию */}
           <div style={{ margin: '16px', padding: '16px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 16, textAlign: 'center' }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: c.light, marginBottom: 6 }}>Это профиль в SWAIP</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: c.light, marginBottom: 6 }}>Это профиль в SWAP</div>
             <div style={{ fontSize: 12, color: c.mid, marginBottom: 12, lineHeight: 1.5 }}>Войдите чтобы написать, позвонить и использовать все функции</div>
             <button onClick={onLogin} style={{ padding: '10px 28px', borderRadius: 12, background: '#6366f1', border: 'none', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Войти / Зарегистрироваться</button>
           </div>
@@ -25150,7 +25150,7 @@ export default function App() {
                 background:'linear-gradient(160deg,#04081c 0%,#080d28 60%,#0a0620 100%)' }}>
               <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
                 style={{ width:44, height:44, borderRadius:'50%', border:'3px solid rgba(99,102,241,0.15)', borderTopColor:'#6366f1', boxShadow:'0 0 20px rgba(99,102,241,0.4)' }} />
-              <span style={{ marginTop:20, fontFamily:'"Montserrat",sans-serif', fontSize:12, fontWeight:600, letterSpacing:'0.25em', color:'rgba(165,180,252,0.6)', textTransform:'uppercase' }}>SWAIP</span>
+              <span style={{ marginTop:20, fontFamily:'"Montserrat",sans-serif', fontSize:12, fontWeight:600, letterSpacing:'0.25em', color:'rgba(165,180,252,0.6)', textTransform:'uppercase' }}>SWAP</span>
             </motion.div>
           ) : (
             <motion.div key="pubprofile" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
@@ -25177,7 +25177,7 @@ export default function App() {
                 boxShadow:'0 0 20px rgba(99,102,241,0.4)' }} />
             <span style={{ marginTop:20, fontFamily:'"Montserrat",sans-serif', fontSize:12,
               fontWeight:600, letterSpacing:'0.25em', color:'rgba(165,180,252,0.6)',
-              textTransform:'uppercase' }}>SWAIP</span>
+              textTransform:'uppercase' }}>SWAP</span>
           </motion.div>
         ) : screen === 'login' ? (
           <motion.div key="login" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0, scale:0.95 }}

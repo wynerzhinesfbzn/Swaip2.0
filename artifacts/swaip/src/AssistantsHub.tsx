@@ -69,7 +69,7 @@ export default function AssistantsHub({ onBack }: AssistantsHubProps) {
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>←</motion.button>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>SWAIP</div>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>SWAP</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1 }}>Виртуальные помощники</div>
           </div>
         </div>

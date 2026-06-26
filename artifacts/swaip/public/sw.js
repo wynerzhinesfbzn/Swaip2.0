@@ -58,7 +58,7 @@ self.addEventListener('push', e => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch { data = {}; }
 
-  const title  = data.title  || 'SWAIP';
+  const title  = data.title  || 'SWAP';
   const body   = data.body   || 'Новое сообщение';
   const tag    = data.tag    || 'swaip-push';
   const icon   = data.icon   || '/swaip-logo.png';

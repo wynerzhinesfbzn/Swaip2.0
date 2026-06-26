@@ -128,7 +128,7 @@ function makeBlock(type: BlockType): MiniAppBlock {
 </head>
 <body>
   <div class="box">
-    <h2>Hello, SWAIP Mini App! 👋</h2>
+    <h2>Hello, SWAP Mini App! 👋</h2>
     <p>Edit this HTML/CSS/JS code</p>
   </div>
 </body>
@@ -505,9 +505,9 @@ function BlockEditor({
   </style>
 </head>
 <body>
-  <h1>Hello, SWAIP Mini App! 🚀</h1>
+  <h1>Hello, SWAP Mini App! 🚀</h1>
   <p style="margin-bottom:16px;color:#aaa">Custom HTML/CSS/JS block</p>
-  <button class="btn" onclick="alert('SWAIP!')">Click me</button>
+  <button class="btn" onclick="alert('SWAP!')">Click me</button>
 </body></html>`})}
             style={{flex:1,padding:'7px 10px',borderRadius:8,background:C.cardAlt,border:`1px solid ${C.border}`,color:C.mid,cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>
             📋 Сброс к примеру

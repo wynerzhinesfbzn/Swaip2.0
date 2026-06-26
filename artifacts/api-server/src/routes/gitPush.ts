@@ -38,7 +38,7 @@ router.get("/git-push", (_req, res) => {
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>SWAIP → GitHub Push</title>
+<title>SWAP → GitHub Push</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -70,7 +70,7 @@ router.get("/git-push", (_req, res) => {
 <body>
 <div class="card">
   <div class="logo">
-    <div class="brand">SWAIP</div>
+    <div class="brand">SWAP</div>
     <div class="sub">GitHub Push Utility</div>
   </div>
 
@@ -78,7 +78,7 @@ router.get("/git-push", (_req, res) => {
   <input id="tok" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
   <div class="hint">
     Нужен токен с правом <strong style="color:rgba(255,255,255,0.4)">Contents: Write</strong>.<br>
-    <a href="https://github.com/settings/tokens/new?scopes=repo&description=SWAIP+push" target="_blank">Создать токен на GitHub →</a>
+    <a href="https://github.com/settings/tokens/new?scopes=repo&description=SWAP+push" target="_blank">Создать токен на GitHub →</a>
   </div>
 
   <button id="btn" onclick="doPush()">🚀 Push main → GitHub</button>

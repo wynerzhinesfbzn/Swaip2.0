@@ -126,7 +126,7 @@ function summaryComment(c: Comment, session: string, enrichMap?: Map<string, { n
   return {
     id: c.id,
     authorHash: c.authorHash,
-    authorName: (realName && realName !== 'Гость' && realName !== 'undefined') ? realName : (c.authorName || 'Участник SWAIP'),
+    authorName: (realName && realName !== 'Гость' && realName !== 'undefined') ? realName : (c.authorName || 'Участник SWAP'),
     authorNick: realNick,
     authorAvatar: realAvatar,
     authorMode: c.authorMode,
@@ -144,7 +144,7 @@ function summaryComment(c: Comment, session: string, enrichMap?: Map<string, { n
       return {
         id: r.id,
         authorHash: r.authorHash,
-        authorName: er?.name || r.authorName || 'Участник SWAIP',
+        authorName: er?.name || r.authorName || 'Участник SWAP',
         authorNick: er?.nick || r.authorNick || '',
         authorAvatar: er?.avatar || r.authorAvatar || '',
         authorMode: r.authorMode,

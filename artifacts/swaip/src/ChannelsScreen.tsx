@@ -100,7 +100,7 @@ const CHANNEL_GRADIENTS = [
   { bg:'linear-gradient(135deg,#000428,#004e92)',          label:'Океан' },
   { bg:'linear-gradient(135deg,#2d1b69,#11998e)',          label:'Аврора' },
   { bg:'linear-gradient(135deg,#2c003e,#8a0e8a)',          label:'Пурпур' },
-  { bg:'linear-gradient(135deg,#0a0a0f,#1a0a3a,#3a0060)', label:'SWAIP' },
+  { bg:'linear-gradient(135deg,#0a0a0f,#1a0a3a,#3a0060)', label:'SWAP' },
   { bg:'linear-gradient(135deg,#0d0d0d,#003322,#005533)', label:'Матрица' },
   { bg:'linear-gradient(135deg,#3d0000,#6b0000,#3d0000)', label:'Рубин' },
   { bg:'linear-gradient(135deg,#1a0f00,#5c3a00,#a06000)', label:'Янтарь' },
@@ -912,7 +912,7 @@ function ChannelInvitePanel({ch,c,accent,onUpdate,userName}:{
               {ch.isPublic?'Публичный канал':'Закрытый канал'}
             </p>
             {ch.isPublic&&ch.handle&&(
-              <p style={{margin:0,fontSize:11,color:accent}}>swaip.app/c/{ch.handle}</p>
+              <p style={{margin:0,fontSize:11,color:accent}}>swap.app/c/{ch.handle}</p>
             )}
           </div>
         </div>
@@ -3371,7 +3371,7 @@ function CreateChannelModal({c,accent,isDark,userName,userAvatar,onClose,onCreat
               </div>
               {isPublicCh&&handle.length>=3&&(handleStatus==='free'||handleStatus==='own')&&(
                 <p style={{margin:'4px 0 0',fontSize:11,color:'#22c55e'}}>
-                  swaip.app/c/{handle}
+                  swap.app/c/{handle}
                 </p>
               )}
               {handleStatus==='taken'&&(

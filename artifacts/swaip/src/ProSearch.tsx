@@ -277,7 +277,7 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
                                   :<div style={{width:'100%',height:'100%',background:c.card,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>👤</div>}
                               </div>
                               <div style={{flex:1}}>
-                                <div style={{fontSize:14,fontWeight:800,color:c.light}}>{codeResult.name||'Участник SWAIP'}</div>
+                                <div style={{fontSize:14,fontWeight:800,color:c.light}}>{codeResult.name||'Участник SWAP'}</div>
                                 {codeResult.handle&&<div style={{fontSize:11,color:c.sub}}>@{codeResult.handle}</div>}
                               </div>
                               {codeResult.hash&&<span style={{fontSize:11,color:ac,fontWeight:700}}>→</span>}
@@ -292,7 +292,7 @@ export function UnifiedSearchScreen({apiBase,c,accent,onClose,onViewProfile,onOp
                   </div>
                   {/* Подсказка */}
                   <div style={{marginTop:14,textAlign:'center',color:c.sub,fontSize:12,lineHeight:1.6,opacity:0.7}}>
-                    Введите имя или ник в строку поиска<br/>чтобы найти людей по SWAIP
+                    Введите имя или ник в строку поиска<br/>чтобы найти людей по SWAP
                   </div>
                 </div>
               )}

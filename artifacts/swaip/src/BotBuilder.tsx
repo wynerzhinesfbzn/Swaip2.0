@@ -883,7 +883,7 @@ function ScreenCard({
    ИНСТРУКЦИЯ
 ═══════════════════════════════════════════════════════════ */
 const HELP_STEPS = [
-  { icon:'🤖', title:'Что такое SWAIP-бот?',
+  { icon:'🤖', title:'Что такое SWAP-бот?',
     text:'Это интерактивный бот без кода. Он состоит из экранов — каждый экран это сообщение в чате (текст, фото или видео) с кнопками. Пользователь нажимает кнопку — появляется следующее сообщение.' },
   { icon:'📋', title:'Добавить экран',
     text:'Нажмите «+ Добавить экран» в левой колонке. Каждый экран — это один «шаг» диалога, одно сообщение в чате. Дайте ему понятное название: например «Приветствие», «Условия», «Финал».' },
@@ -900,7 +900,7 @@ const HELP_STEPS = [
   { icon:'▶️', title:'Тест бота — чат-вид',
     text:'Нажмите «▶ Тест». Вы увидите бота как настоящий чат: сообщения появляются сверху вниз, история не пропадает — как в Telegram или ВКонтакте. Задержки симулируются сжато.' },
   { icon:'💾', title:'Сохранить',
-    text:'Нажмите «💾 Сохранить». На вкладке «⚙️ Бот» можно включить «Публичный бот» — тогда он появится в каталоге SWAIP.' },
+    text:'Нажмите «💾 Сохранить». На вкладке «⚙️ Бот» можно включить «Публичный бот» — тогда он появится в каталоге SWAP.' },
 ];
 
 function HelpModal({ onClose }: { onClose: () => void }) {
@@ -1157,7 +1157,7 @@ export default function BotBuilder({ onClose, apiBase }: { onClose: () => void; 
             <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:C.cardAlt,border:`1px solid ${C.border}`,borderRadius:10}}>
               <div style={{flex:1}}>
                 <div style={{fontSize:12,fontWeight:700,color:C.light}}>Публичный бот</div>
-                <div style={{fontSize:10,color:C.sub}}>Виден в каталоге SWAIP</div>
+                <div style={{fontSize:10,color:C.sub}}>Виден в каталоге SWAP</div>
               </div>
               <div onClick={()=>setEditBot({...editBot,isPublic:editBot.isPublic==='true'?'false':'true'})}
                 style={{width:42,height:24,borderRadius:12,background:editBot.isPublic==='true'?GREEN:C.border,cursor:'pointer',position:'relative',transition:'background 0.2s',flexShrink:0}}>

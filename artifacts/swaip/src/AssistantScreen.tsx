@@ -756,7 +756,7 @@ const IGOR_FORM_CONFIGS: IgorDocFormConfig[] = [
         { key: 'app_num', label: 'Номер заявки (если есть)', type: 'text', placeholder: '2026613456' },
         { key: 'rid_type', label: 'Вид результата интеллектуальной деятельности', type: 'select',
           options: ['Программа для ЭВМ', 'База данных (п. 4 ст. 1259 ГК РФ)', 'База данных (п. 3 ст. 1334 ГК РФ)'], required: true },
-        { key: 'rid_name', label: 'Название программы для ЭВМ / базы данных', type: 'text', placeholder: 'Система управления задачами «SWAIP Task»', required: true },
+        { key: 'rid_name', label: 'Название программы для ЭВМ / базы данных', type: 'text', placeholder: 'Система управления задачами «SWAP Task»', required: true },
       ]},
       { heading: 'Правообладатель (Заявитель)', fields: [
         { key: 'owner_name', label: 'ФИО физ. лица или наименование юр. лица', type: 'text', placeholder: 'ООО «СВАЙП» / Иванов Иван Иванович', required: true },
@@ -801,7 +801,7 @@ const IGOR_FORM_CONFIGS: IgorDocFormConfig[] = [
     key: 'rospatent_pd_consent', emoji: '🔏', title: 'Роспатент: Согласие на обработку ПД', docType: 'rospatent_pd_consent',
     sections: [
       { heading: 'Сведения о программе / базе данных', fields: [
-        { key: 'rid_name', label: 'Название программы для ЭВМ или базы данных', type: 'text', placeholder: 'Система управления задачами «SWAIP Task»', required: true },
+        { key: 'rid_name', label: 'Название программы для ЭВМ или базы данных', type: 'text', placeholder: 'Система управления задачами «SWAP Task»', required: true },
         { key: 'app_num', label: 'Номер заявки (если есть)', type: 'text', placeholder: '2026613456' },
       ]},
       { heading: 'Субъект персональных данных', fields: [
@@ -2314,13 +2314,13 @@ table tbody tr:nth-child(even) td{background:#f7f5ff}
 </style>
 </head><body>
 <div class="hdr">
-  <div class="brand">ВИРТУАЛЬНЫЙ БУХГАЛТЕР ГАЛИНА · ЭКОСИСТЕМА SWAIP</div>
+  <div class="brand">ВИРТУАЛЬНЫЙ БУХГАЛТЕР ГАЛИНА · ЭКОСИСТЕМА SWAP</div>
   ${!isInvoice ? `<div class="title">${docTitle}</div>` : ''}
   <div class="date">Дата составления: ${today}</div>
 </div>
 ${q && !isInvoice ? `<div class="req">Запрос: ${q}</div>` : ''}
 ${bodyContent}
-<div class="ftr">Документ подготовлен виртуальным бухгалтером Галиной · Экосистема SWAIP · Набережные Челны<br>Рекомендуется проверка сертифицированным бухгалтером перед использованием</div>
+<div class="ftr">Документ подготовлен виртуальным бухгалтером Галиной · Экосистема SWAP · Набережные Челны<br>Рекомендуется проверка сертифицированным бухгалтером перед использованием</div>
 </body></html>`;
 }
 
@@ -2364,7 +2364,7 @@ p{margin-bottom:10px;font-size:12pt;text-align:justify}
 </style>
 </head><body>
 <div class="hdr">
-  <div class="brand">АДВОКАТ ИГОРЬ · ЭКОСИСТЕМА SWAIP · Набережные Челны</div>
+  <div class="brand">АДВОКАТ ИГОРЬ · ЭКОСИСТЕМА SWAP · Набережные Челны</div>
   <div class="title">${docTitle}</div>
   <div class="date">Дата составления: ${today}</div>
 </div>
@@ -2373,7 +2373,7 @@ ${lines.map(l => {
   return `<p>${l}</p>`;
 }).join('')}
 ${sigBlock}
-<div class="ftr">Документ подготовлен адвокатом Игорем · Экосистема SWAIP · Набережные Челны<br>Перед подписанием рекомендуется консультация практикующего юриста и нотариальное заверение (при необходимости)</div>
+<div class="ftr">Документ подготовлен адвокатом Игорем · Экосистема SWAP · Набережные Челны<br>Перед подписанием рекомендуется консультация практикующего юриста и нотариальное заверение (при необходимости)</div>
 </body></html>`;
 }
 
@@ -2637,12 +2637,12 @@ function buildGenericDocHtml(content: string, title: string, specialistName: str
   @media print{body{margin:20px 40px}}
 </style></head><body>
 <div class="header">
-  <div class="sp">${specialistName} · SWAIP</div>
+  <div class="sp">${specialistName} · SWAP</div>
   <div class="title">${title}</div>
   <div class="date">${date}</div>
 </div>
 <div>${bodyHtml}</div>
-<div class="footer">Составлено с помощью ${specialistName} · SWAIP · ${date}</div>
+<div class="footer">Составлено с помощью ${specialistName} · SWAP · ${date}</div>
 </body></html>`;
 }
 

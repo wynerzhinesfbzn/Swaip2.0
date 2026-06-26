@@ -108,36 +108,36 @@ function computeInviteCode(hash:string, mode:'pro'|'scene'|'krug'):string {
 }
 
 const INVITE_TEXTS = [
-  (link:string)=>`Присоединяйся ко мне в SWAIP — здесь уютно и без лишнего шума. ${link}`,
-  (link:string)=>`Я в SWAIP. Там классно. ${link}`,
+  (link:string)=>`Присоединяйся ко мне в SWAP — здесь уютно и без лишнего шума. ${link}`,
+  (link:string)=>`Я в SWAP. Там классно. ${link}`,
   (link:string)=>`Твой аккаунт защищён мастер-ключом из 4 слов — только ты знаешь код. ${link}`,
   (link:string)=>`Коллеги, отличная платформа для общения и рабочих встреч. ${link}`,
-  (link:string)=>`Обожаю SWAIP! Живое общение, никакого рекламного мусора. ${link}`,
-  (link:string)=>`SWAIP. Просто. Быстро. Приватно. ${link}`,
-  (link:string)=>`Сваливаем из старых соцсетей? В SWAIP спокойно и чисто. ${link}`,
+  (link:string)=>`Обожаю SWAP! Живое общение, никакого рекламного мусора. ${link}`,
+  (link:string)=>`SWAP. Просто. Быстро. Приватно. ${link}`,
+  (link:string)=>`Сваливаем из старых соцсетей? В SWAP спокойно и чисто. ${link}`,
   (link:string)=>`Создал приватный круг — будем общаться только своими. ${link}`,
   (link:string)=>`Мастер-ключ из 4 слов — надёжная защита твоего аккаунта. ${link}`,
-  (link:string)=>`SWAIP — отличное место! ${link}`,
+  (link:string)=>`SWAP — отличное место! ${link}`,
   (link:string)=>`Платформа для идей и вдохновения. Публикуй посты, эфиры, музыку. ${link}`,
   (link:string)=>`Никаких лишних форм — мастер-ключ, и ты в системе. Удобно. ${link}`,
-  (link:string)=>`Ты знал, что можно общаться без номера телефона и почты? SWAIP. ${link}`,
-  (link:string)=>`SWAIP летает даже на старых телефонах. ${link}`,
-  (link:string)=>`Давай общаться там, где нас никто не отвлекает. Я в SWAIP. ${link}`,
-  (link:string)=>`Ты уже в SWAIP? Уверен, понравится. ${link}`,
+  (link:string)=>`Ты знал, что можно общаться без номера телефона и почты? SWAP. ${link}`,
+  (link:string)=>`SWAP летает даже на старых телефонах. ${link}`,
+  (link:string)=>`Давай общаться там, где нас никто не отвлекает. Я в SWAP. ${link}`,
+  (link:string)=>`Ты уже в SWAP? Уверен, понравится. ${link}`,
   (link:string)=>`Запись клиентов, слоты, чат-бот — всё в одном профиле. Владельцам бизнеса точно стоит попробовать. ${link}`,
   (link:string)=>`Твой мастер-ключ — только твой. Никто не получит доступ без него. ${link}`,
   (link:string)=>`Создаём новое комьюнити. Удобные чаты, круги по интересам, эфиры. ${link}`,
   (link:string)=>`Твои данные под надёжной защитой — только ты управляешь доступом через 4 слова. ${link}`,
-  (link:string)=>`Мама, папа, давайте перейдём в SWAIP — там спокойно и всё под рукой. ${link}`,
-  (link:string)=>`Чистый интерфейс, никакого мусора. SWAIP как старый добрый друг. ${link}`,
+  (link:string)=>`Мама, папа, давайте перейдём в SWAP — там спокойно и всё под рукой. ${link}`,
+  (link:string)=>`Чистый интерфейс, никакого мусора. SWAP как старый добрый друг. ${link}`,
   (link:string)=>`Наконец-то нормальная соцсеть 😊 ${link}`,
   (link:string)=>`Регистрация за 10 секунд — придумай 4 слова и общайся. ${link}`,
-  (link:string)=>`В SWAIP есть аудио-конференции с доской, чат-бот для записи и даже перевод для глухих. ${link}`,
-  (link:string)=>`Все соцсети одинаковые? А вот и нет. Попробуй SWAIP. ${link}`,
+  (link:string)=>`В SWAP есть аудио-конференции с доской, чат-бот для записи и даже перевод для глухих. ${link}`,
+  (link:string)=>`Все соцсети одинаковые? А вот и нет. Попробуй SWAP. ${link}`,
   (link:string)=>`Что-то свежее на рынке общения. Твой новый цифровой дом. ${link}`,
   (link:string)=>`Мастер-ключ на 4 слова — надёжнее любого пароля. ${link}`,
   (link:string)=>`Твой аккаунт не взломают — только ты знаешь свои 4 слова. ${link}`,
-  (link:string)=>`SWAIP — то, что нужно. ${link}`,
+  (link:string)=>`SWAP — то, что нужно. ${link}`,
 ];
 
 /* ══ Шит поделиться ══ */
@@ -172,7 +172,7 @@ function ShareSheet({userHash,name,onClose}:{userHash:string;name:string;onClose
   };
 
   const shareNative=async()=>{
-    if(navigator.share){try{await navigator.share({title:'SWAIP',text:inviteText,url:link});return;}catch{}}
+    if(navigator.share){try{await navigator.share({title:'SWAP',text:inviteText,url:link});return;}catch{}}
     await copyAll();
   };
 
@@ -204,7 +204,7 @@ function ShareSheet({userHash,name,onClose}:{userHash:string;name:string;onClose
             display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>👤</div>
           <div style={{flex:1}}>
             <div style={{fontWeight:900,fontSize:15,color:'#fff',fontFamily:'"Montserrat",sans-serif'}}>{name||'Мой профиль'}</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Поделиться аккаунтом SWAIP</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Поделиться аккаунтом SWAP</div>
           </div>
           <motion.button whileTap={{scale:0.93}} onClick={onClose}
             style={{display:'flex',alignItems:'center',gap:5,padding:'7px 14px',
@@ -290,7 +290,7 @@ function ShareSheet({userHash,name,onClose}:{userHash:string;name:string;onClose
             </motion.button>
           </div>
           <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',lineHeight:1.6}}>
-            Поделитесь своим номером приглашения — по нему вас найдут в SWAIP
+            Поделитесь своим номером приглашения — по нему вас найдут в SWAP
           </div>
         </div>
       </motion.div>
@@ -545,23 +545,23 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
     {icon:'🎵',label:'Слушаем вместе',sub:'Включи музыку для всей комнаты',fn:()=>{onListenTogether?.();onClose();}},
     {icon:'📦',label:'Капсула времени',sub:'Письмо будущему себе · Открывается в нужный день',fn:()=>{onCapsule?.();onClose();}},
     {icon:'📅',label:'Мероприятия',sub:'Создавай события · Зови друзей · RSVP',fn:()=>{onEvents?.();onClose();}},
-    {icon:'🛍️',label:'Маркетплейс',sub:'Купи и продай внутри SWAIP',fn:()=>{onMarketplace?.();onClose();}},
+    {icon:'🛍️',label:'Маркетплейс',sub:'Купи и продай внутри SWAP',fn:()=>{onMarketplace?.();onClose();}},
     {icon:'🍿',label:'Кинотеатр',sub:'Смотри видео вместе с друзьями синхронно',fn:()=>{onCinema?.();onClose();}},
     {icon:'🎙',label:'Конференции',sub:'Планёрки · Презентации · Обсуждения',fn:()=>{onMeetings?.();onClose();}},
     {icon:'🛋️',label:'Комнаты отдыха',sub:'Живой чат · Голосовые · До 20 человек',fn:()=>{onLounge?.();onClose();}},
-    {icon:'🤖',label:'Боты SWAIP',sub:'Конструктор интерактивных ботов',fn:()=>{onBots?.();onClose();}},
+    {icon:'🤖',label:'Боты SWAP',sub:'Конструктор интерактивных ботов',fn:()=>{onBots?.();onClose();}},
     {icon:'🎮',label:'Игры',sub:'80+ игр · Сега, Денди, Флэш и онлайн',fn:()=>{onGames?.();onClose();}},
-    {icon:'🌐',label:'Браузер SWAIP',sub:'Открыть встроенный браузер',fn:()=>{onBrowser?.();onClose();}},
+    {icon:'🌐',label:'Браузер SWAP',sub:'Открыть встроенный браузер',fn:()=>{onBrowser?.();onClose();}},
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
     {icon:'📂',label:'Читалка документов',sub:'PDF · DOCX · TXT · XLSX · CSV · Сканер',fn:()=>{onDocuments?.();onClose();}},
-    {icon:'📊',label:'Биржа SWP',sub:'Монета SWAIP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
+    {icon:'📊',label:'Биржа SWP',sub:'Монета SWAP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
     {icon:'🎨',label:'Оформление',sub:'Тема, обложка, аватар',fn:()=>{onDesign?.();onClose();}},
     {icon:'🔔',label:'Рингтон звонка',sub:curRingName,fn:()=>setModal('ringtone')},
     {icon:'🔒',label:'Приватность',sub:'Кто видит мой профиль',fn:()=>setModal('privacy')},
     {icon:'🌏',label:'Язык',sub:curLangInfo.flag+' '+curLangInfo.native,fn:()=>setModal('language')},
-    {icon:'💬',label:'Поддержка',sub:'Написать в SWAIP',fn:()=>window.open('mailto:support@swaip.ru','_blank')},
+    {icon:'💬',label:'Поддержка',sub:'Написать в SWAP',fn:()=>window.open('mailto:support@swaip.ru','_blank')},
     {icon:'📄',label:'Документы',sub:'Конфиденциальность, условия, 152-ФЗ',fn:()=>setModal('docs')},
-    {icon:'📖',label:'О приложении',sub:'SWAIP v2.0',fn:()=>setModal('about')},
+    {icon:'📖',label:'О приложении',sub:'SWAP v2.0',fn:()=>setModal('about')},
   ];
 
   /* Применяем сохранённый порядок и скрытые разделы */
@@ -596,7 +596,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
 
   /* Блок выбора приватности */
   const PRIV_OPTS=[
-    {v:'all',   ico:'🌍',lbl:'Все',              sub:'Любой пользователь SWAIP'},
+    {v:'all',   ico:'🌍',lbl:'Все',              sub:'Любой пользователь SWAP'},
     {v:'except',ico:'🚫',lbl:'Все, кроме...',    sub:'Все, кроме заблокированных вами'},
     {v:'invite',ico:'🔢',lbl:'По номеру приглашения',sub:'Только тот, кто знает ваш 9-значный код'},
     {v:'chat',  ico:'💬',lbl:'С кем переписывался',sub:'Только те, с кем уже общался в чате'},
@@ -644,9 +644,9 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
     const now=new Date().getFullYear();
     if(type==='privacy') return(
       <div style={{fontSize:13,color:c.mid,lineHeight:1.8}}>
-        <h3 style={{color:c.light,fontSize:15,fontWeight:900,margin:'0 0 16px'}}>Политика конфиденциальности SWAIP</h3>
+        <h3 style={{color:c.light,fontSize:15,fontWeight:900,margin:'0 0 16px'}}>Политика конфиденциальности SWAP</h3>
         <p style={{margin:'0 0 12px'}}><strong style={{color:c.light}}>Дата вступления в силу:</strong> 1 января {now} года</p>
-        <p style={{margin:'0 0 16px'}}>Настоящая Политика конфиденциальности описывает, как ООО «СВАЙП» (далее — «SWAIP», «мы», «нас») собирает, использует, хранит и защищает персональные данные пользователей социальной сети SWAIP в соответствии с требованиями Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных».</p>
+        <p style={{margin:'0 0 16px'}}>Настоящая Политика конфиденциальности описывает, как ООО «СВАЙП» (далее — «SWAP», «мы», «нас») собирает, использует, хранит и защищает персональные данные пользователей социальной сети SWAP в соответствии с требованиями Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных».</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>1. Какие данные мы собираем</p>
         <p style={{margin:'0 0 16px'}}>• Имя и никнейм, указанные при регистрации{'\n'}• Хэш-идентификатор аккаунта (не содержит персональных данных напрямую){'\n'}• Фотография профиля и обложка (по желанию пользователя){'\n'}• Номер телефона и контакты (только если пользователь добавил){'\n'}• Публикации, виджеты и медиафайлы, размещённые пользователем{'\n'}• Технические данные: IP-адрес, тип устройства, браузер, операционная система{'\n'}• Данные о сессиях и активности в приложении</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>2. Цели обработки данных</p>
@@ -664,18 +664,18 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
     );
     if(type==='terms') return(
       <div style={{fontSize:13,color:c.mid,lineHeight:1.8}}>
-        <h3 style={{color:c.light,fontSize:15,fontWeight:900,margin:'0 0 16px'}}>Пользовательское соглашение SWAIP</h3>
+        <h3 style={{color:c.light,fontSize:15,fontWeight:900,margin:'0 0 16px'}}>Пользовательское соглашение SWAP</h3>
         <p style={{margin:'0 0 12px'}}><strong style={{color:c.light}}>Редакция от:</strong> 1 января {now} года</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>1. Общие положения</p>
-        <p style={{margin:'0 0 16px'}}>Настоящее Пользовательское соглашение (далее — «Соглашение») регулирует отношения между ООО «СВАЙП» и пользователями социальной сети SWAIP. Используя SWAIP, вы соглашаетесь с условиями настоящего Соглашения.</p>
+        <p style={{margin:'0 0 16px'}}>Настоящее Пользовательское соглашение (далее — «Соглашение») регулирует отношения между ООО «СВАЙП» и пользователями социальной сети SWAP. Используя SWAP, вы соглашаетесь с условиями настоящего Соглашения.</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>2. Регистрация и аккаунт</p>
-        <p style={{margin:'0 0 16px'}}>Для использования SWAIP необходимо создать аккаунт. Вы несёте ответственность за сохранность ключа доступа (мастер-ключа) и за все действия, совершённые с вашего аккаунта. Передача аккаунта третьим лицам запрещена.</p>
+        <p style={{margin:'0 0 16px'}}>Для использования SWAP необходимо создать аккаунт. Вы несёте ответственность за сохранность ключа доступа (мастер-ключа) и за все действия, совершённые с вашего аккаунта. Передача аккаунта третьим лицам запрещена.</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>3. Правила поведения</p>
         <p style={{margin:'0 0 16px'}}>Запрещается: размещение контента, нарушающего законодательство РФ; распространение спама, вредоносных программ; публикация материалов, дискредитирующих государственные органы РФ; призывы к экстремизму и терроризму; нарушение прав несовершеннолетних.</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>4. Интеллектуальная собственность</p>
-        <p style={{margin:'0 0 16px'}}>Контент, размещённый пользователем, остаётся его собственностью. Пользователь предоставляет SWAIP неисключительную лицензию на использование контента в рамках работы сервиса.</p>
+        <p style={{margin:'0 0 16px'}}>Контент, размещённый пользователем, остаётся его собственностью. Пользователь предоставляет SWAP неисключительную лицензию на использование контента в рамках работы сервиса.</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>5. Ответственность</p>
-        <p style={{margin:'0 0 16px'}}>SWAIP не несёт ответственности за контент, созданный пользователями. Пользователь несёт полную ответственность за соответствие размещаемых материалов требованиям законодательства Российской Федерации.</p>
+        <p style={{margin:'0 0 16px'}}>SWAP не несёт ответственности за контент, созданный пользователями. Пользователь несёт полную ответственность за соответствие размещаемых материалов требованиям законодательства Российской Федерации.</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>6. Применимое право</p>
         <p style={{margin:'0 0 16px'}}>Соглашение регулируется законодательством Российской Федерации. Споры разрешаются в судебном порядке по месту нахождения ООО «СВАЙП».</p>
         <p style={{margin:'0 0 0',color:c.sub,fontSize:11}}>По вопросам: <strong>legal@swaip.ru</strong></p>
@@ -684,7 +684,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
     if(type==='pd') return(
       <div style={{fontSize:13,color:c.mid,lineHeight:1.8}}>
         <h3 style={{color:c.light,fontSize:15,fontWeight:900,margin:'0 0 16px'}}>Согласие на обработку персональных данных</h3>
-        <p style={{margin:'0 0 12px'}}>В соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных», используя приложение SWAIP, вы выражаете свободное, конкретное, информированное и сознательное согласие на обработку ваших персональных данных.</p>
+        <p style={{margin:'0 0 12px'}}>В соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных», используя приложение SWAP, вы выражаете свободное, конкретное, информированное и сознательное согласие на обработку ваших персональных данных.</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>Оператор персональных данных:</p>
         <p style={{margin:'0 0 16px'}}>ООО «СВАЙП»<br/>ИНН: указан в реестре операторов ПД Роскомнадзора<br/>Адрес: Российская Федерация<br/>Email: privacy@swaip.ru</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>Цели обработки:</p>
@@ -701,11 +701,11 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
     return(
       <div style={{fontSize:13,color:c.mid,lineHeight:1.8}}>
         <h3 style={{color:c.light,fontSize:15,fontWeight:900,margin:'0 0 16px'}}>Политика использования Cookie</h3>
-        <p style={{margin:'0 0 16px'}}>SWAIP использует технологии локального хранилища (localStorage, IndexedDB) и сессионные токены для обеспечения работы приложения.</p>
+        <p style={{margin:'0 0 16px'}}>SWAP использует технологии локального хранилища (localStorage, IndexedDB) и сессионные токены для обеспечения работы приложения.</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>Что мы сохраняем на устройстве:</p>
         <p style={{margin:'0 0 16px'}}>• <strong>swaip_session</strong> — токен текущей сессии (удаляется при выходе){'\n'}• <strong>swaip_lang</strong> — выбранный язык интерфейса{'\n'}• <strong>pro_*</strong> — данные Про-профиля (имя, аватар, виджеты){'\n'}• <strong>sw_*</strong> — пользовательские настройки (тема, никнейм){'\n'}• <strong>priv_*</strong> — настройки приватности</p>
         <p style={{margin:'0 0 8px',fontWeight:800,color:c.light}}>Данные не передаются третьим лицам.</p>
-        <p style={{margin:'0 0 16px'}}>Все данные хранятся только на вашем устройстве или на серверах SWAIP в России. Мы не используем сторонние аналитические сервисы (Google Analytics, Яндекс.Метрика не применяются без явного согласия).</p>
+        <p style={{margin:'0 0 16px'}}>Все данные хранятся только на вашем устройстве или на серверах SWAP в России. Мы не используем сторонние аналитические сервисы (Google Analytics, Яндекс.Метрика не применяются без явного согласия).</p>
         <p style={{margin:'0 0 0',color:c.sub,fontSize:11}}>Для очистки данных: Выйти из аккаунта → очистить данные сайта в браузере.</p>
       </div>
     );
@@ -1041,9 +1041,9 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
                 width:80,height:80,borderRadius:20,
                 background:'linear-gradient(135deg,#e0e0f0 0%,#f8f8ff 40%,#c8c8dc 100%)',
                 boxShadow:'0 8px 32px rgba(0,0,0,0.25)',marginBottom:14}}>
-                <span style={{fontSize:12,fontWeight:900,letterSpacing:'0.18em',color:'#1a1a2a'}}>SWAIP</span>
+                <span style={{fontSize:12,fontWeight:900,letterSpacing:'0.18em',color:'#1a1a2a'}}>SWAP</span>
               </div>
-              <div style={{fontSize:22,fontWeight:900,color:c.light,letterSpacing:'0.05em',marginBottom:4}}>SWAIP</div>
+              <div style={{fontSize:22,fontWeight:900,color:c.light,letterSpacing:'0.05em',marginBottom:4}}>SWAP</div>
               <div style={{fontSize:13,color:c.sub,marginBottom:8}}>Социальная сеть с четырьмя жизнями</div>
               <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 14px',
                 borderRadius:99,background:c.cardAlt,border:`1px solid ${c.borderB}`}}>
@@ -1057,7 +1057,7 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
                 <div style={{padding:'14px 16px',borderBottom:`1px solid ${c.border}`}}>
                   <div style={{fontSize:11,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:10}}>О продукте</div>
                   <p style={{fontSize:13,color:c.mid,lineHeight:1.7,margin:0}}>
-                    SWAIP — российская социальная сеть нового поколения, объединяющая четыре ключевых аспекта жизни: профессиональный (ПРО), публичный (ПОТОК), приватный (КОМПАС) и корпоративный (КОНФЕРЕНЦИИ).
+                    SWAP — российская социальная сеть нового поколения, объединяющая четыре ключевых аспекта жизни: профессиональный (ПРО), публичный (ПОТОК), приватный (КОМПАС) и корпоративный (КОНФЕРЕНЦИИ).
                   </p>
                 </div>
                 <div style={{padding:'14px 16px'}}>
@@ -1175,9 +1175,9 @@ interface Poll{question:string;options:PollOption[];totalVotes:number;}
 interface QuoteSnap{id:string;authorName:string;authorAvatar:string;text:string;ts:string;}
 interface Post{id:string;text:string;img?:string;videoUrl?:string;audioUrl?:string;docUrls?:DocAtt[];likes:number;liked:boolean;comments:number;ts:string;hasBooking?:boolean;bookingSlots?:BookingSlot[];bookingLabel?:string;poll?:Poll;myVote?:string|null;quoteOf?:QuoteSnap;repostOf?:QuoteSnap;coAuthorData?:{hash:string;name:string;avatar:string};isAnonVoting?:boolean;publishAt?:string;expiresAt?:string;location?:{city:string;lat:number;lng:number};bgMusicUrl?:string;bgMusicLabel?:string;authorHash?:string;reactions?:{emoji:string;count:number}[];myReactions?:string[];}
 type Track={id:string;title:string;artist:string;url:string;cover?:string;duration?:number};
-const SWAIP_PLAYLIST_KEY='swaip_playlist_v2';
-function loadPlaylist():Track[]{try{const all:Track[]=JSON.parse(localStorage.getItem(SWAIP_PLAYLIST_KEY)||'[]');/* blob: URL действительны только в текущей сессии браузера — фильтруем их при загрузке */return all.filter(t=>t.url&&!t.url.startsWith('blob:'));}catch{return[];}}
-function savePlaylist(t:Track[]){try{localStorage.setItem(SWAIP_PLAYLIST_KEY,JSON.stringify(t));}catch{}}
+const SWAP_PLAYLIST_KEY='swaip_playlist_v2';
+function loadPlaylist():Track[]{try{const all:Track[]=JSON.parse(localStorage.getItem(SWAP_PLAYLIST_KEY)||'[]');/* blob: URL действительны только в текущей сессии браузера — фильтруем их при загрузке */return all.filter(t=>t.url&&!t.url.startsWith('blob:'));}catch{return[];}}
+function savePlaylist(t:Track[]){try{localStorage.setItem(SWAP_PLAYLIST_KEY,JSON.stringify(t));}catch{}}
 let _globalAudio:HTMLAudioElement|null=null;
 function getGlobalAudio():HTMLAudioElement{if(!_globalAudio){_globalAudio=new Audio();_globalAudio.preload='metadata';}return _globalAudio;}
 interface ClassicWork{id:string;imageUrl:string;title:string;desc:string;}
@@ -1249,13 +1249,13 @@ function Story({s,isMe,c}:{s:typeof STORIES[0];isMe?:boolean;c:Pal}){
       <div style={{width:60,height:68,borderRadius:12,overflow:'hidden',position:'relative',flexShrink:0,
         outline:s.new?`2.5px solid rgba(180,180,255,0.8)`:`2px solid ${c.border}`,outlineOffset:1,background:c.card}}>
         <img src={av(s.seed)} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-        {/* Хром-полоска SWAIP с чёрными читаемыми буквами */}
+        {/* Хром-полоска SWAP с чёрными читаемыми буквами */}
         <div style={{position:'absolute',bottom:0,left:0,right:0,height:16,
           background:'linear-gradient(90deg,#8a8a9a 0%,#c8c8d8 20%,#f0f0f8 50%,#c8c8d8 80%,#8a8a9a 100%)',
           display:'flex',alignItems:'center',justifyContent:'center',
           boxShadow:'0 -1px 4px rgba(0,0,0,0.4)'}}>
           <span style={{fontSize:6.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',
-            color:'#1a1a2a',textShadow:'0 0 4px rgba(255,255,255,0.6)',userSelect:'none'}}>SWAIP</span>
+            color:'#1a1a2a',textShadow:'0 0 4px rgba(255,255,255,0.6)',userSelect:'none'}}>SWAP</span>
         </div>
         {isMe&&<div style={{position:'absolute',bottom:18,right:4,width:14,height:14,
           borderRadius:'50%',background:c.mid,border:`1.5px solid ${c.light}`,
@@ -1733,7 +1733,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
         onClick={vizitkaUrl?()=>setWidgetModal('_vizitka'):undefined}>
         <img src={avatarSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
         <div style={{position:'absolute',bottom:0,left:0,right:0,height:16,background:'linear-gradient(90deg,#8a8a9a 0%,#c8c8d8 20%,#f0f0f8 50%,#c8c8d8 80%,#8a8a9a 100%)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 -1px 4px rgba(0,0,0,0.4)'}}>
-          <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAIP</span>
+          <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAP</span>
         </div>
         {vizitkaUrl&&<motion.button whileTap={{scale:0.9}} onClick={e=>{e.stopPropagation();setWidgetModal('_vizitka');}} style={{position:'absolute',top:4,right:4,width:22,height:22,borderRadius:'50%',background:'rgba(0,0,0,0.7)',border:'1.5px solid rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,fontSize:10}}>▶</motion.button>}
       </div>
@@ -1908,7 +1908,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                       <div style={{width:80,height:80,borderRadius:8,overflow:'hidden',border:`2px solid ${ac}`,boxShadow:`0 0 16px ${ac}66`,position:'relative'}}>
                         <img src={avatarSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                         <div style={{position:'absolute',bottom:0,left:0,right:0,height:14,background:'linear-gradient(90deg,#8a8a9a 0%,#c8c8d8 20%,#f0f0f8 50%,#c8c8d8 80%,#8a8a9a 100%)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                          <span style={{fontSize:5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a'}}>SWAIP</span>
+                          <span style={{fontSize:5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a'}}>SWAP</span>
                         </div>
                       </div>
                     </div>
@@ -2911,7 +2911,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                           }
                         </div>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:14,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name||'Участник SWAIP'}</div>
+                          <div style={{fontSize:14,fontWeight:800,color:c.light,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name||'Участник SWAP'}</div>
                           {u.handle&&<div style={{fontSize:11,color:c.sub,fontFamily:'monospace',marginTop:1}}>@{u.handle}</div>}
                         </div>
                       </div>
@@ -2942,7 +2942,7 @@ function CommentsSheet({postId,session,authorHash,authorName,authorNick,authorAv
   const mapCmt=(c:any):Cmt=>({
     id:String(c.id),
     authorHash:c.authorHash||'',
-    authorName:c.author?.name||c.authorName||'Участник SWAIP',
+    authorName:c.author?.name||c.authorName||'Участник SWAP',
     authorNick:c.author?.handle||c.authorNick||undefined,
     authorAvatar:c.author?.avatar||c.authorAvatar||'',
     authorMode:'pro',
@@ -3007,7 +3007,7 @@ function CommentsSheet({postId,session,authorHash,authorName,authorNick,authorAv
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:'flex',alignItems:'baseline',gap:5,marginBottom:3,flexWrap:'wrap'}}>
                   <span onClick={()=>cm.authorHash&&onOpenProfile&&onOpenProfile(cm.authorHash)}
-                    style={{fontSize:12,fontWeight:800,color:c.light,cursor:cm.authorHash&&onOpenProfile?'pointer':'default'}}>{cm.authorName||'Участник SWAIP'}</span>
+                    style={{fontSize:12,fontWeight:800,color:c.light,cursor:cm.authorHash&&onOpenProfile?'pointer':'default'}}>{cm.authorName||'Участник SWAP'}</span>
                   {cm.authorNick&&<span onClick={()=>cm.authorHash&&onOpenProfile&&onOpenProfile(cm.authorHash)}
                     style={{fontSize:10,color:ac,fontFamily:'monospace',cursor:cm.authorHash&&onOpenProfile?'pointer':'default'}}>@{cm.authorNick}</span>}
                   <span style={{fontSize:10,color:c.sub}}>{cm.ts}</span>
@@ -3034,7 +3034,7 @@ function CommentsSheet({postId,session,authorHash,authorName,authorNick,authorAv
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{display:'flex',alignItems:'baseline',gap:5,marginBottom:2,flexWrap:'wrap'}}>
                           <span onClick={()=>r.authorHash&&onOpenProfile&&onOpenProfile(r.authorHash)}
-                            style={{fontSize:11,fontWeight:800,color:c.light,cursor:r.authorHash&&onOpenProfile?'pointer':'default'}}>{r.authorName||'Участник SWAIP'}</span>
+                            style={{fontSize:11,fontWeight:800,color:c.light,cursor:r.authorHash&&onOpenProfile?'pointer':'default'}}>{r.authorName||'Участник SWAP'}</span>
                           {r.authorNick&&<span style={{fontSize:9,color:ac,fontFamily:'monospace'}}>@{r.authorNick}</span>}
                           <span style={{fontSize:9,color:c.sub}}>{r.ts}</span>
                         </div>
@@ -3050,7 +3050,7 @@ function CommentsSheet({postId,session,authorHash,authorName,authorNick,authorAv
         {!session?(
           <div style={{padding:'14px 20px',borderTop:`1px solid ${c.border}`,textAlign:'center',background:c.card}}>
             <div style={{fontSize:12,color:c.sub,marginBottom:8}}>Зарегистрируйтесь, чтобы оставить комментарий</div>
-            <div style={{fontSize:11,color:c.sub,opacity:0.6}}>Войдите в SWAIP, чтобы участвовать в обсуждении</div>
+            <div style={{fontSize:11,color:c.sub,opacity:0.6}}>Войдите в SWAP, чтобы участвовать в обсуждении</div>
           </div>
         ):(
           <div style={{padding:'10px 14px 14px',borderTop:`1px solid ${c.border}`,display:'flex',gap:9,alignItems:'center',background:c.card}}>
@@ -5957,7 +5957,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       </div>
     )}
 
-    {/* ═══ ЭКРАН: БРАУЗЕР SWAIP ═══ */}
+    {/* ═══ ЭКРАН: БРАУЗЕР SWAP ═══ */}
     {navTab==='browser'&&currentScreen==='home'&&(()=>{
       const SPEED_DIAL=[
         {ico:'🔍',label:'Google',url:'https://www.google.com'},
@@ -6053,7 +6053,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               onLoad={()=>setBrowserLoading(false)}
               onError={()=>setBrowserLoading(false)}
               sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-              title="SWAIP Browser"
+              title="SWAP Browser"
             />
           ):(
             <div style={{flex:1}}/>
@@ -6064,7 +6064,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
             <div style={{position:'absolute',inset:0,top:72,background:isDark?'#08080f':'#f4f4fc',
               display:'flex',flexDirection:'column',alignItems:'center',padding:'40px 20px 100px',overflowY:'auto'}}>
               <div style={{fontSize:40,marginBottom:4}}>🌐</div>
-              <div style={{fontSize:22,fontWeight:900,color:c.light,marginBottom:4,letterSpacing:'-0.02em'}}>SWAIP Browser</div>
+              <div style={{fontSize:22,fontWeight:900,color:c.light,marginBottom:4,letterSpacing:'-0.02em'}}>SWAP Browser</div>
               <div style={{fontSize:12,color:c.sub,marginBottom:28}}>Быстрый · Безопасный · Встроенный</div>
               {/* Строка поиска на главной */}
               <div style={{width:'100%',maxWidth:360,background:isDark?'rgba(255,255,255,0.08)':'#fff',
@@ -6133,7 +6133,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 {profNick&&<div style={{fontSize:12,color:'#6b7280',fontFamily:'monospace',marginTop:2}}>@{profNick}</div>}
               </div>
               <div style={{fontSize:11,color:'#9ca3af',textAlign:'center',fontFamily:'"Montserrat",sans-serif',lineHeight:1.5}}>
-                Покажи этот код — друг отсканирует и найдёт тебя в SWAIP
+                Покажи этот код — друг отсканирует и найдёт тебя в SWAP
               </div>
               <button onClick={()=>setShowQRModal(false)}
                 style={{padding:'10px 32px',borderRadius:100,border:'none',background:'#1a1a2e',
@@ -7000,7 +7000,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
         <div style={{height:48,display:'flex',alignItems:'center',padding:'0 12px',gap:8}}>
           <div style={{flex:1}}>
             <CSpan c={c} style={{fontSize:20,letterSpacing:6,fontWeight:900,
-              fontFamily:'"Montserrat","Arial Black",sans-serif',textTransform:'uppercase',paddingLeft:6}}>SWAIP</CSpan>
+              fontFamily:'"Montserrat","Arial Black",sans-serif',textTransform:'uppercase',paddingLeft:6}}>SWAP</CSpan>
           </div>
           <motion.button whileTap={{scale:0.88}} onClick={()=>setIsDark(v=>!v)}
             style={{width:36,height:20,borderRadius:10,background:c.trackBg,border:`1.5px solid ${c.borderB}`,
@@ -7053,7 +7053,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               <div style={{position:'absolute',bottom:0,left:0,right:0,height:16,
                 background:'linear-gradient(90deg,#8a8a9a 0%,#c8c8d8 20%,#f0f0f8 50%,#c8c8d8 80%,#8a8a9a 100%)',
                 display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 -1px 4px rgba(0,0,0,0.4)'}}>
-                <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAIP</span>
+                <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAP</span>
               </div>
               <div style={{position:'absolute',bottom:18,right:4,width:14,height:14,
                 borderRadius:'50%',background:c.mid,border:`1.5px solid ${c.light}`,
@@ -7077,7 +7077,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 <div style={{position:'absolute',bottom:0,left:0,right:0,height:16,
                   background:'linear-gradient(90deg,#8a8a9a 0%,#c8c8d8 20%,#f0f0f8 50%,#c8c8d8 80%,#8a8a9a 100%)',
                   display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 -1px 4px rgba(0,0,0,0.4)'}}>
-                  <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAIP</span>
+                  <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAP</span>
                 </div>
               </div>
               <span style={{fontSize:9,color:c.sub,fontWeight:600,maxWidth:60,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1}}>Я</span>
@@ -7254,7 +7254,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                   style={{width:78,height:90,borderRadius:14,overflow:'hidden',border:`3px solid ${c.card}`,background:c.cardAlt,position:'relative',cursor:'pointer',boxShadow:`0 4px 16px rgba(0,0,0,${isDark?'0.5':'0.2'})`,zIndex:1}}>
                   <img src={avatarSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                   <div style={{position:'absolute',bottom:0,left:0,right:0,height:16,background:'linear-gradient(90deg,#8a8a9a 0%,#c8c8d8 20%,#f0f0f8 50%,#c8c8d8 80%,#8a8a9a 100%)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 -1px 4px rgba(0,0,0,0.4)'}}>
-                    <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAIP</span>
+                    <span style={{fontSize:5.5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a',userSelect:'none'}}>SWAP</span>
                   </div>
                   {proVizitkaUrl&&(<motion.button whileTap={{scale:0.9}} onClick={e=>{e.stopPropagation();setShowVizitkaModal(true);}} style={{position:'absolute',top:4,right:4,width:22,height:22,borderRadius:'50%',background:'rgba(0,0,0,0.7)',border:'1.5px solid rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,fontSize:10}}>▶</motion.button>)}
                 </div>
@@ -7446,7 +7446,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 <div style={{width:80,height:80,borderRadius:8,overflow:'hidden',border:`2px solid ${activeAccent}`,boxShadow:`0 0 16px ${activeAccent}66`,position:'relative'}}>
                   <img src={avatarSrc} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                   <div style={{position:'absolute',bottom:0,left:0,right:0,height:14,background:'linear-gradient(90deg,#8a8a9a 0%,#c8c8d8 20%,#f0f0f8 50%,#c8c8d8 80%,#8a8a9a 100%)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <span style={{fontSize:5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a'}}>SWAIP</span>
+                    <span style={{fontSize:5,fontWeight:900,letterSpacing:'0.22em',textTransform:'uppercase',color:'#1a1a2a'}}>SWAP</span>
                   </div>
                 </div>
               </div>
@@ -8174,7 +8174,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                   <div style={{ padding:'10px 14px', background:'rgba(59,130,246,0.07)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:12 }}>
                     <div style={{ fontSize:12, color:'rgba(59,130,246,0.9)', lineHeight:1.6 }}>
                       <b>«+ Добавить»</b> — для ваших ручных отзывов (скриншоты, письма от клиентов с других платформ). Вы управляете ими сами.<br/>
-                      <span style={{ color:'rgba(255,255,255,0.45)' }}>Реальные гостевые отзывы от других участников SWAIP появятся ниже автоматически.</span>
+                      <span style={{ color:'rgba(255,255,255,0.45)' }}>Реальные гостевые отзывы от других участников SWAP появятся ниже автоматически.</span>
                     </div>
                   </div>
                 </div>
@@ -8236,7 +8236,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                             </div>
                             <div style={{ fontSize:14, color:'rgba(255,255,255,0.8)', lineHeight:1.6, marginBottom:8 }}>«{rv.text}»</div>
                             <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                              <span style={{ fontSize:10, color:'rgba(34,197,94,0.6)', fontWeight:600 }}>✅ Верифицированный участник SWAIP</span>
+                              <span style={{ fontSize:10, color:'rgba(34,197,94,0.6)', fontWeight:600 }}>✅ Верифицированный участник SWAP</span>
                               <motion.button whileTap={{ scale:0.93 }}
                                 onClick={async () => {
                                   if (!confirm('Удалить этот отзыв?')) return;
@@ -8297,9 +8297,9 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
               </div>
               <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:18, padding:18 }}>
                 <div style={{ fontSize:28, marginBottom:10 }}>🌟</div>
-                <div style={{ fontSize:15, fontWeight:800, color:'#fff', marginBottom:6, fontFamily:'"Montserrat",sans-serif' }}>Реальные отзывы участников SWAIP</div>
+                <div style={{ fontSize:15, fontWeight:800, color:'#fff', marginBottom:6, fontFamily:'"Montserrat",sans-serif' }}>Реальные отзывы участников SWAP</div>
                 <div style={{ fontSize:13, color:'rgba(255,255,255,0.55)', lineHeight:1.6 }}>
-                  Другие пользователи SWAIP могут оставить вам верифицированный отзыв прямо с вашего профиля. Они отображаются отдельно — защищены от накрутки на уровне базы данных.
+                  Другие пользователи SWAP могут оставить вам верифицированный отзыв прямо с вашего профиля. Они отображаются отдельно — защищены от накрутки на уровне базы данных.
                 </div>
               </div>
               <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:18, padding:18 }}>
@@ -9558,7 +9558,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                       style={{flex:1,padding:12,background:'rgba(255,200,0,0.12)',border:'1.5px solid rgba(255,200,0,0.3)',borderRadius:12,color:'#fbbf24',fontSize:13,fontWeight:700,cursor:'pointer'}}>
                       {referralCopied?'✓ Скопировано!':'📋 Скопировать'}
                     </motion.button>
-                    <motion.button whileTap={{scale:0.95}} onClick={()=>{if(navigator.share){navigator.share({title:'Зарегистрируйся в SWAIP',url:refLink}).catch(()=>{});}else{navigator.clipboard.writeText(refLink).catch(()=>{});}}}
+                    <motion.button whileTap={{scale:0.95}} onClick={()=>{if(navigator.share){navigator.share({title:'Зарегистрируйся в SWAP',url:refLink}).catch(()=>{});}else{navigator.clipboard.writeText(refLink).catch(()=>{});}}}
                       style={{flex:1,padding:12,background:'linear-gradient(135deg,rgba(255,200,0,0.2),rgba(255,120,0,0.15))',border:'1.5px solid rgba(255,200,0,0.3)',borderRadius:12,color:'#fbbf24',fontSize:13,fontWeight:700,cursor:'pointer'}}>
                       ↗️ Поделиться
                     </motion.button>
@@ -9566,7 +9566,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 </div>
                 {/* Условия */}
                 <div style={{fontSize:12,color:'rgba(255,255,255,0.35)',lineHeight:1.6,textAlign:'center'}}>
-                  Приглашайте друзей в SWAIP по вашей ссылке.<br/>
+                  Приглашайте друзей в SWAP по вашей ссылке.<br/>
                   За каждого зарегистрированного — 50 Свайп-монет.<br/>
                   Монеты можно использовать для PRO-функций.
                 </div>
@@ -10298,13 +10298,13 @@ function AudioWavePlayer({src,accent='#a855f7'}:{src:string;accent?:string}){
       fg.addColorStop(0,'#5b21b6');fg.addColorStop(0.5,'#7c3aed');fg.addColorStop(1,'#a855f7');
       ctx.fillStyle=fg;ctx.fill();
       ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=0.5;ctx.stroke();
-      // Надпись SWAIP
+      // Надпись SWAP
       ctx.save();
       ctx.fillStyle='#fff';
       ctx.font='bold 7.5px Arial';
       ctx.textAlign='center';
       ctx.shadowBlur=3;ctx.shadowColor='rgba(0,0,0,0.6)';
-      ctx.fillText('SWAIP',stx+18+fw*0.35,sty+10);
+      ctx.fillText('SWAP',stx+18+fw*0.35,sty+10);
       ctx.restore();
       ctx.textAlign='start';
       ctx.beginPath();ctx.arc(cx,baseY-29,7,0,Math.PI*2);ctx.fillStyle='#fcd34d';ctx.fill();
@@ -10428,7 +10428,7 @@ function SelfieFrameWrapper({frameId,children}:{frameId:string;children:React.Re
     <div style={{position:'relative',width:W,height:H,flexShrink:0,background:'#111',borderRadius:12,overflow:'hidden'}}>
       <div style={{position:'absolute',left:sx,top:sy,width:sw,height:sh,overflow:'hidden',borderRadius:f.br||8,background:'#000'}}>{children}</div>
       <div style={{position:'absolute',inset:0,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <span style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',fontSize:9,fontWeight:900,letterSpacing:'0.2em',color:'rgba(255,255,255,0.3)',textTransform:'uppercase'}}>SWAIP</span>
+        <span style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',fontSize:9,fontWeight:900,letterSpacing:'0.2em',color:'rgba(255,255,255,0.3)',textTransform:'uppercase'}}>SWAP</span>
       </div>
     </div>
   );

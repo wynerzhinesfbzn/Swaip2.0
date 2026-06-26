@@ -1,2 +1,2 @@
-- [SWAIP upload testing pitfall](swaip-upload-pitfall.md) — media upload routes read RAW request body, not multipart; curl -F gives a misleading 500. Test with --data-binary.
-- [Express 5 Request augmentation](express5-request-augmentation.md) — augment `global Express.Request`, NOT `declare module "express-serve-static-core"`; the latter silently fails to merge under @types/express@5.
+- [Brand rename gotchas](brand-rename.md) — renaming a live app's brand: preserve invisible IDs/keys/salts, and hunt non-Latin transliterations, not just the Latin spelling.
+- [rg output unreliable here](tooling-quirks.md) — ripgrep content output is mangled/redacted in this repo; use cat/read/GNU grep and verify with counts.

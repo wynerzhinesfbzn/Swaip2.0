@@ -147,7 +147,7 @@ export default function PublicPost() {
       <div style={{ minHeight: '100svh', background: '#07090f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.1, ease: 'linear' }}
           style={{ width: 42, height: 42, borderRadius: '50%', border: '3px solid rgba(99,102,241,0.15)', borderTopColor: '#6366f1' }} />
-        <span style={{ color: 'rgba(165,180,252,0.45)', fontSize: 12, fontFamily: '"Montserrat",sans-serif', letterSpacing: '0.2em' }}>SWAIP</span>
+        <span style={{ color: 'rgba(165,180,252,0.45)', fontSize: 12, fontFamily: '"Montserrat",sans-serif', letterSpacing: '0.2em' }}>SWAP</span>
       </div>
     );
   }
@@ -161,7 +161,7 @@ export default function PublicPost() {
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>Возможно, ссылка устарела или пост был удалён</div>
         <button onClick={() => window.location.href = window.location.origin + '/'}
           style={{ marginTop: 8, padding: '12px 28px', borderRadius: 14, border: 'none', background: '#6366f1', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
-          Открыть SWAIP
+          Открыть SWAP
         </button>
       </div>
     );
@@ -184,7 +184,7 @@ export default function PublicPost() {
         {/* CTA регистрации */}
         <div style={{ width: '100%', maxWidth: 360, padding: '16px', borderRadius: 20, background: 'linear-gradient(135deg,rgba(99,102,241,0.12),rgba(168,85,247,0.08))', border: '1px solid rgba(99,102,241,0.25)', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 900, color: '#a5b4fc' }}>Хочешь свой канал с записью?</div>
-          <div style={{ fontSize: 12, color: c.sub }}>SWAIP — это 3 секунды. Свои клиенты, CRM, канал.</div>
+          <div style={{ fontSize: 12, color: c.sub }}>SWAP — это 3 секунды. Свои клиенты, CRM, канал.</div>
           <button onClick={goRegister}
             style={{ padding: '13px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#6366f1,#a855f7)', color: '#fff', fontWeight: 900, fontSize: 14, cursor: 'pointer' }}>
             Зарегистрироваться — 3 секунды ⚡
@@ -213,7 +213,7 @@ export default function PublicPost() {
         </div>
         <button onClick={goRegister}
           style={{ padding: '7px 13px', borderRadius: 10, border: `1px solid ${accent}40`, background: `${accent}12`, color: accent, fontSize: 11, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          Войти в SWAIP
+          Войти в SWAP
         </button>
       </div>
 

@@ -48,13 +48,13 @@ export default function Auth() {
         <div className="mb-6 w-32 h-32 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,255,255,0.2)]">
           <img
             src="/swaip-logo.png"
-            alt="SWAIP"
+            alt="SWAP"
             className="w-full h-full object-cover"
           />
         </div>
 
         {/* Brand */}
-        <h1 className="text-4xl font-black tracking-tight text-white mb-1">SWAIP</h1>
+        <h1 className="text-4xl font-black tracking-tight text-white mb-1">SWAP</h1>
         <p className="text-sm text-cyan-400 font-medium mb-10 tracking-widest uppercase">
           1 свайп — 4 жизни
         </p>

@@ -284,7 +284,7 @@ router.get('/search', async (req, res) => {
   try {
     const r = await fetch(
       `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`,
-      { headers: { 'Lrclib-Client': 'SWAIP/2.0' }, signal: AbortSignal.timeout(8000) }
+      { headers: { 'Lrclib-Client': 'SWAP/2.0' }, signal: AbortSignal.timeout(8000) }
     );
     if (!r.ok) { res.json({ results: [] }); return; }
     const data = await r.json() as any[];
@@ -322,7 +322,7 @@ router.get('/artists', async (req, res) => {
   try {
     const r = await fetch(
       `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`,
-      { headers: { 'Lrclib-Client': 'SWAIP/2.0' }, signal: AbortSignal.timeout(6000) }
+      { headers: { 'Lrclib-Client': 'SWAP/2.0' }, signal: AbortSignal.timeout(6000) }
     );
     const data = (r.ok ? await r.json() : []) as any[];
     const seen = new Set<string>();

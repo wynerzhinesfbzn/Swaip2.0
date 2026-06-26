@@ -156,7 +156,7 @@ router.get("/follows/:hash/list", async (req, res) => {
       };
       return {
         hash: a.hash,
-        name: parse(d['pro_displayName']) || parse(d['scene_artistName']) || 'Участник SWAIP',
+        name: parse(d['pro_displayName']) || parse(d['scene_artistName']) || 'Участник SWAP',
         avatar: parse(d['pro_avatarUrl']) || parse(d['scene_avatarUrl']) || '',
         handle: parse(d['pro_fullName']) || parse(d['scene_handle']) || '',
         mode: parse(d['pro_displayName']) ? 'pro' : 'scene',
@@ -653,7 +653,7 @@ router.post("/conversations/:id/messages", requireSession, contentFilter("messag
                     ? returnContent.slice(0, 80) + '…'
                     : (returnContent as string);
         sendPushToUsers(recipients, {
-          title: author.name || 'SWAIP',
+          title: author.name || 'SWAP',
           body: pushBody,
           tag: `msg-conv-${convId}`,
           url: `/messages/${convId}`,

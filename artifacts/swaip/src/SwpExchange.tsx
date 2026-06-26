@@ -409,7 +409,7 @@ export default function SwpExchange({ apiBase, userHash, sessionToken, onBack, a
             boxShadow:`0 0 14px ${accent}55` }}>SWP</div>
           <div style={{ minWidth:0 }}>
             <div style={{ fontSize:14,fontWeight:900,letterSpacing:'0.02em',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>
-              SWP / SWAIP Token
+              SWP / SWAP Token
             </div>
             <div style={{ fontSize:9,color:SUB }}>Виртуальная монета · 10 000 000 SWP</div>
           </div>
@@ -634,17 +634,17 @@ export default function SwpExchange({ apiBase, userHash, sessionToken, onBack, a
                   fontSize:16,fontWeight:900,color:'#fff',
                   boxShadow:`0 0 20px ${accent}55` }}>SWP</div>
                 <div>
-                  <div style={{ fontSize:17,fontWeight:900 }}>SWAIP Token</div>
+                  <div style={{ fontSize:17,fontWeight:900 }}>SWAP Token</div>
                   <div style={{ fontSize:10,color:SUB,marginTop:2 }}>
                     Тикер: SWP · Эмиссия: 10 000 000
                   </div>
                 </div>
               </div>
               {[
-                { t:'Что такое SWP?', b:'SWP — нативная монета экосистемы SWAIP. Используется для вознаграждений авторов, донатов, доступа к премиум-функциям и будущей децентрализованной экономики платформы.' },
+                { t:'Что такое SWP?', b:'SWP — нативная монета экосистемы SWAP. Используется для вознаграждений авторов, донатов, доступа к премиум-функциям и будущей децентрализованной экономики платформы.' },
                 { t:'Фиксированный курс запуска', b:`При покупке курс 1 SWP = 1 ${SYM['RUB']} / 1 ${SYM['USD']} / 1 ${SYM['EUR']} и т.д. Каждая валюта имеет независимый пул ликвидности. Обмен между валютными пулами недоступен.` },
-                { t:'Почему цена растёт?', b:'SWAIP активно развивается — растёт аудитория, появляются новые функции. Ценность монеты отражает реальный рост платформы.' },
-                { t:'Безопасность', b:'Все балансы хранятся на защищённых серверах SWAIP. Операции подтверждаются через твою учётную запись с Ed25519 подписью.' },
+                { t:'Почему цена растёт?', b:'SWAP активно развивается — растёт аудитория, появляются новые функции. Ценность монеты отражает реальный рост платформы.' },
+                { t:'Безопасность', b:'Все балансы хранятся на защищённых серверах SWAP. Операции подтверждаются через твою учётную запись с Ed25519 подписью.' },
               ].map(({t,b})=>(
                 <div key={t} style={{ marginBottom:10,padding:'12px 14px',borderRadius:12,
                   background:CARD,border:`1px solid ${LINE}` }}>
@@ -661,7 +661,7 @@ export default function SwpExchange({ apiBase, userHash, sessionToken, onBack, a
                   ['Цена запуска',  `${SYM['RUB']}1.0000 / ${SYM['USD']}1.0000`],
                   ['Текущая цена',  `${SYM['RUB']}${livePrice.toFixed(4)}`],
                   ['Рост с запуска',`+${((livePrice-1)*100).toFixed(2)}%`],
-                  ['Платформа',     'SWAIP Network'],
+                  ['Платформа',     'SWAP Network'],
                 ].map(([l,v])=>(
                   <div key={l} style={{ display:'flex',justifyContent:'space-between',
                     padding:'7px 0',borderBottom:`1px solid ${LINE}`,fontSize:11 }}>
@@ -674,7 +674,7 @@ export default function SwpExchange({ apiBase, userHash, sessionToken, onBack, a
                 background:'rgba(255,255,255,0.03)',border:`1px solid ${LINE}`,
                 fontSize:10,color:SUB,lineHeight:1.7 }}>
                 Токен SWP не является ценной бумагой. Это внутренняя валюта
-                мессенджера SWAIP для использования в экосистеме платформы.
+                мессенджера SWAP для использования в экосистеме платформы.
               </div>
             </motion.div>
           )}

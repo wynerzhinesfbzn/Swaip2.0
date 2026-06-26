@@ -52,7 +52,7 @@ const T = {
   follow_to_add: 'Добавьте собеседника через Поиск, чтобы начать чат',
   call_voice: 'Аудиозвонок',
   video_message: 'Видеосообщение',
-  invitation_label: 'SWAIP',
+  invitation_label: 'SWAP',
   add_to_circle_hint: 'Добавить в Круг',
   open_profile_hint: 'Открыть профиль',
   tap_to_open: 'Нажмите, чтобы открыть',
@@ -968,7 +968,7 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                         : onlineStatus.lastSeenAt
                           ? `был(а) ${fmtLastSeen(onlineStatus.lastSeenAt)}`
                           : 'давно не заходил(а)'
-                      : 'SWAIP'}
+                      : 'SWAP'}
                   </>
                 )}
               </div>
@@ -1581,12 +1581,12 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                       <span style={{ fontSize:9, fontWeight:900, color:'#fff', letterSpacing:1, fontFamily:'"Montserrat",sans-serif' }}>REC</span>
                     </div>
                   )}
-                  {/* SWAIP-полоска снизу */}
+                  {/* SWAP-полоска снизу */}
                   <div style={{ position:'absolute', bottom:0, left:0, right:0,
                     background:'linear-gradient(90deg,#6366f1,#a855f7,#06b6d4)',
                     height:26, display:'flex', alignItems:'center', justifyContent:'center' }}>
                     <span style={{ fontSize:9, fontWeight:900, color:'#fff', letterSpacing:2,
-                      fontFamily:'"Montserrat",sans-serif', textShadow:'0 1px 4px rgba(0,0,0,0.4)' }}>SWAIP</span>
+                      fontFamily:'"Montserrat",sans-serif', textShadow:'0 1px 4px rgba(0,0,0,0.4)' }}>SWAP</span>
                   </div>
                 </div>
               </div>
@@ -1793,7 +1793,7 @@ export function ChatScreen({ convId, otherHash, otherInfo, myHash, accent, onBac
                   {/* Invite link */}
                   <motion.button whileTap={{ scale:0.9 }} onClick={() => {
                     const link = `${window.location.origin}/${myHash}/krug`;
-                    setInput(`Приглашаю тебя в мой Круг на SWAIP: ${link}`);
+                    setInput(`Приглашаю тебя в мой Круг на SWAP: ${link}`);
                     setShowMoreMenu(false);
                     setTimeout(() => inputRef.current?.focus(), 50);
                   }} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, cursor:'pointer',
