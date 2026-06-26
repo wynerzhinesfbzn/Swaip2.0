@@ -1198,7 +1198,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
       </AnimatePresence>
 
       <div style={{ position:'relative', height:'100%', width:'100%', flexShrink:0, overflow:'hidden',
-        background:'radial-gradient(ellipse at 50% 32%, #0a1130 0%, #050a22 36%, #020514 70%, #00030c 100%)' }}>
+        background:'linear-gradient(160deg, #0a0a0f 0%, #12141a 60%, #0a0c14 100%)' }}>
 
         {/* Космические искры/частицы */}
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.85,
@@ -1228,23 +1228,35 @@ function LoginScreen({ onSuccess }: { onSuccess: (hash: string) => void }) {
           background:'linear-gradient(90deg, transparent 0%, rgba(255,210,170,0.45) 50%, transparent 100%)',
           transform:'rotate(-15deg)', filter:'blur(1px)', opacity:0.7 }} />
 
-        {/* Тёплое центральное свечение позади героя */}
+        {/* Холодное центральное свечение Chrome */}
         <div style={{ position:'absolute', top:'8%', left:'50%', transform:'translateX(-50%)',
           width:'95%', height:'62%', borderRadius:'50%', pointerEvents:'none',
-          background:'radial-gradient(circle, rgba(255,180,90,0.22) 0%, rgba(0,140,255,0.12) 45%, transparent 75%)',
-          filter:'blur(12px)' }} />
+          background:'radial-gradient(circle, rgba(200,215,235,0.08) 0%, rgba(140,160,200,0.05) 45%, transparent 75%)',
+          filter:'blur(16px)' }} />
 
-        {/* ─── Герой: картинка во весь экран сверху, обрезана снизу чтобы убрать "1 МЕЕР" и кнопки ─── */}
+        {/* ─── Герой: Chrome металлик wordmark ─── */}
+        <style>{`@keyframes swap-chrome-shimmer{0%{background-position:-200% center}100%{background-position:200% center}}`}</style>
         <div role="img" aria-label="SWAP"
-          style={{ position:'absolute', top:0, left:0, right:0,
-            width:'100%', aspectRatio:'784/700',
-            backgroundImage:`url("${heroSwaip}")`,
-            backgroundRepeat:'no-repeat',
-            backgroundSize:'cover',
-            backgroundPosition:'center top',
-            maskImage:'linear-gradient(to bottom, #000 0%, #000 68%, transparent 92%)',
-            WebkitMaskImage:'linear-gradient(to bottom, #000 0%, #000 68%, transparent 92%)',
-            filter:'drop-shadow(0 12px 40px rgba(0,140,255,0.35))' }} />
+          style={{ position:'absolute', top:0, left:0, right:0, height:'80%',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            maskImage:'linear-gradient(to bottom, #000 0%, #000 65%, transparent 95%)',
+            WebkitMaskImage:'linear-gradient(to bottom, #000 0%, #000 65%, transparent 95%)' }}>
+          <div style={{
+            fontSize:'clamp(72px,28vw,200px)',
+            fontWeight:900,
+            fontFamily:"'Montserrat',sans-serif",
+            letterSpacing:'-0.02em',
+            lineHeight:1,
+            background:'linear-gradient(105deg,#777 0%,#bbb 14%,#fff 24%,#e4e4e4 34%,#999 50%,#ddd 65%,#fff 75%,#aaa 86%,#777 100%)',
+            backgroundSize:'200% auto',
+            WebkitBackgroundClip:'text',
+            WebkitTextFillColor:'transparent',
+            backgroundClip:'text',
+            animation:'swap-chrome-shimmer 3s linear infinite',
+            filter:'drop-shadow(0 0 24px rgba(200,215,255,0.22)) drop-shadow(0 2px 4px rgba(255,255,255,0.35))',
+            userSelect:'none',
+          }}>SWAP</div>
+        </div>
 
         {/* Нижний градиент-плавный переход к панели управления */}
         <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'48%',
