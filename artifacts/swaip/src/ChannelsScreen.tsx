@@ -787,8 +787,7 @@ function ChannelsFeed({channels,c,accent,onOpen}:{
       <div style={{fontSize:56}}>📡</div>
       <p style={{margin:0,fontSize:18,fontWeight:900,color:c.light}}>Твои каналы</p>
       <p style={{margin:0,fontSize:14,color:c.sub,lineHeight:1.6}}>
-        Создавай каналы, выкладывай контент и собирай аудиторию.{'\n'}
-        Это круче, чем Telegram — обещаем.
+        Создавай каналы, выкладывай контент и собирай аудиторию.
       </p>
       <div style={{display:'flex',flexDirection:'column',gap:8,width:'100%',maxWidth:280,marginTop:8}}>
         {[
