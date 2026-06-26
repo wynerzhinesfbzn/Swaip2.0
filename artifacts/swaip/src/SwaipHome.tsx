@@ -20,13 +20,8 @@ const LoungeScreen        = lazy(() => import('./LoungeScreen'));
 const CinemaScreen        = lazy(() => import('./CinemaScreen'));
 const ClipsScreen         = lazy(() => import('./ClipsScreen'));
 const EventsScreen        = lazy(() => import('./EventsScreen'));
-const MarketplaceScreen   = lazy(() => import('./MarketplaceScreen'));
 const MusicRoomScreen     = lazy(() => import('./MusicRoomScreen'));
-const TimeCapsuleScreen   = lazy(() => import('./TimeCapsuleScreen'));
 const ListenTogetherScreen= lazy(() => import('./ListenTogetherScreen'));
-const PollsScreen         = lazy(() => import('./PollsScreen'));
-const MoodScreen          = lazy(() => import('./MoodScreen'));
-const KidsClubsScreen     = lazy(() => import('./KidsClubsScreen'));
 const AssistantsHub       = lazy(() => import('./AssistantsHub'));
 const DocumentsApp        = lazy(() => import('./DocumentsApp'));
 const BabelAirApp         = lazy(() => import('./BabelAirApp'));
@@ -477,7 +472,7 @@ function RingtoneModal({c,isDark,modalStyle,mHead,ringtoneId,onSelect,onClose}:{
 }
 
 /* ══ Боковое меню (слайд слева) ══ */
-function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,onExchange,onAssistant,onBrowser,onGames,onBots,onCinema,onClips,onEvents,onMarketplace,onMusic,onCapsule,onListenTogether,onPolls,onMood,onKids,onPetya,onDocuments,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onMeetings?:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMarketplace?:()=>void;onMusic?:()=>void;onCapsule?:()=>void;onListenTogether?:()=>void;onPolls?:()=>void;onMood?:()=>void;onKids?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
+function SideMenu({open,onClose,onOldMode,onLogout,onLounge,onDesign,onExchange,onAssistant,onBrowser,onGames,onBots,onCinema,onClips,onEvents,onMusic,onListenTogether,onPetya,onDocuments,c,ringtoneId,onRingtoneChange}:{open:boolean;onClose:()=>void;onOldMode?:()=>void;onLogout:()=>void;onLounge?:()=>void;onDesign?:()=>void;onExchange?:()=>void;onAssistant?:()=>void;onBrowser?:()=>void;onGames?:()=>void;onBots?:()=>void;onCinema?:()=>void;onClips?:()=>void;onEvents?:()=>void;onMusic?:()=>void;onListenTogether?:()=>void;onPetya?:()=>void;onDocuments?:()=>void;c:Pal;ringtoneId?:string;onRingtoneChange?:(id:string)=>void}){
   const {prompt,isIOS,isYandex,isInstalled,install}=usePWAInstall();
   type Modal='language'|'privacy'|'about'|'docs'|'ringtone';
   const [modal,setModal]=useState<Modal|null>(null);
@@ -537,17 +532,11 @@ function SideMenu({open,onClose,onOldMode,onLogout,onMeetings,onLounge,onDesign,
 
   const SETTINGS=[
     {icon:'🎬',label:'Клипы',sub:'Короткие вертикальные видео — TikTok-стиль',fn:()=>{onClips?.();onClose();}},
-    {icon:'📊',label:'Опросы',sub:'Создавай опросы · Голосуй · Смотри результаты',fn:()=>{onPolls?.();onClose();}},
-    {icon:'🎭',label:'Настроение дня',sub:'Поделись настроением с друзьями',fn:()=>{onMood?.();onClose();}},
     {icon:'🤖',label:'Виртуальные помощники',sub:'Юрист · Врач · Репетитор · Шеф · Психолог и другие',fn:()=>{onPetya?.();onClose();}},
-    {icon:'👶',label:'Кружки для детей',sub:'Секции, кружки и курсы по городам России',fn:()=>{onKids?.();onClose();}},
     {icon:'🎤',label:'Музыкальная комната',sub:'Каракоке · Голосовые эффекты · Синхронный плеер',fn:()=>{onMusic?.();onClose();}},
     {icon:'🎵',label:'Слушаем вместе',sub:'Включи музыку для всей комнаты',fn:()=>{onListenTogether?.();onClose();}},
-    {icon:'📦',label:'Капсула времени',sub:'Письмо будущему себе · Открывается в нужный день',fn:()=>{onCapsule?.();onClose();}},
     {icon:'📅',label:'Мероприятия',sub:'Создавай события · Зови друзей · RSVP',fn:()=>{onEvents?.();onClose();}},
-    {icon:'🛍️',label:'Маркетплейс',sub:'Купи и продай внутри SWAP',fn:()=>{onMarketplace?.();onClose();}},
     {icon:'🍿',label:'Кинотеатр',sub:'Смотри видео вместе с друзьями синхронно',fn:()=>{onCinema?.();onClose();}},
-    {icon:'🎙',label:'Конференции',sub:'Планёрки · Презентации · Обсуждения',fn:()=>{onMeetings?.();onClose();}},
     {icon:'🛋️',label:'Комнаты отдыха',sub:'Живой чат · Голосовые · До 20 человек',fn:()=>{onLounge?.();onClose();}},
     {icon:'🤖',label:'Боты SWAP',sub:'Конструктор интерактивных ботов',fn:()=>{onBots?.();onClose();}},
     {icon:'🎮',label:'Игры',sub:'80+ игр · Сега, Денди, Флэш и онлайн',fn:()=>{onGames?.();onClose();}},
@@ -4464,7 +4453,7 @@ function CallOverlayUI({call,peerInfo,apiBase}:{call:ReturnType<typeof useCallSi
 export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLogout,onOldMode,initialProfileHash}:SwaipHomeProps){
   const [isDark,setIsDark]=useState(true);
   let c:Pal=isDark?DARK:LIGHT;
-  const [currentScreen,setCurrentScreen]=useState<'home'|'meetings'|'exchange'|'assistant'|'games'|'bots'|'lounge'|'cinema'|'clips'|'events'|'marketplace'|'music'|'capsule'|'listenTogether'|'polls'|'mood'|'kids'|'assistants'|'documents'>('home');
+  const [currentScreen,setCurrentScreen]=useState<'home'|'exchange'|'assistant'|'games'|'bots'|'lounge'|'cinema'|'clips'|'events'|'music'|'listenTogether'|'assistants'|'documents'>('home');
   const [myMood,setMyMood]=useState<{emoji:string;text:string}|null>(null);
   const [friendMoods,setFriendMoods]=useState<{userHash:string;userName:string;emoji:string;text:string}[]>([]);
   const [showFeedMoodPicker,setShowFeedMoodPicker]=useState(false);
@@ -5865,24 +5854,8 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     {currentScreen==='events'&&(
       <EventsScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
     )}
-    {currentScreen==='marketplace'&&(
-      <MarketplaceScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}
-        onOpenChat={(hash,name)=>{setChatTarget({hash,info:{name,avatar:'',handle:name}});setNavTab('messages');setCurrentScreen('home');}}/>
-    )}
     {currentScreen==='music'&&(
       <MusicRoomScreen myHash={userHash} myName={profName} sessionToken={propToken||getSessionToken()||''} onBack={()=>setCurrentScreen('home')}/>
-    )}
-    {currentScreen==='capsule'&&(
-      <TimeCapsuleScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
-    )}
-    {currentScreen==='polls'&&(
-      <PollsScreen myHash={userHash} onBack={()=>setCurrentScreen('home')}/>
-    )}
-    {currentScreen==='mood'&&(
-      <MoodScreen myHash={userHash} onBack={()=>setCurrentScreen('home')} onMoodSet={(emoji,text)=>setMyMood(emoji?{emoji,text}:null)}/>
-    )}
-    {currentScreen==='kids'&&(
-      <KidsClubsScreen accentColor={activeAccent} onBack={()=>setCurrentScreen('home')}/>
     )}
     {currentScreen==='assistants'&&(
       <AssistantsHub onBack={()=>setCurrentScreen('home')}/>
@@ -5899,11 +5872,6 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     {currentScreen==='bots'&&(
       <div style={{position:'fixed',inset:0,zIndex:800}}>
         <BotBuilder apiBase={apiBase} onClose={()=>setCurrentScreen('home')}/>
-      </div>
-    )}
-    {currentScreen==='meetings'&&(
-      <div style={{position:'fixed',inset:0,zIndex:800}}>
-        <MeetingsScreen apiBase={apiBase} userHash={userHash} onBack={()=>setCurrentScreen('home')}/>
       </div>
     )}
     {currentScreen==='exchange'&&(
@@ -6103,7 +6071,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onMeetings={()=>setCurrentScreen('meetings')} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMarketplace={()=>setCurrentScreen('marketplace')} onMusic={()=>setCurrentScreen('music')} onCapsule={()=>setCurrentScreen('capsule')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPolls={()=>setCurrentScreen('polls')} onMood={()=>setCurrentScreen('mood')} onKids={()=>setCurrentScreen('kids')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onLounge={()=>setCurrentScreen('lounge')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onBrowser={()=>setNavTab('browser')} onGames={()=>setCurrentScreen('games')} onBots={()=>setCurrentScreen('bots')} onCinema={()=>setCurrentScreen('cinema')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onMusic={()=>setCurrentScreen('music')} onListenTogether={()=>setCurrentScreen('listenTogether')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
