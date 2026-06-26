@@ -1508,7 +1508,7 @@ function DocViewerModal({doc,onClose,c}:{doc:{url:string;name:string;mime:string
 
 /* ══ UserProfileSheet — полный профиль пользователя из поиска (1-в-1 как у хозяина) ══ */
 function fmtTsGlobal(iso:string){const now=Date.now();const d=new Date(iso);const s=(now-d.getTime())/1000;if(s<60)return'только что';if(s<3600)return`${Math.floor(s/60)} мин назад`;if(s<86400)return`${Math.floor(s/3600)} ч назад`;if(s<604800)return`${Math.floor(s/86400)} дн назад`;return d.toLocaleDateString('ru');}
-function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCall,onSecretChat}:{hash:string;fallback?:{name:string;avatar:string;handle:string;bio:string};c:Pal;accent:string;apiBase:string;onClose:()=>void;onMessage:(hash:string,name:string)=>void;onCall:(hash:string,name:string)=>void;onSecretChat?:(hash:string,name:string)=>void;}){
+function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCall,onSecretChat}:{hash:string;fallback?:{name:string;avatar:string;handle:string;bio:string};c:Pal;accent:string;apiBase:string;onClose:()=>void;onMessage:(hash:string,name:string)=>void;onCall:(hash:string,name:string,type:'audio'|'video')=>void;onSecretChat?:(hash:string,name:string)=>void;}){
   const ac=accent||'#60a5fa';
   const [d,setD]=useState<Record<string,any>>({});
   const [posts,setPosts]=useState<Post[]>([]);
@@ -1744,8 +1744,8 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
   const guestBtns=[
     {ico:'✏️',lbl:'Написать',fn:()=>onMessage(hash,name)},
     ...(onSecretChat?[{ico:'🔒',lbl:'Секретно',fn:()=>onSecretChat!(hash,name)}]:[]),
-    {ico:'📞',lbl:'Звонок',  fn:()=>onCall(hash,name)},
-    {ico:'📹',lbl:'Видео',   fn:()=>onCall(hash,name)},
+    {ico:'📞',lbl:'Звонок',  fn:()=>onCall(hash,name,'audio')},
+    {ico:'📹',lbl:'Видео',   fn:()=>onCall(hash,name,'video')},
   ];
 
   /* Виджеты — ВСЕ без фильтра, как у хозяина */
@@ -1863,7 +1863,7 @@ function UserProfileSheet({hash,fallback,c,accent,apiBase,onClose,onMessage,onCa
                   <div style={{display:'flex',gap:8,padding:'12px 16px 0'}}>
                     <motion.button whileTap={{scale:0.96}} onClick={()=>onMessage(hash,name)} style={{flex:1,padding:'11px 0',borderRadius:12,background:ac,border:'none',color:'#fff',fontWeight:800,fontSize:13,cursor:'pointer'}}>✏️ Написать</motion.button>
                     {onSecretChat&&<motion.button whileTap={{scale:0.96}} onClick={()=>onSecretChat(hash,name)} style={{flex:1,padding:'11px 0',borderRadius:12,background:'rgba(34,197,94,0.15)',border:'1px solid rgba(34,197,94,0.4)',color:'#22c55e',fontWeight:800,fontSize:13,cursor:'pointer'}} title="Секретный чат со сквозным шифрованием">🔒 Секретно</motion.button>}
-                    <motion.button whileTap={{scale:0.96}} onClick={()=>onCall(hash,name)} style={{flex:1,padding:'11px 0',borderRadius:12,background:c.cardAlt,border:`1px solid ${c.border}`,color:c.mid,fontWeight:800,fontSize:13,cursor:'pointer'}}>📞 Звонок</motion.button>
+                    <motion.button whileTap={{scale:0.96}} onClick={()=>onCall(hash,name,'audio')} style={{flex:1,padding:'11px 0',borderRadius:12,background:c.cardAlt,border:`1px solid ${c.border}`,color:c.mid,fontWeight:800,fontSize:13,cursor:'pointer'}}>📞 Звонок</motion.button>
                   </div>
                   {widgetBar(8,'12px 16px 2px')}
                 </div>
@@ -6220,11 +6220,11 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
           setNavTab('messages');
           setProfileViewHash(null);
         }}
-        onCall={(h,n)=>{
+        onCall={(h,n,type)=>{
           const foundResult=searchResults.find(r=>r.hash===h);
           const avatar=foundResult?.avatar||av(h.slice(0,14)||'u',80);
           setCallPeerInfo({name:n,avatar});
-          call.startCall(h,'video');
+          call.startCall(h,type??'audio');
           setProfileViewHash(null);
         }}
       />}
