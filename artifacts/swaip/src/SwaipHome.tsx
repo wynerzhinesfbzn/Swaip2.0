@@ -10,7 +10,6 @@ import { useBackHandler } from './backHandler';
 import { BG_MUSIC_PRESETS, BgMusicAutoplay, type BgMusicPreset } from './BgMusic';
 import StoriesBar from './StoriesBar';
 
-const SwpExchange         = lazy(() => import('./SwpExchange'));
 const AccessibilityAssistant = lazy(() => import('./AccessibilityAssistant'));
 const GamesArcade         = lazy(() => import('./GamesArcade'));
 const BotBuilder          = lazy(() => import('./BotBuilder'));
@@ -539,7 +538,6 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
     {icon:'🎭',label:'Развлечения',sub:'Игры · Кино · Музыка · Чат · Вместе',fn:()=>{onEntertainment?.();onClose();}},
     {icon:'👁',label:'Я слышу',sub:'Ассистент для людей с нарушением слуха и речи',fn:()=>{onAssistant?.();onClose();}},
     {icon:'📂',label:'Читалка документов',sub:'PDF · DOCX · TXT · XLSX · CSV · Сканер',fn:()=>{onDocuments?.();onClose();}},
-    {icon:'📊',label:'Биржа SWP',sub:'Монета SWAP · График · Кошелёк',fn:()=>{onExchange?.();onClose();}},
     {icon:'📲',label:'Контакты телефона',sub:'Пригласи друзей в SWAP через SMS',fn:()=>{onContacts?.();onClose();}},
     {icon:'⚙️',label:'Настройки',sub:'Язык · Оформление · Приватность · Документы',fn:()=>{setSettingsTab('language');setModal('settings');}},
   ];
@@ -1173,7 +1171,6 @@ function SideMenu({open,onClose,onOldMode,onLogout,onEntertainment,onDesign,onEx
                       {badge:'Клипы',text:'Короткие видео и контент от авторов'},
                       {badge:'Каналы',text:'Публичные и приватные каналы'},
                       {badge:'Развлечения',text:'Кино, музыка, игры, голосовые комнаты'},
-                      {badge:'Биржа',text:'Торговля и кошелёк SWP'},
                       {badge:'PWA',text:'Работает офлайн, устанавливается на устройство'},
                     ].map(row=>(
                       <div key={row.badge} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:`1px solid ${c.border}`}}>
@@ -4573,10 +4570,7 @@ function CallOverlayUI({call,peerInfo,apiBase}:{call:ReturnType<typeof useCallSi
 export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLogout,onOldMode,initialProfileHash}:SwaipHomeProps){
   const [isDark,setIsDark]=useState(true);
   let c:Pal=isDark?DARK:LIGHT;
-  const [currentScreen,setCurrentScreen]=useState<'home'|'exchange'|'assistant'|'games'|'lounge'|'cinema'|'clips'|'events'|'music'|'listenTogether'|'assistants'|'documents'|'contacts'|'entertainment'>('home');
-  const [myMood,setMyMood]=useState<{emoji:string;text:string}|null>(null);
-  const [friendMoods,setFriendMoods]=useState<{userHash:string;userName:string;emoji:string;text:string}[]>([]);
-  const [showFeedMoodPicker,setShowFeedMoodPicker]=useState(false);
+  const [currentScreen,setCurrentScreen]=useState<'home'|'assistant'|'games'|'lounge'|'cinema'|'clips'|'events'|'music'|'listenTogether'|'assistants'|'documents'|'contacts'|'entertainment'>('home');
   const [feedPolls,setFeedPolls]=useState<any[]>([]);
   const [showPollComposer,setShowPollComposer]=useState(false);
   const [pollForm,setPollForm]=useState({question:'',opts:['',''],allowMultiple:false});
@@ -4865,31 +4859,6 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
   const [draft,setDraft]=useState('');
   const [showInput,setShowInput]=useState(false);
   const [tab,setTab]=useState<'feed'|'widgets'|'portfolio'>('feed');
-  /* ── Daily Challenge ── */
-  const [dailyChallenge,setDailyChallenge]=useState<{emoji:string;title:string;description:string;hashtag:string;category:string}|null>(null);
-  const [challengeCompleted,setChallengeCompleted]=useSaved<string>('swaip_dc_done','');
-  const [showDCDetail,setShowDCDetail]=useState(false);
-  const [dcStep,setDcStep]=useState<'idle'|'doing'|'preview'>('idle');
-  const [dcPhoto,setDcPhoto]=useState<string>('');
-  const [dcCaption,setDcCaption]=useState<string>('');
-  const [dcUploading,setDcUploading]=useState(false);
-  const [dcSharing,setDcSharing]=useState(false);
-  const dcFileRef=useRef<HTMLInputElement>(null);
-  useEffect(()=>{
-    fetch(`${window.location.origin}/api/daily-challenge`)
-      .then(r=>r.ok?r.json():null)
-      .then((data:any)=>{if(data?.challenge)setDailyChallenge(data.challenge);})
-      .catch(()=>{});
-  },[]);
-  /* ── Настроение дня ── */
-  useEffect(()=>{
-    if(!userHash)return;
-    const st=localStorage.getItem('swaip_session')||localStorage.getItem('swaip_session_token')||'';
-    fetch(`${window.location.origin}/api/moods/my`,{headers:{'x-session-token':st}})
-      .then(r=>r.ok?r.json():null).then((d:any)=>{if(d?.mood)setMyMood({emoji:d.mood.emoji,text:d.mood.text});}).catch(()=>{});
-    fetch(`${window.location.origin}/api/moods/friends`,{headers:{'x-session-token':st}})
-      .then(r=>r.ok?r.json():null).then((d:any)=>{if(d?.moods)setFriendMoods(d.moods);}).catch(()=>{});
-  },[userHash]);
   /* ── Опросы ленты ── */
   const refreshPolls=()=>{
     fetch(`${window.location.origin}/api/polls`)
@@ -5992,15 +5961,6 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
     {currentScreen==='games'&&(
       <GamesArcade accentColor={activeAccent} onBack={()=>setCurrentScreen('entertainment')}/>
     )}
-    {currentScreen==='exchange'&&(
-      <SwpExchange
-        apiBase={apiBase}
-        userHash={userHash}
-        sessionToken={getSessionToken()||''}
-        accent={activeAccent}
-        onBack={()=>setCurrentScreen('home')}
-      />
-    )}
     {currentScreen==='assistant'&&(
       <AccessibilityAssistant
         accent={activeAccent}
@@ -6072,7 +6032,7 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
       boxShadow:`inset 0 0 0 1px ${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.03)'}`}}/>
 
     {/* Боковое меню */}
-    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onEntertainment={()=>setCurrentScreen('entertainment')} onDesign={()=>setShowDesignModal(true)} onExchange={()=>setCurrentScreen('exchange')} onAssistant={()=>setCurrentScreen('assistant')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} onContacts={()=>setCurrentScreen('contacts')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
+    <SideMenu open={showSideMenu} onClose={()=>setShowSideMenu(false)} onOldMode={onOldMode} onLogout={onLogout} onEntertainment={()=>setCurrentScreen('entertainment')} onDesign={()=>setShowDesignModal(true)} onAssistant={()=>setCurrentScreen('assistant')} onClips={()=>setCurrentScreen('clips')} onEvents={()=>setCurrentScreen('events')} onPetya={()=>setCurrentScreen('assistants')} onDocuments={()=>setCurrentScreen('documents')} onContacts={()=>setCurrentScreen('contacts')} c={c} ringtoneId={ringtoneId} onRingtoneChange={(id)=>setRingtoneId(id as RingtoneId)}/>
 
     {/* Шит поделиться */}
     <AnimatePresence>
@@ -7592,106 +7552,6 @@ export default function SwaipHome({userHash,apiBase,sessionToken:propToken,onLog
                 onCreateStory={()=>{setShowStoryEditor(true);setStoryError(null);setStorySuccess(false);setStoryTab('image');}}
               />
             </div>
-            {/* ══ ЕЖЕДНЕВНЫЙ ЧЕЛЛЕНДЖ ══ */}
-            {dailyChallenge&&(
-              <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}}
-                style={{background:`linear-gradient(135deg,${activeAccent}22,${activeAccent}0a)`,
-                  border:`1px solid ${activeAccent}44`,borderRadius:16,marginBottom:10,overflow:'hidden',cursor:'pointer'}}
-                onClick={()=>setShowDCDetail(v=>!v)}>
-                <div style={{padding:'12px 14px',display:'flex',alignItems:'center',gap:12}}>
-                  <motion.span animate={{rotate:[0,15,-15,0],scale:[1,1.2,1]}} transition={{repeat:Infinity,duration:4,ease:'easeInOut'}}
-                    style={{fontSize:28,flexShrink:0}}>{dailyChallenge.emoji}</motion.span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
-                      <span style={{fontSize:9,fontWeight:900,color:activeAccent,letterSpacing:'0.12em',textTransform:'uppercase'}}>ЕЖЕДНЕВНЫЙ ЧЕЛЛЕНДЖ</span>
-                      {challengeCompleted===new Date().toDateString()&&<span style={{fontSize:9,background:'#4ade8044',color:'#4ade80',borderRadius:20,padding:'1px 6px',fontWeight:700}}>✓ Выполнен</span>}
-                    </div>
-                    <div style={{fontSize:14,fontWeight:800,color:c.light,lineHeight:1.2}}>{dailyChallenge.title}</div>
-                  </div>
-                  <span style={{fontSize:14,color:c.sub,flexShrink:0}}>{showDCDetail?'▲':'▼'}</span>
-                </div>
-                {showDCDetail&&(
-                  <div style={{borderTop:`1px solid ${activeAccent}22`,padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
-                    <div style={{fontSize:13,color:c.mid,lineHeight:1.6}}>{dailyChallenge.description}</div>
-                    <div style={{fontSize:11,color:activeAccent,fontWeight:700}}>#{dailyChallenge.hashtag}</div>
-                    <div style={{display:'flex',gap:8}}>
-                      <motion.button whileTap={{scale:0.96}} onClick={e=>{e.stopPropagation();setChallengeCompleted(new Date().toDateString());}}
-                        style={{flex:1,padding:'9px',borderRadius:10,background:challengeCompleted===new Date().toDateString()?'#4ade8033':'none',
-                          border:`1.5px solid ${challengeCompleted===new Date().toDateString()?'#4ade80':'rgba(255,255,255,0.15)'}`,
-                          color:challengeCompleted===new Date().toDateString()?'#4ade80':c.mid,fontWeight:700,fontSize:12,cursor:'pointer'}}>
-                        {challengeCompleted===new Date().toDateString()?'✓ Выполнено!':'✓ Выполнил(а)'}
-                      </motion.button>
-                      <motion.button whileTap={{scale:0.96}} onClick={e=>{e.stopPropagation();setShowInput(true);}}
-                        style={{flex:1,padding:'9px',borderRadius:10,background:activeAccent,border:'none',
-                          color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
-                        ✏️ Поделиться
-                      </motion.button>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-            {/* ══ НАСТРОЕНИЕ ДНЯ ══ */}
-            {(()=>{
-              const MOOD_EMOJIS=['😊','😎','🥳','😴','😤','😢','🤩','😌','🔥','💪','🤔','😂'];
-              return(
-              <div style={{background:c.card,borderRadius:16,marginBottom:10,border:`1px solid ${c.border}`,overflow:'hidden'}}>
-                <div style={{padding:'10px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <span style={{fontSize:11,fontWeight:900,color:activeAccent,letterSpacing:'0.1em',textTransform:'uppercase'}}>🌤 Настроение дня</span>
-                  {myMood&&<motion.button whileTap={{scale:0.9}} onClick={()=>{const st=localStorage.getItem('swaip_session')||'';fetch(`${window.location.origin}/api/moods`,{method:'DELETE',headers:{'x-session-token':st}}).then(()=>setMyMood(null)).catch(()=>{});}} style={{background:'none',border:'none',color:c.sub,fontSize:11,cursor:'pointer',padding:'2px 6px'}}>✕</motion.button>}
-                </div>
-                {/* Моё настроение */}
-                <div style={{padding:'0 14px 10px',display:'flex',alignItems:'center',gap:8}}>
-                  {myMood?(
-                    <div style={{display:'flex',alignItems:'center',gap:8,flex:1}}>
-                      <span style={{fontSize:28}}>{myMood.emoji}</span>
-                      <div>
-                        <div style={{fontSize:12,fontWeight:700,color:c.light}}>Моё настроение</div>
-                        {myMood.text&&<div style={{fontSize:11,color:c.sub}}>{myMood.text}</div>}
-                      </div>
-                      <motion.button whileTap={{scale:0.93}} onClick={()=>setShowFeedMoodPicker(v=>!v)} style={{marginLeft:'auto',background:`${activeAccent}22`,border:`1px solid ${activeAccent}44`,borderRadius:8,padding:'5px 10px',color:activeAccent,fontSize:11,fontWeight:700,cursor:'pointer'}}>Изменить</motion.button>
-                    </div>
-                  ):(
-                    <motion.button whileTap={{scale:0.95}} onClick={()=>setShowFeedMoodPicker(v=>!v)}
-                      style={{flex:1,padding:'9px 14px',borderRadius:12,background:`${activeAccent}11`,border:`1.5px dashed ${activeAccent}55`,
-                        color:activeAccent,fontWeight:700,fontSize:13,cursor:'pointer'}}>+ Поделиться настроением</motion.button>
-                  )}
-                </div>
-                {/* Пикер */}
-                {showFeedMoodPicker&&(
-                  <div style={{padding:'0 14px 12px'}}>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:8}}>
-                      {MOOD_EMOJIS.map(em=>(
-                        <motion.button key={em} whileTap={{scale:0.85}} onClick={()=>{
-                          const st=localStorage.getItem('swaip_session')||localStorage.getItem('swaip_session_token')||'';
-                          const moodText=(document.getElementById('moodTextInput') as HTMLInputElement|null)?.value||'';
-                          fetch(`${window.location.origin}/api/moods`,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':st},body:JSON.stringify({emoji:em,text:moodText})})
-                            .then(r=>r.ok?r.json():null).then((d:any)=>{if(d?.mood){setMyMood({emoji:d.mood.emoji,text:d.mood.text});setShowFeedMoodPicker(false);}}).catch(()=>{});
-                        }} style={{fontSize:24,background:'none',border:'none',cursor:'pointer',padding:'2px'}}>{em}</motion.button>
-                      ))}
-                    </div>
-                    <input id="moodTextInput" placeholder="Как дела? (необязательно)" maxLength={100}
-                      style={{width:'100%',padding:'8px 10px',borderRadius:10,border:`1px solid ${c.border}`,background:c.cardAlt,
-                        color:c.light,fontSize:12,fontFamily:'"Montserrat",sans-serif',outline:'none',boxSizing:'border-box'}}/>
-                  </div>
-                )}
-                {/* Настроения друзей */}
-                {friendMoods.length>0&&(
-                  <div style={{padding:'0 14px 12px',borderTop:`1px solid ${c.border}`}}>
-                    <div style={{fontSize:10,fontWeight:700,color:c.sub,letterSpacing:'0.08em',textTransform:'uppercase',margin:'8px 0 6px'}}>Друзья сейчас</div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                      {friendMoods.slice(0,8).map(fm=>(
-                        <div key={fm.userHash} style={{display:'flex',alignItems:'center',gap:4,background:c.cardAlt,borderRadius:20,padding:'4px 10px',border:`1px solid ${c.border}`}}>
-                          <span style={{fontSize:16}}>{fm.emoji}</span>
-                          <span style={{fontSize:11,color:c.mid,fontWeight:600,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fm.userName}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              );
-            })()}
 
             {/* ══ ОПРОСЫ ══ */}
             {feedPolls.length>0&&feedPolls.slice(0,3).map((poll:any)=>(
@@ -10822,11 +10682,6 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   /* Викторина */
   const [showQuiz,setShowQuiz]=useState(false);
   const [quizCorrect,setQuizCorrect]=useState(0);
-  /* Челлендж */
-  const [showChallenge,setShowChallenge]=useState(false);
-  const [challengeTitle,setChallengeTitle]=useState('');
-  const [challengeDeadline,setChallengeDeadline]=useState('');
-  const [challengeHashtag,setChallengeHashtag]=useState('');
   /* Хештеги */
   const [showHashtags,setShowHashtags]=useState(false);
   const [postHashtags,setPostHashtags]=useState<string[]>([]);
@@ -10982,7 +10837,7 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
   const stopSelfieRec=()=>{selfieRecRef.current?.stop();setSelfieRec(false);};
   const discardSelfie=()=>{selfieStreamRef.current?.getTracks().forEach(t=>t.stop());selfieStreamRef.current=null;if(selfiePrev){URL.revokeObjectURL(selfiePrev);setSelfiePrev(null);}setSelfieBlob(null);};
 
-  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPlaylistTrack(null);setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);setPostIsAnonVoting(false);setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');setShowGeo(false);setPostGeo(null);postImages.forEach(x=>URL.revokeObjectURL(x.url));setPostImages([]);setShowCarousel(false);setShowLinkPreview(false);setLinkUrl('');setLinkPreview(null);setShowQuestion(false);setPostQuestion('');setShowQuiz(false);setQuizCorrect(0);setShowChallenge(false);setChallengeTitle('');setChallengeDeadline('');setChallengeHashtag('');setShowHashtags(false);setPostHashtags([]);setHashtagInput('');setShowMentions(false);setMentionQ('');setMentionRes([]);setPostMentions([]);setShowActivity(false);setActivityType('movie');setActivityTitle('');setPostDisableComments(false);setPostDisableRepost(false);setPostEnableTTS(false);setPostEnableStats(false);setShowAddMenu(false);setShowBgMusic(false);setPostBgMusic(null);if(bgMusPreviewRef.current){bgMusPreviewRef.current.pause();bgMusPreviewRef.current=null;}setBgMusPreviewId(null);};
+  const reset=()=>{setText('');setVoiceBlob(null);setVoiceUrl(null);setVoiceRec(false);clearImg();clearVid();setDocFiles([]);clearMusic();setPlaylistTrack(null);setPostHasBooking(false);setPostBookingSlots([]);setPostBookingLabel('Записаться');setPostBookingTimeInput('');setPostHasPoll(false);setPollQuestion('');setPollOptions(['','']);setShowCoAuthor(false);setCoAuthorQ('');setCoAuthorRes([]);setPostCoAuthor(null);setPostIsAnonVoting(false);setShowTimer(false);setPostPublishAt('');setPostExpiresAt('');setShowGeo(false);setPostGeo(null);postImages.forEach(x=>URL.revokeObjectURL(x.url));setPostImages([]);setShowCarousel(false);setShowLinkPreview(false);setLinkUrl('');setLinkPreview(null);setShowQuestion(false);setPostQuestion('');setShowQuiz(false);setQuizCorrect(0);setShowHashtags(false);setPostHashtags([]);setHashtagInput('');setShowMentions(false);setMentionQ('');setMentionRes([]);setPostMentions([]);setShowActivity(false);setActivityType('movie');setActivityTitle('');setPostDisableComments(false);setPostDisableRepost(false);setPostEnableTTS(false);setPostEnableStats(false);setShowAddMenu(false);setShowBgMusic(false);setPostBgMusic(null);if(bgMusPreviewRef.current){bgMusPreviewRef.current.pause();bgMusPreviewRef.current=null;}setBgMusPreviewId(null);};
 
   const handlePost=async()=>{
     const validPoll=postHasPoll&&pollQuestion.trim()&&pollOptions.filter(o=>o.trim()).length>=2;
@@ -11018,7 +10873,6 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
       const linkExtra=(showLinkPreview&&linkPreview)?{linkPreview}:{};
       const questionExtra=(showQuestion&&postQuestion.trim())?{question:postQuestion.trim()}:{};
       const quizExtra=(showQuiz&&validPoll)?{quiz:{correctIndex:quizCorrect}}:{};
-      const challengeExtra=(showChallenge&&challengeTitle.trim())?{challenge:{title:challengeTitle.trim(),deadline:challengeDeadline||null,hashtag:challengeHashtag||null}}:{};
       const hashtagExtra=postHashtags.length?{hashtags:postHashtags}:{};
       const mentionExtra=postMentions.length?{mentions:postMentions.map(m=>({hash:m.hash,name:m.name}))}:{};
       const activityExtra=(showActivity&&activityTitle.trim())?{activity:{type:activityType,title:activityTitle.trim()}}:{};
@@ -11029,11 +10883,11 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
         ...(postEnableStats?{enableStats:true}:{}),
       };
       const bgMusicExtra=postBgMusic?{bgMusicUrl:postBgMusic.url,bgMusicLabel:`${postBgMusic.emoji} ${postBgMusic.label}`}:{};
-      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||(playlistTrack?.url)||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra,...bgMusicExtra};
+      const postData={content:apiContent,imageUrl:imgUrl||undefined,videoUrl:vidUrl||undefined,audioUrl:musUrl||(playlistTrack?.url)||undefined,docUrls:docs.length?docs:undefined,...bookingExtra,...pollExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra,...bgMusicExtra};
       try{
         const r=await fetch(`${window.location.origin}/api/broadcasts`,{
           method:'POST',headers:{'Content-Type':'application/json','x-session-token':getSessionToken()||''},
-          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...((musUrl||playlistTrack?.url)?{audioUrl:musUrl||playlistTrack!.url}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra,...coAuthorExtra,...anonExtra,...timerExtra,...geoExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...challengeExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra,...bgMusicExtra}),
+          body:JSON.stringify({content:apiContent,authorMode,...(imgUrl?{imageUrl:imgUrl}:{}),...(vidUrl?{videoUrl:vidUrl}:{}),...(docs.length?{docUrls:docs}:{}),...((musUrl||playlistTrack?.url)?{audioUrl:musUrl||playlistTrack!.url}:{}),...(postHasBooking?{hasBooking:true,bookingLabel:postBookingLabel||'Записаться',bookingSlots:postBookingSlots}:{}),...pollExtra,...coAuthorExtra,...anonExtra,...timerExtra,...geoExtra,...carouselExtra,...linkExtra,...questionExtra,...quizExtra,...hashtagExtra,...mentionExtra,...activityExtra,...flagsExtra,...bgMusicExtra}),
         });
         if(r.ok){const created=await r.json().catch(()=>null);setOpen(false);reset();onPostCreated({...postData,...created});return;}
       }catch{}
@@ -11189,7 +11043,6 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
               {id:'poll',     emo:'📊', lbl:'Опрос',                clr:'#a5b4fc', on:postHasPoll,        toggle:()=>setPostHasPoll(s=>!s)},
               {id:'quiz',     emo:'🎯', lbl:'Викторина / квиз',     clr:'#fde047', on:showQuiz,          toggle:()=>setShowQuiz(s=>!s), need:'poll' as const},
               {id:'question', emo:'❓', lbl:'Вопрос подписчикам',   clr:'#f472b6', on:showQuestion,      toggle:()=>setShowQuestion(s=>!s)},
-              {id:'challenge',emo:'🏆', lbl:'Челлендж',            clr:'#f97316', on:showChallenge,     toggle:()=>setShowChallenge(s=>!s)},
               {id:'link',     emo:'🔗', lbl:'Превью ссылки',        clr:'#60a5fa', on:showLinkPreview,   toggle:()=>setShowLinkPreview(s=>!s)},
               {id:'activity', emo:'🎬', lbl:'Активность',          clr:'#fbbf24', on:showActivity,      toggle:()=>setShowActivity(s=>!s)},
               {id:'mention',  emo:'🏷️', lbl:'Отметить людей',       clr:'#a78bfa', on:showMentions||postMentions.length>0, toggle:()=>setShowMentions(s=>!s)},
@@ -11585,28 +11438,6 @@ function PostComposerFull({authorMode,onPostCreated,avatarUrl='',c,accent='#a855
                     <span style={{flex:1}}>{o}</span>
                   </button>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── Челлендж ── */}
-          {showChallenge&&(
-            <div style={{borderRadius:12,border:'1px solid rgba(249,115,22,0.4)',background:'rgba(249,115,22,0.05)',overflow:'hidden',transition:'all 0.25s'}}>
-              <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
-                <span style={{fontSize:14}}>🏆</span>
-                <span style={{flex:1,fontSize:12,color:'#f97316',fontWeight:700,fontFamily:'"Montserrat",sans-serif'}}>Челлендж</span>
-                <button onClick={()=>{setShowChallenge(false);setChallengeTitle('');setChallengeDeadline('');setChallengeHashtag('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:14,cursor:'pointer',lineHeight:1,padding:'2px 6px'}}>✕</button>
-              </div>
-              <div style={{padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
-                <input value={challengeTitle} onChange={e=>setChallengeTitle(e.target.value)} placeholder="Название челленджа: например, 7 дней без сахара" maxLength={80}
-                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(249,115,22,0.3)',color:'#fff',fontSize:12,fontWeight:700,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
-                <input value={challengeHashtag} onChange={e=>setChallengeHashtag(e.target.value.replace(/^#/,'').replace(/\s+/g,'_'))} placeholder="Хештег для участников: #7днейбезсахара" maxLength={40}
-                  style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(249,115,22,0.3)',color:'#fff',fontSize:12,outline:'none',fontFamily:'"Montserrat",sans-serif'}}/>
-                <div>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:4,fontWeight:600}}>⏳ Дедлайн (когда подвести итоги):</div>
-                  <input type="datetime-local" value={challengeDeadline} min={new Date().toISOString().slice(0,16)} onChange={e=>setChallengeDeadline(e.target.value)}
-                    style={{width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(249,115,22,0.3)',color:'#fff',fontSize:12,outline:'none',colorScheme:'dark'} as React.CSSProperties}/>
-                </div>
               </div>
             </div>
           )}
