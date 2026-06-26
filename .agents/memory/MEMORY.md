@@ -1,0 +1,1 @@
+- [SWAIP upload testing pitfall](swaip-upload-pitfall.md) — media upload routes read RAW request body, not multipart; curl -F gives a misleading 500. Test with --data-binary.
