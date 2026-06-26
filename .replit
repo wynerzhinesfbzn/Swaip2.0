@@ -24,3 +24,8 @@ timeoutMs = 20000
 [userenv.development]
 AI_INTEGRATIONS_OPENAI_BASE_URL = "https://placeholder.local/v1"
 AI_INTEGRATIONS_OPENAI_API_KEY = "placeholder-key"
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BA63RAqlqgCzxvlSdkA2tqoUVx67NgdEyRCEmSnS6balh4tyNt20e-cyk8y0HycrWnYKxjXgGaa9wnRautrHZ-k"
+VAPID_PRIVATE_KEY = "T5RakiH6mYyBTUbGG9sJ9W_9h_ldn2SjQC6V9w4Jjcs"
+VAPID_EMAIL = "mailto:admin@swaip.app"

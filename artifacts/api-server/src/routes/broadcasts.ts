@@ -241,6 +241,7 @@ router.get("/broadcasts", async (req, res) => {
 router.get("/broadcasts/:id", async (req, res) => {
   try {
     const id = parseInt(req.params['id'] as string);
+    if (isNaN(id)) { res.status(404).json({ error: 'not found' }); return; }
     const token = getSessionToken(req);
     const userHash = token ? await resolveSession(token) : null;
 
