@@ -1,0 +1,126 @@
+
+Library
+Tasks
+Publishing
+Production
+Status
+Gobindo published 5 minutes ago
+Visibility
+Public
+Geography
+North America
+Type
+Autoscale
+(2 vCPU / 4 GiB RAM / 3 Max)
+See all usage
+Database
+Production database connected
+Your production database is ready! Your app can now save and manage live user data securely.
+SWAIP
+Swaip22.replit.app 
+d4ba006b
+gmondol237
+Gobindo
+published 37 minutes ago
+23fb0127
+gmondol237
+Gobindo
+published about 1 hour ago
+d0d88dc0
+gmondol237
+Gobindo
+published about 15 hours ago
+8ee646c1
+gmondol237
+Gobindo
+published about 16 hours ago
+a4c8a984
+gmondol237
+Gobindo
+published about 16 hours ago
+6832908e
+gmondol237
+Gobindo
+published about 17 hours ago
+ecda4281
+gmondol237
+Gobindo
+published about 17 hours ago
+73edbe96
+gmondol237
+Gobindo
+published about 17 hours ago
+db2b2f31
+gmondol237
+Gobindo
+published about 18 hours ago
+29ec7986
+gmondol237
+Gobindo
+published about 18 hours ago
+a32a5534
+gmondol237
+Gobindo
+published about 20 hours ago
+a209648b
+gmondol237
+Gobindo
+published about 20 hours ago
+88ac8cc7
+gmondol237
+Gobindo
+published about 20 hours ago
+0bac3fa8
+gmondol237
+Gobindo
+published 1 day ago
+8e66929b
+gmondol237
+Gobindo
+published 1 day ago
+64023319
+gmondol237
+Gobindo
+published 1 day ago
+c150b898
+gmondol237
+Gobindo
+published 1 day ago
+dad33226
+gmondol237
+Gobindo
+published 1 day ago
+a5e8b887
+gmondol237
+Gobindo
+published 1 day ago
+c3e619a9
+gmondol237
+Gobindo
+published 1 day ago
+Preview
+Agent
+Gobindo Mondol started: Save GitHub token so pushes work automatically in the future
+Так посмотри на соцсети ВКонтакте, телеграм чего не хватает у нас проштудируй свой мозг умного супер умного разработчика и выпиши мне нотне делай только вместе обсудим. Давай даю полное свобода мыслей!
+
+35 minutes ago
+Подчеркну в свайп у которого только новый дизайн не старый
+
+34 minutes ago
+Хорошо, даю полную картину. Изучил кодовую базу SWAIP (новый дизайн), VK и Telegram — вот моя честная аналитика:
+
+🔴 Критично — без этого соцсеть "сломана"
+1. Push-уведомления
+Сейчас уведомления только в приложении. Пользователь закрыл вкладку — ничего не получит. VK/Telegram живут на push. Без этого retention нулевой.
+
+2. Онлайн-статус / "был(а) N минут назад"
+Не видно: читает ли тебя собеседник, онлайн ли он. Базовая социальная механика — её нет.
+
+3. Ответ на конкретное сообщение (Reply/Thread)
+В чатах нельзя ответить на конкретную реплику. В Telegram это абсолютный стандарт.
+
+4. Редактирование и удаление сообщений у обеих сторон
+Отправил с опечаткой — всё, навсегда. VK и Telegram давно это решили.
+
+5. Реакции на сообщения в чатах
+Лайкнуть конкретное сообщение эмодзи — быстрый ответ без слов. Сейчас есть только на постах.

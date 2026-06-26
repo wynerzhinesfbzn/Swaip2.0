@@ -1,0 +1,106 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import path from "path";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+
+const rawPort = process.env.PORT ?? "18921";
+const port = Number(rawPort);
+const basePath = process.env.BASE_PATH ?? "/";
+
+export default defineConfig({
+  base: basePath,
+  plugins: [
+    react(),
+    tailwindcss(),
+    runtimeErrorOverlay(),
+    ...(process.env.NODE_ENV !== "production" &&
+    process.env.REPL_ID !== undefined
+      ? [
+          await import("@replit/vite-plugin-cartographer").then((m) =>
+            m.cartographer({
+              root: path.resolve(import.meta.dirname, ".."),
+            }),
+          ),
+          await import("@replit/vite-plugin-dev-banner").then((m) =>
+            m.devBanner(),
+          ),
+        ]
+      : []),
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "src"),
+      "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+      "@noble/curves/ed25519": path.resolve(import.meta.dirname, "node_modules/@noble/curves/ed25519.js"),
+    },
+    dedupe: ["react", "react-dom"],
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react-dom/client",
+      "framer-motion",
+      "wouter",
+      "lucide-react",
+    ],
+    force: false,
+  },
+  esbuild: {
+    target: "es2020",
+    legalComments: "none",
+  },
+  root: path.resolve(import.meta.dirname),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('framer-motion')) return 'vendor-framer';
+            if (id.includes('tldraw'))        return 'vendor-tldraw';
+            if (id.includes('livekit'))       return 'vendor-livekit';
+            if (id.includes('pdfjs-dist'))    return 'vendor-pdf';
+            if (id.includes('@noble'))        return 'vendor-noble';
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
+  server: {
+    port,
+    host: "0.0.0.0",
+    allowedHosts: true,
+    fs: {
+      strict: true,
+      deny: ["**/.*"],
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true,
+        proxyTimeout: 300000,
+        timeout: 300000,
+        configure: (proxy) => {
+          proxy.on('error', (_err, _req, res) => {
+            if (res && !res.headersSent) {
+              (res as import('http').ServerResponse).writeHead(502);
+              res.end('Proxy error');
+            }
+          });
+        },
+      },
+    },
+  },
+  preview: {
+    port,
+    host: "0.0.0.0",
+    allowedHosts: true,
+  },
+});
